@@ -4,57 +4,70 @@
 #include "SimInfo.h"
 #include "Init.h"
 #include "ComputeDt.h"
-#include "SaveSolution.h"
+#include "IOManager.h"
 #include "Update.h"
 
-using namespace fv1d;
+using namespace fv2d;
 
 int main(int argc, char **argv) {
-  read_inifile(argv[1]);
+  // Initializing Kokkos
+  Kokkos::initialize(argc, argv);
+  {
+    // Reading parameters from .ini file
+    auto params = readInifile(argv[1]);
 
-  real_t t = 0.0;
-  int ite = 0;
+    // Allocating main views
+    Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);
+    Array Unew = Kokkos::View<real_t***>("Unew", params.Nty, params.Ntx, Nfields);
+    Array Q    = Kokkos::View<real_t***>("Q",    params.Nty, params.Ntx, Nfields);
 
-  Array U, Q;
-  allocate_array(U);
-  allocate_array(Q);
-  
-  init(Q);
-  primToCons(Q, U);
 
-  real_t dt;
-  t = 0.0;
-  real_t next_save = 0.0;
-  int next_log = 0;
-
-  while (t + epsilon < tend) {
-    Array Unew;
-    allocate_array(Unew);
-    copy_array(Unew, U);
+    // Misc vars for iteration
+    real_t t = 0.0;
+    int ite = 0;
     
-    bool save_needed = (t + epsilon > next_save);
+    // Initializing primitive variables
+    InitFunctor init(params);
+    UpdateFunctor update(params);
+    ComputeDtFunctor computeDt(params);
+    IOManager ioManager(params);
 
-    consToPrim(U, Q);
-    dt = compute_dt(Q, (ite == 0 ? save_freq : next_save-t), t, next_log == 0);
-    if (next_log == 0)
-      next_log = log_frequency;
-    else
-      next_log--;
+    init.init(Q);
+    primToCons(Q, U, params);
 
-    if (save_needed) {
-      std::cout << " - Saving at time " << t << std::endl;
-      save_solution(Q, ite++, t, dt);
-      next_save += save_freq;
+    real_t dt;
+    t = 0.0;
+    real_t next_save = 0.0;
+    int next_log = 0;
+
+    while (t + params.epsilon < params.tend) {
+      Kokkos::deep_copy(Unew, U);
+      
+      bool save_needed = (t + params.epsilon > next_save);
+
+      consToPrim(U, Q, params);
+      dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
+      if (next_log == 0)
+        next_log = params.log_frequency;
+      else
+        next_log--;
+
+      if (save_needed) {
+        std::cout << " - Saving at time " << t << std::endl;
+        ioManager.saveSolution(Q, ite++, t, dt);
+        next_save += params.save_freq;
+      }
+
+      update.update(Q, Unew, dt);
+
+      Kokkos::deep_copy(U, Unew);
+
+      t += dt;
     }
 
-    update(Q, Unew, dt);
-
-    copy_array(U, Unew);
-
-    t += dt;
+    ioManager.saveSolution(Q, ite++, t, dt);
   }
-
-  save_solution(Q, ite++, t, dt);
+  Kokkos::finalize();
 
   return 0;
 }

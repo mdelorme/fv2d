@@ -1,0 +1,1 @@
+clang++ -Wno-unknown-cuda-version  --stdlib=libc++ $@

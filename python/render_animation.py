@@ -10,12 +10,14 @@ if os.path.exists('render'):
   shutil.rmtree('render')
 os.mkdir('render')
 
+show_grid = False
+
 field = 'rho'
 if '--field' in sys.argv:
   i = sys.argv.index('--field')
   field = sys.argv[i+1]
 
-f = h5py.File('run_bak.h5', 'r')
+f = h5py.File('run.h5', 'r')
 Nf = len(f)-2
 
 x = np.array(f['x'])
@@ -28,7 +30,10 @@ xmax=x.max()
 ymin=y.min()
 ymax=y.max()
 
-ext = [xmin, xmax, ymin, ymax]
+dx = x[1]-x[0]
+dy = y[1]-y[0]
+
+ext = [xmin-0.5*dx, xmax+0.5*dx, ymin-0.5*dy, ymax+0.5*dy]
 
 
 def plot_field(field, cax, i):
@@ -38,6 +43,17 @@ def plot_field(field, cax, i):
 
   cax.imshow(arr, extent=ext, origin='lower')
   cax.set_title(field)
+
+  if show_grid:
+    cax.set_xticks(np.arange(ext[0], ext[1], dx), minor=True)
+    cax.set_yticks(np.arange(ext[2], ext[3], dy), minor=True)
+
+    # Gridlines based on minor ticks
+    cax.grid(which='minor', color='k', linestyle='-', linewidth=1)
+
+    # Remove minor ticks
+    cax.tick_params(which='minor', bottom=False, left=False)
+
   
 print('Rendering animation')
 for i in tqdm(range(Nf)):

@@ -1,0 +1,1 @@
+get_array = lambda f, x : np.array(f[x])

@@ -28,16 +28,26 @@ xmax=x.max()
 ymin=y.min()
 ymax=y.max()
 
-mosaic = '''AABBCC
-.DDEE.'''
+mosaic = '''A
+B
+C
+D
+E'''
 
 ext = [xmin, xmax, ymin, ymax]
 
 def get_array(field, ite):
-  if field == 'T':
+  if field == 'T-<T>':
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
-    return prs / rho
+    T = prs / rho
+    Tbar = np.average(T, axis=1)
+    Tprime = np.tile(Tbar, (Nx, 1)).T
+    return T-Tprime
+  elif field == 'T':
+    rho = get_array('rho', ite)
+    prs = get_array('prs', ite)
+    return T  
   else:
     path = f'ite_{ite}/{field}'
     return np.array(f[path]).reshape((Ny, Nx))
@@ -49,12 +59,12 @@ def plot_field(field, cax, i):
   
 print('Rendering animation')
 for i in tqdm(range(Nf)):
-  fig, ax = plt.subplot_mosaic(mosaic, figsize=(13, 5))
-  plot_field('rho', ax['A'], i)
-  plot_field('prs', ax['B'], i)
-  plot_field('T',   ax['C'], i)
-  plot_field('u',   ax['D'], i)
-  plot_field('v',   ax['E'], i)
+  fig, ax = plt.subplot_mosaic(mosaic, figsize=(13, 10))
+  plot_field('rho',   ax['A'], i)
+  plot_field('prs',   ax['B'], i)
+  plot_field('T-<T>', ax['C'], i)
+  plot_field('u',     ax['D'], i)
+  plot_field('v',     ax['E'], i)
 
   plt.tight_layout()
 

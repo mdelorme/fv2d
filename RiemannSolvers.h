@@ -1,10 +1,11 @@
 #pragma once
 
-namespace fv1d {
+namespace fv2d {
 
-void hll(State &qL, State &qR, State& flux, real_t &pout) {
-  const real_t aL = speed_of_sound(qL);
-  const real_t aR = speed_of_sound(qR);
+KOKKOS_INLINE_FUNCTION
+void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) {
+  const real_t aL = speedOfSound(qL, params);
+  const real_t aR = speedOfSound(qR, params);
 
   // Davis' estimates for the signal speed
   const real_t sminL = qL[IU] - aL;
@@ -12,11 +13,11 @@ void hll(State &qL, State &qR, State& flux, real_t &pout) {
   const real_t sminR = qR[IU] - aR;
   const real_t smaxR = qR[IU] + aR;
 
-  const real_t SL = std::min(sminL, sminR);
-  const real_t SR = std::max(smaxL, smaxR);
+  const real_t SL = fmin(sminL, sminR);
+  const real_t SR = fmax(smaxL, smaxR);
 
-  State FL = compute_flux(qL);
-  State FR = compute_flux(qR);
+  State FL = computeFlux(qL, params);
+  State FR = computeFlux(qR, params);
 
   if (SL >= 0.0) {
     flux = FL;
@@ -27,14 +28,15 @@ void hll(State &qL, State &qR, State& flux, real_t &pout) {
     pout = qR[IP];
   }
   else {
-    State uL = primToCons(qL);
-    State uR = primToCons(qR);
+    State uL = primToCons(qL, params);
+    State uR = primToCons(qR, params);
     pout = 0.5 * (qL[IP] + qR[IP]);
     flux = (SR*FL - SL*FR + SL*SR*(uR-uL)) / (SR-SL);
   } 
 }
 
-void hllc(State &qL, State &qR, State &flux, real_t &pout) {
+KOKKOS_INLINE_FUNCTION
+void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
   const real_t rL = qL[IR];
   const real_t uL = qL[IU];
   const real_t vL = qL[IV];
@@ -45,18 +47,18 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout) {
   const real_t vR = qR[IV];
   const real_t pR = qR[IP];
 
-  const real_t entho = 1.0 / (gamma0-1.0);
+  const real_t entho = 1.0 / (params.gamma0-1.0);
 
   const real_t ekL = 0.5 * rL * (uL * uL + vL * vL);
   const real_t EL  = ekL + pL * entho;
   const real_t ekR = 0.5 * rR * (uR * uR + vR * vR);
   const real_t ER  = ekR + pR * entho;
 
-  const real_t cfastL = speed_of_sound(qL);
-  const real_t cfastR = speed_of_sound(qR);
+  const real_t cfastL = speedOfSound(qL, params);
+  const real_t cfastR = speedOfSound(qR, params);
 
-  const real_t SL = std::min(uL, uR) - std::max(cfastL, cfastR);
-  const real_t SR = std::max(uL, uR) + std::max(cfastL, cfastR);
+  const real_t SL = fmin(uL, uR) - fmax(cfastL, cfastR);
+  const real_t SR = fmax(uL, uR) + fmax(cfastL, cfastR);
 
 
   const real_t rcL = rL*(uL-SL);

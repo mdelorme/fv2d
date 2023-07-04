@@ -1,2 +1,2 @@
 # fv2d
-Small 1D finite volume code for experimentation purposes
+Small 2D finite volume code for experimentation purposes

@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
   Kokkos::initialize(argc, argv);
   {
     // Reading parameters from .ini file
-    auto params = readInifile(argv[1]);
+    Params params = readInifile(argv[1]);
 
     // Allocating main views
     Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);

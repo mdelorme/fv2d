@@ -65,11 +65,17 @@ enum ViscosityMode {
   VSC_CONSTANT
 };
 
+enum GeometryType { 
+  GEO_CARTESIAN,
+  GEO_RADIAL,    // Geometry is radial (cf: Calhoun 2008)
+  GEO_COLELLA,
+};
+
 // Run
 struct Params {
   real_t save_freq;
   real_t tend;
-  std::string filename_out = "run.h5";
+  std::string filename_out = "run";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
@@ -100,6 +106,9 @@ struct Params {
   real_t ymax;
   real_t dx;   // Space step
   real_t dy;
+
+  // Geometry
+  GeometryType geometry_type = GEO_CARTESIAN;
 
   // Run and physics
   real_t epsilon = 1.0e-6;
@@ -180,7 +189,7 @@ Params readInifile(std::string filename) {
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = reader.Get("run", "output_filename", "run.h5");
+  res.filename_out = reader.Get("run", "output_filename", "run");
 
   std::string tmp;
   tmp = reader.Get("run", "boundaries_x", "reflecting");
@@ -217,6 +226,15 @@ Params readInifile(std::string filename) {
 
   res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
 
+  // Geometry
+  tmp = reader.Get("mesh", "geometry", "cartesian");
+  std::map<std::string, GeometryType> geo_map{
+    {"cartesian", GEO_CARTESIAN},
+    {"radial",    GEO_RADIAL},
+    {"colella",   GEO_COLELLA}
+  };
+  res.geometry_type = geo_map[tmp];
+  
   // Physics
   res.epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
   res.gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);

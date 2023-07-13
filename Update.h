@@ -10,23 +10,40 @@ namespace fv2d {
 
 namespace {
   KOKKOS_INLINE_FUNCTION
-  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const Params &params) {
-    State q     = getStateFromArray(Q, i, j);
+  State reconstruct(State q, Array slopes, int i, int j, real_t length, IDir dir, const Params &params) {
     State slope = getStateFromArray(slopes, i, j);
     
     State res;
     switch (params.reconstruction) {
-      case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
+      case PLM: res = q + slope * length; break; // Piecewise Linear
       case PCM_WB: // Piecewise constant + Well-balancing
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
-        res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * params.g * params.dy * 0.5);
+        res[IP] = (dir == IX ? q[IP] : q[IP] + 2.0 * length * q[IR] * params.g * params.dy * 0.5);
         break;
       default:  res = q; // Piecewise Constant
     }
 
-    return swap_component(res, dir);
+    return res;
+    // return swap_component(res, dir);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  State rotate(State q, Pos normale) {
+    State res = q;
+
+    res[IU] =  normale[IX] * q[IU] + normale[IY] * q[IV];
+    res[IV] = -normale[IY] * q[IU] + normale[IX] * q[IV];
+    return res;
+  }
+  KOKKOS_INLINE_FUNCTION
+  State rotate_back(State q, Pos normale) {
+    State res = q;
+
+    res[IU] = normale[IX] * q[IU] - normale[IY] * q[IV];
+    res[IV] = normale[IY] * q[IU] + normale[IX] * q[IV];
+    return res;
   }
 }
 
@@ -36,12 +53,14 @@ public:
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
+  Geometry geometry;
 
   Array slopesX, slopesY;
 
   UpdateFunctor(const Params &params)
     : params(params), bc_manager(params),
-      tc_functor(params), visc_functor(params) {
+      tc_functor(params), visc_functor(params),
+      geometry(params) {
       
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
       slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
@@ -84,6 +103,7 @@ public:
     auto params = this->params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
+    auto geometry = this->geometry;
 
     Kokkos::parallel_for(
       "Update", 
@@ -97,10 +117,59 @@ public:
           int dym = (dir == IY ? -1 : 0);
           int dyp = (dir == IY ?  1 : 0);
 
-          State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
-          State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
-          State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
-          State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
+          ///////////////// Geometry things
+
+          real_t lenL, lenR;
+          Pos normL = geometry.interfaceRot(i, j, dir, &lenL);
+          Pos normR = geometry.interfaceRot(i+dxp, j+dyp, dir, &lenR);
+
+          real_t dLL, dLR, dRL, dRR;
+          {
+            Pos reconsLengthL = geometry.cellReconsLength(i, j, dir);
+            Pos reconsLengthR = geometry.cellReconsLength(i+dxp, j+dyp, dir);
+            dLL = reconsLengthL[0];
+            dLR = reconsLengthL[1];
+            dRL = reconsLengthR[0];
+            dRR = reconsLengthR[1];
+          }
+          
+          State qCL, qCR, qL, qR;
+          {
+            State qC = getStateFromArray(Q, i, j);
+                  qL = getStateFromArray(Q, i+dxm, j+dym);
+                  qR = getStateFromArray(Q, i+dxp, j+dyp);
+
+            #if 1
+            // reconstruction before rotate
+              qCL = reconstruct(qC, slopes, i, j, -dLR, dir, params);
+              qCR = reconstruct(qC, slopes, i, j,  dRL, dir, params);
+              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
+              qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
+
+              qCL = rotate(qCL, normL);
+              qCR = rotate(qCR, normR);
+              qL  = rotate(qL , normL);
+              qR  = rotate(qR , normR);
+            #else
+            // rotate before reconstruction
+              qCL = rotate(qC, normL);
+              qCR = rotate(qC, normR);
+              qL  = rotate(qL , normL);
+              qR  = rotate(qR , normR);
+
+              qCL = reconstruct(qCL, slopes, i, j, -dLR, dir, params);
+              qCR = reconstruct(qCR, slopes, i, j,  dRL, dir, params);
+              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
+              qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
+            #endif
+
+            qCL = swap_component(qCL, dir);
+            qCR = swap_component(qCR, dir);
+            qL  = swap_component(qL , dir);
+            qR  = swap_component(qR , dir);
+          }
+
+          /////////////// end Geometry
 
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
@@ -120,6 +189,12 @@ public:
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);
 
+          fluxL = rotate_back(fluxL, normL);
+          fluxR = rotate_back(fluxR, normR);
+
+          fluxL = lenL * fluxL;
+          fluxR = lenR * fluxR;
+
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
@@ -129,7 +204,7 @@ public:
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
+          un_loc += dt*(fluxL - fluxR) / geometry.cellArea(i,j);
         
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;

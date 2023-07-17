@@ -2,6 +2,7 @@
 
 #include "SimInfo.h"
 #include "RiemannSolvers.h"
+#include "RiemannSolvers_rot.h"
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
@@ -72,16 +73,17 @@ public:
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
     auto params  = this->params;
+    auto geo = this->geometry;
 
     Kokkos::parallel_for(
       "Slopes",
       params.range_slopes,
       KOKKOS_LAMBDA(const int i, const int j) {
         for (int ivar=0; ivar < Nfields; ++ivar) {
-          real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
-          real_t dR = Q(j, i+1, ivar) - Q(j, i, ivar);
-          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar); 
-          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar); 
+          real_t dL = (Q(j, i, ivar)   - Q(j, i-1, ivar)) / geo.cellReconsLengthSlope(i,  j,  IX);
+          real_t dR = (Q(j, i+1, ivar) - Q(j, i, ivar)  ) / geo.cellReconsLengthSlope(i+1,j,  IX);
+          real_t dU = (Q(j, i, ivar)   - Q(j-1, i, ivar)) / geo.cellReconsLengthSlope(i,  j,  IY); 
+          real_t dD = (Q(j+1, i, ivar) - Q(j, i, ivar)  ) / geo.cellReconsLengthSlope(i,  j+1,IY); 
 
           auto minmod = [](real_t dL, real_t dR) -> real_t {
             if (dL*dR < 0.0)
@@ -139,10 +141,10 @@ public:
                   qL = getStateFromArray(Q, i+dxm, j+dym);
                   qR = getStateFromArray(Q, i+dxp, j+dyp);
 
-            #if 1
+            #if 0
             // reconstruction before rotate
-              qCL = reconstruct(qC, slopes, i, j, -dLR, dir, params);
-              qCR = reconstruct(qC, slopes, i, j,  dRL, dir, params);
+              qCL = reconstruct(qC, slopes, i,     j,     -dLR, dir, params);
+              qCR = reconstruct(qC, slopes, i,     j,      dRL, dir, params);
               qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
 
@@ -157,8 +159,8 @@ public:
               qL  = rotate(qL , normL);
               qR  = rotate(qR , normR);
 
-              qCL = reconstruct(qCL, slopes, i, j, -dLR, dir, params);
-              qCR = reconstruct(qCR, slopes, i, j,  dRL, dir, params);
+              qCL = reconstruct(qCL, slopes, i,    j,     -dLR, dir, params);
+              qCR = reconstruct(qCR, slopes, i,    j,      dRL, dir, params);
               qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
             #endif

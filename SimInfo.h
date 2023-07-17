@@ -109,6 +109,7 @@ struct Params {
 
   // Geometry
   GeometryType geometry_type = GEO_CARTESIAN;
+  real_t geometry_colella_param = 0.6 / (2.0 * M_PI);
 
   // Run and physics
   real_t epsilon = 1.0e-6;
@@ -234,6 +235,7 @@ Params readInifile(std::string filename) {
     {"colella",   GEO_COLELLA}
   };
   res.geometry_type = geo_map[tmp];
+  res.geometry_colella_param = reader.GetFloat("mesh", "geometry_colella_param", 0.6 / (2.0 * M_PI));
   
   // Physics
   res.epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);

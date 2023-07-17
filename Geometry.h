@@ -129,12 +129,16 @@ public:
   Pos cellReconsLength(int i, int j, IDir dir) const
   {
     // return {0.5,0.5}; // reconstruct like a cartesian grid
-
+  
     // TODO: verif ---- 'refection' on boundary 
-    #if 0
-    if(i <= params.ibeg + 1 || i > params.iend ||
-       j <= params.jbeg + 1 || j > params.jend )
-        return {0.5, 0.5};
+    #if 1
+      if(i <= params.ibeg + 1 || i > params.iend ||
+        j <= params.jbeg + 1 || j > params.jend )
+          return {0.5, 0.5};
+    #elif 0
+      if(i <= params.ibeg + 1 || i > params.iend ||
+        j <= params.jbeg + 1 || j > params.jend )
+          return {0.5, 0.5};
     #endif
 
     Pos l, c, r;
@@ -170,8 +174,16 @@ public:
       dR = sqrt(x*x + y*y);
     }
 
-    return {dL / (dL + dR),
-            dR / (dL + dR)};
+    return {dL, dR};
+    // return {dL / (dL + dR),
+    //         dR / (dL + dR)};
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  real_t cellReconsLengthSlope(int i, int j, IDir dir) const
+  {
+    Pos p = cellReconsLength(i, j, dir);
+    return p[0] + p[1];
   }
 
   private:

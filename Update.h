@@ -2,7 +2,6 @@
 
 #include "SimInfo.h"
 #include "RiemannSolvers.h"
-#include "RiemannSolvers_rot.h"
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
@@ -111,6 +110,7 @@ public:
       "Update", 
       params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
+        const real_t cellArea = geometry.cellArea(i,j);
         // Lambda to update the cell along a direction
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
@@ -141,7 +141,7 @@ public:
                   qL = getStateFromArray(Q, i+dxm, j+dym);
                   qR = getStateFromArray(Q, i+dxp, j+dyp);
 
-            #if 0
+            #if 1
             // reconstruction before rotate
               qCL = reconstruct(qC, slopes, i,     j,     -dLR, dir, params);
               qCR = reconstruct(qC, slopes, i,     j,      dRL, dir, params);
@@ -206,7 +206,7 @@ public:
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt*(fluxL - fluxR) / geometry.cellArea(i,j);
+          un_loc += dt*(fluxL - fluxR) / cellArea;
         
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;

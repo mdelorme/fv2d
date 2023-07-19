@@ -132,13 +132,16 @@ public:
       file.createDataSet("y", y);
 
       // -- center pos
-      // x.clear(); y.clear();
-      // for (int i=params.ibeg; i < params.iend; ++i)
-      //   x.push_back(((i-params.ibeg)+0.5) * params.dx);
-      // file.createDataSet("center_x", x);
-      // for (int j=params.jbeg; j < params.jend; ++j)
-      //   y.push_back(((j-params.jbeg)+0.5) * params.dy);
-      // file.createDataSet("center_y", y);
+      x.clear(); y.clear();
+      for (int j=params.jbeg; j < params.jend; ++j)
+        for (int i=params.ibeg; i < params.iend; ++i)
+        {
+          Pos pos = geo.mapc2p_center(i, j); // curvilinear
+          x.push_back(pos[IX]);
+          y.push_back(pos[IY]);
+        }
+      file.createDataSet("center_x", x);
+      file.createDataSet("center_y", y);
 
       fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(params));
       fprintf(xdmf_fd, "%s", str_xdmf_footer);

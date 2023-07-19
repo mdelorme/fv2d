@@ -23,13 +23,13 @@ namespace fv2d {
     }
 
     KOKKOS_INLINE_FUNCTION
-    Pos map_colella(const Pos& p)
+    Pos map_colella(const Pos& p, const real_t deformation_factor)
     {
       constexpr real_t cd = 0.1; // 0.6 / (2.0 * M_PI);
       real_t x = p[IX] / 2.0;
       real_t y = p[IY] / 2.0;
 
-      real_t sins = cd * sin(2*M_PI * x) * sin(2*M_PI * y);
+      real_t sins = deformation_factor * sin(2*M_PI * x) * sin(2*M_PI * y);
       
       return {
           2*(x + sins),
@@ -52,7 +52,7 @@ public:
     switch (params.geometry_type)
     {
       case GEO_RADIAL:     return map_radial(p);
-      case GEO_COLELLA:    return map_colella(p);
+      case GEO_COLELLA:    return map_colella(p, params.geometry_colella_param);
       case GEO_CARTESIAN:  default: return p;
     }
   }
@@ -66,7 +66,15 @@ public:
   KOKKOS_INLINE_FUNCTION
   Pos mapc2p_center(int i, int j) const // map vertex of the cell --> bot-left is (i,j)
   {
-    return mapc2p(getCenter(i, j));
+    Pos bl = mapc2p_vertex(i  ,j  );
+    Pos br = mapc2p_vertex(i+1,j  ); 
+    Pos tr = mapc2p_vertex(i+1,j+1); 
+    Pos tl = mapc2p_vertex(i  ,j+1);
+
+    return {
+      (bl[IX] + br[IX] + tr[IX] + tl[IX]) / 4.0,
+      (bl[IY] + br[IY] + tr[IY] + tl[IY]) / 4.0
+    };
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -93,6 +101,11 @@ public:
       p2[IY] - p1[IY],
     };
     *interface_len = sqrt(out[IX] * out[IX] + out[IY] * out[IY]);
+
+      // return {     // riemann_rot
+      //    out[IY] / *interface_len,
+      //   -out[IX] / *interface_len,
+      // };
 
     if(dir == IX)
       return {

@@ -19,7 +19,11 @@ namespace {
    */
   KOKKOS_INLINE_FUNCTION
   void initSodX(Array Q, int i, int j, const Params &params) {
-    if (getPos(params, i, j)[IX] <= 0.5) {
+    Geometry geo(params);
+    Pos pos = getPos(params, i, j);
+    pos = geo.mapc2p(pos);
+
+    if (pos[IX] <= 0.0) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
       Q(j, i, IU) = 0.0;
@@ -36,7 +40,11 @@ namespace {
    */
   KOKKOS_INLINE_FUNCTION
   void initSodY(Array Q, int i, int j, const Params &params) {
-    if (getPos(params, i, j)[IY] <= 0.5) {
+    Geometry geo(params);
+    Pos pos = getPos(params, i, j);
+    pos = geo.mapc2p(pos);
+
+    if (pos[IY] <= 0.0) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
       Q(j, i, IU) = 0.0;

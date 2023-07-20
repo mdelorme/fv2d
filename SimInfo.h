@@ -75,11 +75,17 @@ enum ThermalConductivityMode {
   TCM_B02,
 };
 
+enum HeatingMode {
+  HM_C2020,
+};
+
 // Thermal conduction at boundary
 enum BCTC_Mode {
   BCTC_NONE,              // Nothing special done
   BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
-  BCTC_FIXED_GRADIENT     // Lock the gradient at the boundary
+  BCTC_FIXED_GRADIENT,    // Lock the gradient at the boundary
+  BCTC_NO_FLUX,           // Thermal Flux is set to 0 at the boundary
+  BCTC_NO_CONDUCTION,     // Top and bottom flux of cell are matched
 };
 
 enum ViscosityMode {
@@ -104,6 +110,11 @@ struct DeviceParams {
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
   
+  // Heating
+  bool heating_active;
+  HeatingMode heating_mode;
+  bool log_total_heating;
+
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
@@ -238,6 +249,15 @@ struct DeviceParams {
     viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
 
+    // Heating function 
+    heating_active = reader.GetBoolean("heating", "active", false);
+    tmp = reader.Get("heating", "mode", "C2020");
+    std::map<std::string, HeatingMode> heating_map{
+      {"C2020", HM_C2020},
+    };
+    heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
+    log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
+
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
 
@@ -269,6 +289,9 @@ struct Params {
 
   // All the physics
   DeviceParams device_params;
+
+  // Currie 2020
+  real_t c20_H;
 
   // Misc 
   int seed;
@@ -378,6 +401,8 @@ Params readInifile(std::string filename) {
   res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
   res.problem = res.Get("physics", "problem", "blast");
 
+  // C20
+  res.c20_H = reader.GetFloat("C20", "H", 0.2);
 
   // Misc
   res.seed = res.GetInteger("misc", "seed", 12345);

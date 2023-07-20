@@ -41,9 +41,7 @@ ymax=y.max()
 
 mosaic = '''A
 B
-C
-D
-E'''
+C'''
 
 ext = [xmin, xmax, ymin, ymax]
 
@@ -59,27 +57,51 @@ def get_array(field, ite):
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
     return T  
+  elif field == 'E':
+    rho = get_array('rho', ite)
+    prs = get_array('prs', ite)
+    u   = get_array('u', ite)
+    v   = get_array('v', ite)
+
+    Ek = 0.5 * rho * (u**2.0 + v**2.0)
+    gamma0 = 5.0/3.0
+    E  = Ek + prs / (gamma0-1.0)
+    return E
   else:
     path = f'ite_{ite}/{field}'
     return np.array(f[path]).reshape((Ny, Nx))
 
-def plot_field(field, cax, i):
+def plot_field(field, cax, i, clim=None, cmap='viridis'):
   arr = get_array(field, i)
-  im = cax.imshow(arr, extent=ext)
+  im = cax.imshow(arr, extent=ext, cmap=cmap, clim=clim)
+  cax.axhline(0.0, linestyle='--', color='k')
+  cax.axhline(1.0, linestyle='--', color='k')
   cax.set_title(field)
   divider = make_axes_locatable(cax)
   cax = divider.append_axes('right', size='5%', pad=0.05)
+  
   fig.colorbar(im, cax=cax, orientation='vertical')
 
   
 print('Rendering animation')
-for i in tqdm(range(start_ite, Nf)):
-  fig, ax = plt.subplot_mosaic(mosaic, figsize=(10, 10))
-  plot_field('rho',   ax['A'], i)
-  plot_field('prs',   ax['B'], i)
-  plot_field('T-<T>', ax['C'], i)
-  plot_field('u',     ax['D'], i)
-  plot_field('v',     ax['E'], i)
+ext[2] -= 0.2
+ext[3] -= 0.2 
+  
+cur = get_array('E', 0)
+for i in tqdm(range(1, Nf)):
+  prev = cur
+  cur = get_array('E', i)
+
+  diff = cur - prev
+
+  fig, ax = plt.subplots(1, 1, figsize=(12, 4))
+  im = ax.imshow(diff, extent=ext, cmap='seismic')
+  ax.axhline(0.0, linestyle='--', color='k')
+  ax.axhline(1.0, linestyle='--', color='k')
+  ax.set_title(r'$E^n - E^{n-1}$')
+  divider = make_axes_locatable(ax)
+  ax = divider.append_axes('right', size='5%', pad=0.05)
+  fig.colorbar(im, cax=ax, orientation='vertical')
 
   plt.tight_layout()
 

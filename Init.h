@@ -189,7 +189,8 @@ enum InitType {
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
-  C91
+  C91,
+  B02
 };
 
 struct InitFunctor {
@@ -234,6 +235,7 @@ public:
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;
                               case C91:             initC91(Q, i, j, params, random_pool); break;
+                              case B02:             break;
                             }
                           });
   

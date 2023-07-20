@@ -93,7 +93,7 @@ public:
                                 default:
                                 case BC_ABSORBING:  return fillAbsorbing(Q, iref, j); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, iref, j, IX, params); break;
-                                case BC_PERIODIC:   return fillPeriodic(Q, i, j, IX, params); break;
+                                default:   return fillPeriodic(Q, i, j, IX, params); break;
                               }
                             };
 
@@ -115,7 +115,7 @@ public:
                                 default:
                                 case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
-                                case BC_PERIODIC:   return fillPeriodic(Q, i, j, IY, params); break;
+                                default:   return fillPeriodic(Q, i, j, IY, params); break;
                               }
                             };
 

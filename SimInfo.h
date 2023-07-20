@@ -54,11 +54,17 @@ enum ThermalConductivityMode {
   TCM_B02,
 };
 
+enum HeatingMode {
+  HM_C2020,
+};
+
 // Thermal conduction at boundary
 enum BCTC_Mode {
   BCTC_NONE,              // Nothing special done
   BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
-  BCTC_FIXED_GRADIENT     // Lock the gradient at the boundary
+  BCTC_FIXED_GRADIENT,    // Lock the gradient at the boundary
+  BCTC_NO_FLUX,           // Thermal Flux is set to 0 at the boundary
+  BCTC_NO_CONDUCTION,     // Top and bottom flux of cell are matched
 };
 
 enum ViscosityMode {
@@ -123,6 +129,11 @@ struct Params {
   ViscosityMode viscosity_mode;
   real_t mu;
 
+  // Heating
+  bool heating_active;
+  HeatingMode heating_mode;
+  bool log_total_heating;
+
   // Polytropes and such
   real_t m1;
   real_t theta1;
@@ -140,6 +151,9 @@ struct Params {
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
+
+  // Currie 2020
+  real_t c20_H;
 
   // Misc 
   int seed;
@@ -242,14 +256,16 @@ Params readInifile(std::string filename) {
   std::map<std::string, BCTC_Mode> bctc_map{
     {"none",              BCTC_NONE},
     {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
-    {"fixed_gradient",    BCTC_FIXED_GRADIENT}
+    {"fixed_gradient",    BCTC_FIXED_GRADIENT},
+    {"no_flux",           BCTC_NO_FLUX},
+    {"no_conduction",     BCTC_NO_CONDUCTION},
   };
-  tmp = reader.Get("thermal_conduction", "bc_xmin", "none");
+  tmp = reader.Get("thermal_conduction", "bc_ymin", "none");
   res.bctc_ymin = bctc_map[tmp];
-  tmp = reader.Get("thermal_conduction", "bc_xmax", "none");
+  tmp = reader.Get("thermal_conduction", "bc_ymax", "none");
   res.bctc_ymax = bctc_map[tmp];
-  res.bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
-  res.bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
+  res.bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
+  res.bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);  
 
   // Viscosity
   res.viscosity_active = reader.GetBoolean("viscosity", "active", false);
@@ -260,11 +276,23 @@ Params readInifile(std::string filename) {
   res.viscosity_mode = viscosity_map[tmp];
   res.mu = reader.GetFloat("viscosity", "mu", 0.0);
 
+  // Heating function 
+  res.heating_active = reader.GetBoolean("heating", "active", false);
+  tmp = reader.Get("heating", "mode", "C2020");
+  std::map<std::string, HeatingMode> heating_map{
+    {"C2020", HM_C2020},
+  };
+  res.heating_mode = heating_map[tmp];
+  res.log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
+
   // H84
   res.h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
 
   // C91
   res.c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
+
+  // C20
+  res.c20_H = reader.GetFloat("C20", "H", 0.2);
 
   // Misc
   res.seed = reader.GetInteger("misc", "seed", 12345);

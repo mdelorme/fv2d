@@ -26,14 +26,14 @@ namespace fv2d {
     Pos map_colella(const Pos& p, const real_t deformation_factor)
     {
       constexpr real_t cd = 0.1; // 0.6 / (2.0 * M_PI);
-      real_t x = p[IX] / 2.0;
-      real_t y = p[IY] / 2.0;
+      real_t x = p[IX];
+      real_t y = p[IY];
 
       real_t sins = deformation_factor * sin(2*M_PI * x) * sin(2*M_PI * y);
       
       return {
-          2*(x + sins),
-          2*(y + sins)
+          (x + sins),
+          (y + sins)
         };
     }
   } // anonymous namespace

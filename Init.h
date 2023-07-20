@@ -20,10 +20,9 @@ namespace {
   KOKKOS_INLINE_FUNCTION
   void initSodX(Array Q, int i, int j, const Params &params) {
     Geometry geo(params);
-    Pos pos = getPos(params, i, j);
-    pos = geo.mapc2p(pos);
-
-    if (pos[IX] <= 0.0) {
+    Pos pos = geo.mapc2p_center(i,j);
+  
+    if (pos[IX] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
       Q(j, i, IU) = 0.0;
@@ -41,10 +40,9 @@ namespace {
   KOKKOS_INLINE_FUNCTION
   void initSodY(Array Q, int i, int j, const Params &params) {
     Geometry geo(params);
-    Pos pos = getPos(params, i, j);
-    pos = geo.mapc2p(pos);
+    Pos pos = geo.mapc2p_center(i,j);
 
-    if (pos[IY] <= 0.0) {
+    if (pos[IY] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
       Q(j, i, IU) = 0.0;
@@ -53,6 +51,45 @@ namespace {
       Q(j, i, IR) = 0.125;
       Q(j, i, IP) = 0.1;
       Q(j, i, IU) = 0.0;
+    }
+  }
+
+  /**
+   * @brief Lax-Liu quadrants
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initLaxLiu(Array Q, int i, int j, const Params &params) {
+    Geometry geo(params);
+    Pos pos = geo.mapc2p_center(i,j);
+
+    int qid = (pos[IX] < 0.5) + 2*(pos[IY] < 0.5);
+
+    switch(qid)
+    {
+      case 0: // tr
+        Q(j, i, IR) = 1.5;
+        Q(j, i, IU) = 0.0;
+        Q(j, i, IV) = 0.0;
+        Q(j, i, IP) = 1.5;
+        break;
+      case 1: // tl
+        Q(j, i, IR) = 0.5323;
+        Q(j, i, IU) = 1.206;
+        Q(j, i, IV) = 0.0;
+        Q(j, i, IP) = 0.3;
+        break;
+      case 2: // bl
+        Q(j, i, IR) = 0.5323;
+        Q(j, i, IU) = 0.0;
+        Q(j, i, IV) = 1.206;
+        Q(j, i, IP) = 0.3;
+        break;
+      case 3: // br
+        Q(j, i, IR) = 0.138;
+        Q(j, i, IU) = 1.206;
+        Q(j, i, IV) = 1.206;
+        Q(j, i, IP) = 0.029;
+      default: break;
     }
   }
 
@@ -215,6 +252,7 @@ enum InitType {
   SOD_X,
   SOD_Y,
   BLAST,
+  LAXLIU,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
@@ -232,6 +270,7 @@ public:
       {"sod_x", SOD_X},
       {"sod_y", SOD_Y},
       {"blast", BLAST},
+      {"laxliu", LAXLIU},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
@@ -259,6 +298,7 @@ public:
                               case SOD_X:           initSodX(Q, i, j, params); break;
                               case SOD_Y:           initSodY(Q, i, j, params); break;
                               case BLAST:           initBlast(Q, i, j, params); break;
+                              case LAXLIU:          initLaxLiu(Q, i, j, params); break;
                               case DIFFUSION:       initDiffusion(Q, i, j, params); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;

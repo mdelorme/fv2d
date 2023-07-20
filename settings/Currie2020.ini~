@@ -1,23 +1,23 @@
 [mesh]
-Nx=256
-Ny=32
+Nx=200
+Ny=200
 xmin=0.0
 xmax=4.0
 ymin=0.0
-ymax=1.0
+ymax=1.4
 
 [run]
 tend=200.0
-save_freq=0.1
+save_freq=0.01
 
-boundaries_x=reflecting
+boundaries_x=periodic
 boundaries_y=reflecting
 
 
 
 [solvers]
 riemann_solver=hllc
-reconstruction=pcm_wb
+reconstruction=plm
 CFL=0.1
 
 [physics]
@@ -25,7 +25,7 @@ gamma0=1.66666667
 problem=C91
 gravity=true
 g=40.0
-well_balanced_flux_at_y_bc=true
+well_balanced_flux_at_y_bc=false
 
 [C91]
 perturbation=1.0e-3
@@ -38,15 +38,20 @@ m1=1.0
 active=true
 kappa=0.07
 
-bc_xmin=fixed_temperature
-bc_xmax=fixed_gradient
+bc_xmin=fixed_gradient
+bc_xmax=fixed_temperature
 
-bc_xmin_value=1.0
-bc_xmax_value=20.0
+bc_xmin_value=0.0
+bc_xmax_value=29.0
 
 [viscosity]
-active=false
+active=true
 mu=0.0028
 
+[heating]
+active=true
+mode=C2020
+
+
 [misc]
-log_frequency=1000
+log_frequency=10

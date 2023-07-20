@@ -5,6 +5,7 @@
 #include "RiemannSolvers.h"
 #include "SimInfo.h"
 #include "ThermalConduction.h"
+#include "Heating.h"
 #include "Viscosity.h"
 
 namespace fv2d
@@ -44,16 +45,17 @@ public:
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
+  HeatingFunctor heat_functor;
 
   Array slopesX, slopesY;
 
-  UpdateFunctor(const Params &full_params) :
-    full_params(full_params), bc_manager(full_params), tc_functor(full_params), visc_functor(full_params)
-  {
-    auto device_params = full_params.device_params;
-    slopesX            = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
-    slopesY            = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
-  };
+  UpdateFunctor(const Params &full_params)
+    : full_params(full_params), bc_manager(full_params),
+      tc_functor(full_params), visc_functor(full_params), heat_functor(full_params) {
+      auto device_params = full_params.device_params;
+      slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
+      slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
+    };
   ~UpdateFunctor() = default;
 
   void computeSlopes(const Array &Q) const
@@ -188,6 +190,8 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
+    if (params.heating_active)
+      heat_functor.applyHeating(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt)

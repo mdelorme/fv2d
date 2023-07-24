@@ -18,8 +18,7 @@ namespace {
    * @brief Sod Shock tube aligned along the X axis
    */
   KOKKOS_INLINE_FUNCTION
-  void initSodX(Array Q, int i, int j, const Params &params) {
-    Geometry geo(params);
+  void initSodX(Array Q, int i, int j, const Params &params, const Geometry &geo) {
     Pos pos = geo.mapc2p_center(i,j);
   
     if (pos[IX] <= 0.5) {
@@ -38,8 +37,7 @@ namespace {
    * @brief Sod Shock tube aligned along the Y axis
    */
   KOKKOS_INLINE_FUNCTION
-  void initSodY(Array Q, int i, int j, const Params &params) {
-    Geometry geo(params);
+  void initSodY(Array Q, int i, int j, const Params &params, const Geometry &geo) {
     Pos pos = geo.mapc2p_center(i,j);
 
     if (pos[IY] <= 0.5) {
@@ -58,8 +56,7 @@ namespace {
    * @brief Lax-Liu quadrants
    */
   KOKKOS_INLINE_FUNCTION
-  void initLaxLiu(Array Q, int i, int j, const Params &params) {
-    Geometry geo(params);
+  void initLaxLiu(Array Q, int i, int j, const Params &params, const Geometry &geo) {
     Pos pos = geo.mapc2p_center(i,j);
 
     int qid = (pos[IX] < 0.5) + 2*(pos[IY] < 0.5);
@@ -97,13 +94,11 @@ namespace {
    * @brief Sedov blast initial conditions
    */
   KOKKOS_INLINE_FUNCTION
-  void initBlast(Array Q, int i, int j, const Params &params) {
+  void initBlast(Array Q, int i, int j, const Params &params, const Geometry &geo) {
     real_t xmid = 0.5 * (params.xmin+params.xmax);
     real_t ymid = 0.5 * (params.ymin+params.ymax);
 
-    Geometry geo(params);
-    Pos pos = getPos(params, i, j);
-    pos = geo.mapc2p(pos);
+    Pos pos = geo.mapc2p_center(i,j);
 
     real_t x = pos[IX];
     real_t y = pos[IY];
@@ -140,7 +135,68 @@ namespace {
       Q(j, i, IP) =  0.1 * tr + 10.0 * (1-tr);
     #endif
   }
+//////////////////////////////////////////////////////////////////////////
+////////////////////////////      RING       /////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
+  /**
+   * @brief Sedov blast initial conditions
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initRingBlast(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    constexpr real_t r0 = 0.75;
+    constexpr real_t r_width = 0.05;
+    real_t r = sqrt(x*x+y*y);
+
+    constexpr real_t thck = 0.02;
+    real_t tr = 0.5 * (tanh( (fabs(r - r0) - r_width) / thck) + 1.0);
+    
+    Q(j, i, IR) = 1.2 * tr + 1.0 * (1-tr);
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IP) =  0.1 * tr + 10.0 * (1-tr);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void initRingInit(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    real_t r = sqrt(x*x + y*y);
+    real_t cos = x / r;
+    real_t sin = y / r;
+
+    real_t velocity = params.ring_velocity * (params.ring_scale_vel_r == true) ? r : 1.0;
+
+    bool cond;
+    if(params.ring_init_type == 1)
+      cond = (r < 0.75);
+    else
+      cond = (fabs(r - 0.75) < params.init_type2_radius);
+
+    if(cond){
+      Q(j, i, IR) = params.ring_rho_in;
+      Q(j, i, IU) = velocity * sin;
+      Q(j, i, IV) = velocity * -cos;
+      Q(j, i, IP) = params.ring_p_in;
+    }
+    else{
+      Q(j, i, IR) = params.ring_rho_out;
+      Q(j, i, IU) = - velocity * sin;
+      Q(j, i, IV) = - velocity * -cos;
+      Q(j, i, IP) = params.ring_p_out;
+    }
+  }
+
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
   /**
    * @brief Stratified convection based on Hurlburt et al 1984
    */
@@ -252,6 +308,9 @@ enum InitType {
   SOD_X,
   SOD_Y,
   BLAST,
+  RING_BLAST,
+  RING_INIT,
+
   LAXLIU,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
@@ -263,14 +322,19 @@ struct InitFunctor {
 private:
   Params params;
   InitType init_type;
+  Geometry geometry;
 public:
   InitFunctor(Params &params)
-    : params(params) {
+    : params(params),
+      geometry(params) {
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
       {"sod_y", SOD_Y},
       {"blast", BLAST},
       {"laxliu", LAXLIU},
+      {"ring_blast", RING_BLAST},
+      {"ring_init", RING_INIT},
+
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
@@ -287,6 +351,7 @@ public:
   void init(Array &Q) {
     auto init_type = this->init_type;
     auto params = this->params;
+    auto geometry = this->geometry;
 
     RandomPool random_pool(params.seed);
 
@@ -295,14 +360,16 @@ public:
                           params.range_dom, 
                           KOKKOS_LAMBDA(const int i, const int j) {
                             switch(init_type) {
-                              case SOD_X:           initSodX(Q, i, j, params); break;
-                              case SOD_Y:           initSodY(Q, i, j, params); break;
-                              case BLAST:           initBlast(Q, i, j, params); break;
-                              case LAXLIU:          initLaxLiu(Q, i, j, params); break;
-                              case DIFFUSION:       initDiffusion(Q, i, j, params); break;
-                              case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
-                              case H84:             initH84(Q, i, j, params, random_pool); break;
-                              case C91:             initC91(Q, i, j, params, random_pool); break;
+                              case SOD_X:           initSodX(Q, i, j, params, geometry); break;
+                              case SOD_Y:           initSodY(Q, i, j, params, geometry); break;
+                              case BLAST:           initBlast(Q, i, j, params, geometry); break;
+                              case LAXLIU:          initLaxLiu(Q, i, j, params, geometry); break;
+                              case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
+                              case RING_INIT:       initRingInit(Q, i, j, params, geometry); break;
+                              // case DIFFUSION:       initDiffusion(Q, i, j, params); break;
+                              // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
+                              // case H84:             initH84(Q, i, j, params, random_pool); break;
+                              // case C91:             initC91(Q, i, j, params, random_pool); break;
                             }
                           });
   

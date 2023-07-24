@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "SimInfo.h"
+#include "Geometry.h"
 
 namespace fv2d {
   namespace {
@@ -43,6 +44,36 @@ namespace fv2d {
   }
 
   /**
+   * @brief Geometry 'ring_y' reflecting
+   */
+  KOKKOS_INLINE_FUNCTION
+  State fillReflectingRingY(Array Q, int i, int j, int iref, int jref, IDir dir, const Params &params, const Geometry &geo) {
+    int isym, jsym;
+    assert(dir == IY);
+
+    int jpiv = (j < jref ? params.jbeg : params.jend);
+    isym = i;
+    jsym = 2*jpiv - j - 1;
+
+    State q = getStateFromArray(Q, isym, jsym);
+
+    Pos p = geo.mapc2p_center(isym, jsym);
+    real_t cos2x, sin2x;
+    {
+      real_t norm = sqrt(p[IX]*p[IX] + p[IY]*p[IY]);
+      real_t cos = p[IX] / norm;
+      real_t sin = p[IY] / norm;
+      cos2x = cos*cos - sin*sin;
+      sin2x = 2*sin*cos;
+    }
+  
+    q[IU] = -cos2x * q[IU] - sin2x * q[IV];
+    q[IV] = -sin2x * q[IU] + cos2x * q[IV];
+
+    return q;
+  }
+
+  /**
    * @brief Periodic boundary conditions
    * 
    */
@@ -69,15 +100,18 @@ namespace fv2d {
 class BoundaryManager {
 public:
   Params params;
+  Geometry geometry;
 
   BoundaryManager(const Params &params) 
-    : params(params) {};
+    : params(params),
+      geometry(params) {};
   ~BoundaryManager() = default;
 
   void fillBoundaries(Array Q) {
     auto bc_x = params.boundary_x;
     auto bc_y = params.boundary_y;
     auto params = this->params;
+    auto geometry = this->geometry;
 
     Kokkos::parallel_for( "Filling X-boundary",
                           params.range_xbound,
@@ -90,9 +124,9 @@ public:
 
                             auto fill = [&](int i, int iref) {
                               switch (bc_x) {
+                                default:
                                 case BC_ABSORBING:  return fillAbsorbing(Q, iref, j); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, iref, j, IX, params); break;
-                                default:
                                 case BC_PERIODIC:   return fillPeriodic(Q, i, j, IX, params); break;
                               }
                             };
@@ -112,10 +146,11 @@ public:
 
                             auto fill = [&](int j, int jref) {
                               switch (bc_y) {
+                                default:
                                 case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
-                                default:
                                 case BC_PERIODIC:   return fillPeriodic(Q, i, j, IY, params); break;
+                                case BC_REFLECTING_RING_Y:   return fillReflectingRingY(Q, i, j, i, jref, IY, params, geometry); break;
                               }
                             };
 

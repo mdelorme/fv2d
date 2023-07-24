@@ -35,7 +35,8 @@ enum RiemannSolver {
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_REFLECTING_RING_Y
 };
 
 enum TimeStepping {
@@ -69,6 +70,7 @@ enum GeometryType {
   GEO_CARTESIAN,
   GEO_RADIAL,    // Geometry is radial (cf: Calhoun 2008)
   GEO_COLELLA,
+  GEO_RING,
 };
 
 // Run
@@ -154,6 +156,17 @@ struct Params {
   // Misc 
   int seed;
   int log_frequency;
+
+  /////////////////////////////////////////////////////////
+  // ring test init
+  real_t ring_velocity;
+  real_t ring_p_in;
+  real_t ring_rho_in;
+  real_t ring_p_out;
+  real_t ring_rho_out;
+  bool ring_scale_vel_r;
+  int ring_init_type;
+  real_t init_type2_radius;
 };
 
 // Helper to get the position in the mesh
@@ -197,7 +210,8 @@ Params readInifile(std::string filename) {
   std::map<std::string, BoundaryType> bc_map{
     {"reflecting",         BC_REFLECTING},
     {"absorbing",          BC_ABSORBING},
-    {"periodic",           BC_PERIODIC}
+    {"periodic",           BC_PERIODIC},
+    {"reflecting_ring_y",  BC_REFLECTING_RING_Y},
   };
   res.boundary_x = bc_map[tmp];
   tmp = reader.Get("run", "boundaries_y", "reflecting");
@@ -232,7 +246,8 @@ Params readInifile(std::string filename) {
   std::map<std::string, GeometryType> geo_map{
     {"cartesian", GEO_CARTESIAN},
     {"radial",    GEO_RADIAL},
-    {"colella",   GEO_COLELLA}
+    {"colella",   GEO_COLELLA},
+    {"ring",      GEO_RING},
   };
   res.geometry_type = geo_map[tmp];
   res.geometry_colella_param = reader.GetFloat("mesh", "geometry_colella_param", 0.6 / (2.0 * M_PI));
@@ -298,6 +313,17 @@ Params readInifile(std::string filename) {
   res.range_ybound = ParallelRange({0, 0}, {res.Ntx, res.Ng});
   res.range_slopes = ParallelRange({res.ibeg-1, res.jbeg-1}, {res.iend+1, res.jend+1});
 
+  /////////////////////////////////////////////////////////////////
+  
+  // ring test init
+  res.ring_velocity     = reader.GetFloat("ring", "velocity", 0.1);
+  res.ring_p_in         = reader.GetFloat("ring", "prs_in", 1.0);
+  res.ring_rho_in       = reader.GetFloat("ring", "rho_in", 1.0);
+  res.ring_p_out        = reader.GetFloat("ring", "prs_out", 1.0);
+  res.ring_rho_out      = reader.GetFloat("ring", "rho_out", 1.0);
+  res.ring_scale_vel_r  = reader.GetBoolean("ring", "scale_vel_radius", true);
+  res.ring_init_type    = reader.GetInteger("ring", "init_type", 1);
+  res.init_type2_radius = reader.GetFloat("ring", "init_type2_radius", 1./6.);
   return res;
 } 
 }

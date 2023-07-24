@@ -25,7 +25,6 @@ namespace fv2d {
     KOKKOS_INLINE_FUNCTION
     Pos map_colella(const Pos& p, const real_t deformation_factor)
     {
-      constexpr real_t cd = 0.1; // 0.6 / (2.0 * M_PI);
       real_t x = p[IX];
       real_t y = p[IY];
 
@@ -34,6 +33,25 @@ namespace fv2d {
       return {
           (x + sins),
           (y + sins)
+        };
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    Pos map_ring(const Pos& p)
+    {
+      constexpr real_t r0 = 0.5;
+      constexpr real_t r1 = 1.0;
+
+      real_t r = p[IY];
+      real_t t = p[IX]; // theta
+
+      real_t sin, cos;
+      sincos(M_PI_2 * t, &sin, &cos);
+
+      r = r0 + r * (r1 - r0)/r1;
+      return {
+          r * cos,
+          r * sin
         };
     }
   } // anonymous namespace
@@ -53,6 +71,7 @@ public:
     {
       case GEO_RADIAL:     return map_radial(p);
       case GEO_COLELLA:    return map_colella(p, params.geometry_colella_param);
+      case GEO_RING:       return map_ring(p);
       case GEO_CARTESIAN:  default: return p;
     }
   }

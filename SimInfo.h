@@ -323,7 +323,7 @@ Params readInifile(std::string filename) {
   res.ring_rho_out      = reader.GetFloat("ring", "rho_out", 1.0);
   res.ring_scale_vel_r  = reader.GetBoolean("ring", "scale_vel_radius", true);
   res.ring_init_type    = reader.GetInteger("ring", "init_type", 1);
-  res.init_type2_radius = reader.GetFloat("ring", "init_type2_radius", 1./6.);
+  res.init_type2_radius = reader.GetFloat("ring", "init_type2_radius", 0.125);
   return res;
 } 
 }

@@ -171,7 +171,7 @@ namespace {
     real_t cos = x / r;
     real_t sin = y / r;
 
-    real_t velocity = params.ring_velocity * (params.ring_scale_vel_r == true) ? r : 1.0;
+    real_t velocity = params.ring_velocity * ((params.ring_scale_vel_r == true) ? r : 1.0);
 
     bool cond;
     if(params.ring_init_type == 1)
@@ -179,17 +179,36 @@ namespace {
     else
       cond = (fabs(r - 0.75) < params.init_type2_radius);
 
+    // if(cond){
+    //   Q(j, i, IR) = params.ring_rho_in;
+    //   Q(j, i, IU) = velocity * sin;
+    //   Q(j, i, IV) = velocity * -cos;
+    //   Q(j, i, IP) = params.ring_p_in;
+    // }
+    // else{
+    //   Q(j, i, IR) = params.ring_rho_out;
+    //   Q(j, i, IU) = - velocity * sin;
+    //   Q(j, i, IV) = - velocity * -cos;
+    //   Q(j, i, IP) = params.ring_p_out;
+    // }
+
+
+    // fix pressure
+
+    // TODO: pb sur la velocity, norme tjr = 1 ?!
     if(cond){
+      const real_t fix_factor = params.ring_rho_in * params.ring_velocity * params.ring_velocity * log(r / 0.5);
       Q(j, i, IR) = params.ring_rho_in;
       Q(j, i, IU) = velocity * sin;
       Q(j, i, IV) = velocity * -cos;
-      Q(j, i, IP) = params.ring_p_in;
+      Q(j, i, IP) = params.ring_p_in + fix_factor;
     }
     else{
+      const real_t fix_factor = params.ring_rho_out * params.ring_velocity * params.ring_velocity * log(r / 0.5);
       Q(j, i, IR) = params.ring_rho_out;
       Q(j, i, IU) = - velocity * sin;
       Q(j, i, IV) = - velocity * -cos;
-      Q(j, i, IP) = params.ring_p_out;
+      Q(j, i, IP) = params.ring_p_out + fix_factor;
     }
   }
 

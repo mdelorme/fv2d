@@ -27,10 +27,10 @@ namespace fv2d {
       </Geometry>
       )xml";
     #define format_xdmf_header(params)            \
-           params.Nx + 1, params.Ny + 1,          \
-           params.Nx + 1, params.Ny + 1,          \
+           params.Ny + 1, params.Nx + 1,          \
+           params.Ny + 1, params.Nx + 1,          \
            (params.filename_out + ".h5").c_str(), \
-           params.Nx + 1, params.Ny + 1,          \
+           params.Ny + 1, params.Nx + 1,          \
            (params.filename_out + ".h5").c_str()
 
     char str_xdmf_footer[] =
@@ -53,7 +53,7 @@ namespace fv2d {
       </Attribute>)xml";
     #define format_xdmf_scalar_field(params, group, field) \
             field,                                             \
-            params.Nx, params.Ny,                             \
+            params.Ny, params.Nx,                             \
             (params.filename_out + ".h5").c_str(),            \
             group.c_str(),                                    \
             field
@@ -68,12 +68,12 @@ namespace fv2d {
       </Attribute>)xml";
     #define format_xdmf_vector_field(params, group, name, field_x, field_y) \
             name,                                             \
-            params.Nx, params.Ny,                             \
-            params.Nx, params.Ny,                             \
+            params.Ny, params.Nx,                             \
+            params.Ny, params.Nx,                             \
             (params.filename_out + ".h5").c_str(),            \
             group.c_str(),                                    \
             field_x,                                          \
-            params.Nx, params.Ny,                             \
+            params.Ny, params.Nx,                             \
             (params.filename_out + ".h5").c_str(),            \
             group.c_str(),                                    \
             field_y

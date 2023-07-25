@@ -167,6 +167,8 @@ namespace {
     real_t x = pos[IX];
     real_t y = pos[IY];
 
+    constexpr real_t r0 =  0.5;
+    constexpr real_t rs = 0.75;
     real_t r = sqrt(x*x + y*y);
     real_t cos = x / r;
     real_t sin = y / r;
@@ -175,41 +177,47 @@ namespace {
 
     bool cond;
     if(params.ring_init_type == 1)
-      cond = (r < 0.75);
+      cond = (r < rs);
     else
-      cond = (fabs(r - 0.75) < params.init_type2_radius);
-
-    // if(cond){
-    //   Q(j, i, IR) = params.ring_rho_in;
-    //   Q(j, i, IU) = velocity * sin;
-    //   Q(j, i, IV) = velocity * -cos;
-    //   Q(j, i, IP) = params.ring_p_in;
-    // }
-    // else{
-    //   Q(j, i, IR) = params.ring_rho_out;
-    //   Q(j, i, IU) = - velocity * sin;
-    //   Q(j, i, IV) = - velocity * -cos;
-    //   Q(j, i, IP) = params.ring_p_out;
-    // }
-
+      cond = (fabs(r - rs) < params.init_type2_radius);
 
     // fix pressure
-
-    // TODO: pb sur la velocity, norme tjr = 1 ?!
     if(cond){
-      const real_t fix_factor = params.ring_rho_in * params.ring_velocity * params.ring_velocity * log(r / 0.5);
       Q(j, i, IR) = params.ring_rho_in;
       Q(j, i, IU) = velocity * sin;
       Q(j, i, IV) = velocity * -cos;
-      Q(j, i, IP) = params.ring_p_in + fix_factor;
+      Q(j, i, IP) = params.ring_p_in;
     }
     else{
-      const real_t fix_factor = params.ring_rho_out * params.ring_velocity * params.ring_velocity * log(r / 0.5);
       Q(j, i, IR) = params.ring_rho_out;
       Q(j, i, IU) = - velocity * sin;
       Q(j, i, IV) = - velocity * -cos;
-      Q(j, i, IP) = params.ring_p_out + fix_factor;
+      Q(j, i, IP) = params.ring_p_out;
     }
+
+    real_t fix_factor;
+    if(params.ring_init_type == 1){
+      if(cond)
+        fix_factor = 0.5 * params.ring_rho_in * params.ring_velocity * params.ring_velocity * (r*r - r0*r0);
+      else
+        fix_factor = 0.5 * (params.ring_rho_out * (r*r - rs*rs) + params.ring_rho_in  * (rs*rs - r0*r0))
+                                  * params.ring_velocity * params.ring_velocity;
+    }
+    else{
+      const real_t rlo = rs - params.init_type2_radius;
+      const real_t rhi = rs + params.init_type2_radius;
+
+      if(r < rlo)
+        fix_factor = 0.5 * params.ring_rho_out * params.ring_velocity * params.ring_velocity * (r*r - r0*r0);
+      else if (r < rhi)
+        fix_factor = 0.5 * (params.ring_rho_in  * (r*r - rlo*rlo) + params.ring_rho_out * (rlo*rlo - r0*r0))
+                         * params.ring_velocity * params.ring_velocity;
+      else
+        fix_factor = 0.5 * (params.ring_rho_in  * (rhi*rhi - rlo*rlo) + params.ring_rho_out * (r*r - rhi*rhi + rlo*rlo - r0*r0))
+                         * params.ring_velocity * params.ring_velocity;
+    }
+
+    Q(j, i, IP) += fix_factor;
   }
 
 

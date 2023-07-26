@@ -221,7 +221,7 @@ namespace {
   }
 
   KOKKOS_INLINE_FUNCTION
-  void initRing_RayleighTaylor(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+  void initRing_RayleighTaylor(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
     Pos pos = geo.mapc2p_center(i,j);
     real_t x = pos[IX];
     real_t y = pos[IY];
@@ -229,11 +229,12 @@ namespace {
     const real_t r0 =  params.init_type2_radius;
     real_t r = sqrt(x*x + y*y);
 
-    real_t p0 = 2.5;
     
     const real_t g = params.g;
     const real_t rho_in = params.ring_rho_in;
     const real_t rho_out = params.ring_rho_out;
+
+    real_t p0 = 2.5 - g * rho_in * 0.5;
 
     // fix pressure
     if(r < r0){
@@ -249,14 +250,16 @@ namespace {
       Q(j, i, IP) = p0 + g * rho_out * r + g * (rho_in - rho_out) * r0;
     }
 
-    if (r > r0-1.0/8.0 && r < r0+1.0/8.0)
-    {
-      real_t value = params.ring_velocity * (1.0 + cos(7.2*M_PI*x)) * (1 + cos(5.1*M_PI*y))/4.0;
-      real_t cos = x / r;
-      real_t sin = y / r;
-      Q(j, i, IU) = value * cos;
-      Q(j, i, IV) = value * sin;
-    }
+    auto generator = random_pool.get_state();
+    real_t pert = params.ring_velocity * (generator.drand(-1.0, 1.0));
+    random_pool.free_state(generator);
+
+    pert = pert * (1.0 + cos(2 * M_PI * r));
+
+    real_t _cos = x / r;
+    real_t _sin = y / r;
+    Q(j, i, IU) = pert * _cos;
+    Q(j, i, IV) = pert * _sin;
   }
 
 
@@ -434,7 +437,7 @@ public:
                               case LAXLIU:          initLaxLiu(Q, i, j, params, geometry); break;
                               case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
                               case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;
-                              case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry); break;
+                              case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry, random_pool); break;
                               
                               
                               // case DIFFUSION:       initDiffusion(Q, i, j, params); break;

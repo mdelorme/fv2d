@@ -217,8 +217,8 @@ public:
               {
                 Pos pos = geometry.mapc2p_center(i, j);
                 real_t norm = sqrt(pos[IX]*pos[IX] + pos[IY]*pos[IY]);
-                cos = pos[IX] / norm;
-                sin = pos[IY] / norm;
+                cos = -pos[IX] / norm;
+                sin = -pos[IY] / norm;
               }
               un_loc[IU] += dt * Q(j, i, IR) * params.g * cos;
               un_loc[IV] += dt * Q(j, i, IR) * params.g * sin;

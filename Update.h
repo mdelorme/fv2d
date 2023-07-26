@@ -210,7 +210,23 @@ public:
           un_loc += dt*(fluxL - fluxR) / cellArea;
         
           if (dir == IY && params.gravity) {
-            un_loc[IV] += dt * Q(j, i, IR) * params.g;
+            
+            //TODO: rendre plus propre...
+            #if 1 // gravity toward (0,0)
+              real_t cos, sin;
+              {
+                Pos pos = geometry.mapc2p_center(i, j);
+                real_t norm = sqrt(pos[IX]*pos[IX] + pos[IY]*pos[IY]);
+                cos = pos[IX] / norm;
+                sin = pos[IY] / norm;
+              }
+              un_loc[IU] += dt * Q(j, i, IR) * params.g * cos;
+              un_loc[IV] += dt * Q(j, i, IR) * params.g * sin;
+
+            #else // gravity down
+              un_loc[IV] += dt * Q(j, i, IR) * params.g;
+            #endif
+
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
           }
 

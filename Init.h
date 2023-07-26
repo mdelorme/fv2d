@@ -162,7 +162,7 @@ namespace {
   }
 
   KOKKOS_INLINE_FUNCTION
-  void initRingInit(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+  void initRing_KelvinHelmholtz(Array Q, int i, int j, const Params &params, const Geometry &geo) {
     Pos pos = geo.mapc2p_center(i,j);
     real_t x = pos[IX];
     real_t y = pos[IY];
@@ -218,6 +218,45 @@ namespace {
     }
 
     Q(j, i, IP) += fix_factor;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void initRing_RayleighTaylor(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    const real_t r0 =  params.init_type2_radius;
+    real_t r = sqrt(x*x + y*y);
+
+    real_t p0 = 2.5;
+    
+    const real_t g = params.g;
+    const real_t rho_in = params.ring_rho_in;
+    const real_t rho_out = params.ring_rho_out;
+
+    // fix pressure
+    if(r < r0){
+      Q(j, i, IR) = rho_in;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p0 + g * rho_in * r;
+    }
+    else{
+      Q(j, i, IR) = rho_out;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p0 + g * rho_out * r + g * (rho_in - rho_out) * r0;
+    }
+
+    if (r > r0-1.0/8.0 && r < r0+1.0/8.0)
+    {
+      real_t value = params.ring_velocity * (1.0 + cos(7.2*M_PI*x)) * (1 + cos(5.1*M_PI*y))/4.0;
+      real_t cos = x / r;
+      real_t sin = y / r;
+      Q(j, i, IU) = value * cos;
+      Q(j, i, IV) = value * sin;
+    }
   }
 
 
@@ -313,7 +352,7 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.g * y; // g ?? --> rho
     }
     else {
       Q(j, i, IR) = 2.0;
@@ -336,7 +375,8 @@ enum InitType {
   SOD_Y,
   BLAST,
   RING_BLAST,
-  RING_INIT,
+  RING_KE,
+  RING_RT,
 
   LAXLIU,
   RAYLEIGH_TAYLOR,
@@ -360,7 +400,8 @@ public:
       {"blast", BLAST},
       {"laxliu", LAXLIU},
       {"ring_blast", RING_BLAST},
-      {"ring_init", RING_INIT},
+      {"ring_kelvin-helmholtz", RING_KE},
+      {"ring_rayleigh-taylor", RING_RT},
 
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
@@ -392,9 +433,12 @@ public:
                               case BLAST:           initBlast(Q, i, j, params, geometry); break;
                               case LAXLIU:          initLaxLiu(Q, i, j, params, geometry); break;
                               case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
-                              case RING_INIT:       initRingInit(Q, i, j, params, geometry); break;
+                              case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;
+                              case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry); break;
+                              
+                              
                               // case DIFFUSION:       initDiffusion(Q, i, j, params); break;
-                              // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
+                              case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;
                               // case C91:             initC91(Q, i, j, params, random_pool); break;
                             }

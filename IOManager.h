@@ -60,7 +60,7 @@ namespace fv2d {
 
     char str_xdmf_vector_field[] =
     R"xml(
-      <Attribute Name="%s" AttributeType="Matrix" Center="Cell">
+      <Attribute Name="%s" AttributeType="Vector" Center="Cell">
         <DataItem Dimensions="%d %d 2" ItemType="Function" Function="JOIN($0, $1)">
           <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/%s/%s</DataItem>
           <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/%s/%s</DataItem>

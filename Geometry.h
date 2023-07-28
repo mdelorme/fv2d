@@ -104,8 +104,10 @@ public:
     Pos tr = mapc2p_vertex(i+1,j+1); 
     Pos tl = mapc2p_vertex(i  ,j+1);
 
-    return 0.5 * (fabs((tl[IX] - br[IX]) * (tr[IY] - bl[IY]))
-                + fabs((tl[IY] - br[IY]) * (tr[IX] - bl[IX])));
+    // return 0.5 * (fabs((tl[IX] - br[IX]) * (tr[IY] - bl[IY]))
+    //             + fabs((tl[IY] - br[IY]) * (tr[IX] - bl[IX])));
+    return 0.5 * fabs((tl[IX] - br[IX]) * (tr[IY] - bl[IY]) -
+                      (tl[IY] - br[IY]) * (tr[IX] - bl[IX]));
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -121,10 +123,12 @@ public:
     };
     *interface_len = sqrt(out[IX] * out[IX] + out[IY] * out[IY]);
 
-      // return {     // riemann_rot
-      //    out[IY] / *interface_len,
-      //   -out[IX] / *interface_len,
-      // };
+
+    // normal at the interface
+    // return {
+    //    out[IY] / *interface_len,
+    //   -out[IX] / *interface_len,
+    // };
 
     if(dir == IX)
       return {

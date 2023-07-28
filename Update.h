@@ -31,19 +31,50 @@ namespace {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State rotate(State q, Pos normale) {
+  State rotate(State q, Pos normale, IDir dir) {
     State res = q;
+    const real_t u = q[IU];
+    const real_t v = q[IV];
+    const real_t cos = normale[IX];
+    const real_t sin = normale[IY];
 
-    res[IU] =  normale[IX] * q[IU] + normale[IY] * q[IV];
-    res[IV] = -normale[IY] * q[IU] + normale[IX] * q[IV];
+    // if(dir == IX)
+    // {
+    //   res[IU] =  cos * u - sin * v;
+    //   res[IV] =  sin * u + cos * v;
+    // }
+    // else //if(dir == IY)
+    // {
+    //   res[IU] = -cos * u + sin * v;
+    //   res[IV] =  sin * u + cos * v;
+    // }
+
+    #define DO_THE_SWAP
+    res[IU] =  cos * u + sin * v;
+    res[IV] = -sin * u + cos * v;
     return res;
   }
   KOKKOS_INLINE_FUNCTION
-  State rotate_back(State q, Pos normale) {
+  State rotate_back(State q, Pos normale, IDir dir) {
     State res = q;
+    const real_t u = q[IU];
+    const real_t v = q[IV];
+    const real_t cos = normale[IX];
+    const real_t sin = normale[IY];
 
-    res[IU] = normale[IX] * q[IU] - normale[IY] * q[IV];
-    res[IV] = normale[IY] * q[IU] + normale[IX] * q[IV];
+    // if(dir == IX)
+    // {
+    //   res[IU] =  cos * u + sin * v;
+    //   res[IV] = -sin * u + cos * v;
+    // }
+    // else //if(dir == IY)
+    // {
+    //   res[IU] = -cos * u + sin * v;
+    //   res[IV] =  sin * u + cos * v;
+    // }
+    
+    res[IU] =  cos * u - sin * v;
+    res[IV] =  sin * u + cos * v;
     return res;
   }
 }
@@ -149,16 +180,16 @@ public:
               qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
 
-              qCL = rotate(qCL, normL);
-              qCR = rotate(qCR, normR);
-              qL  = rotate(qL , normL);
-              qR  = rotate(qR , normR);
+              qCL = rotate(qCL, normL, dir);
+              qCR = rotate(qCR, normR, dir);
+              qL  = rotate(qL , normL, dir);
+              qR  = rotate(qR , normR, dir);
             #else
             // rotate before reconstruction
-              qCL = rotate(qC, normL);
-              qCR = rotate(qC, normR);
-              qL  = rotate(qL , normL);
-              qR  = rotate(qR , normR);
+              qCL = rotate(qC,  normL, dir);
+              qCR = rotate(qC,  normR, dir);
+              qL  = rotate(qL , normL, dir);
+              qR  = rotate(qR , normR, dir);
 
               qCL = reconstruct(qCL, slopes, i,    j,     -dLR, dir, params);
               qCR = reconstruct(qCR, slopes, i,    j,      dRL, dir, params);
@@ -166,10 +197,12 @@ public:
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
             #endif
 
+            #ifdef DO_THE_SWAP
             qCL = swap_component(qCL, dir);
             qCR = swap_component(qCR, dir);
             qL  = swap_component(qL , dir);
             qR  = swap_component(qR , dir);
+            #endif
           }
 
           /////////////// end Geometry
@@ -189,11 +222,13 @@ public:
           riemann(qL, qCL, fluxL, poutL);
           riemann(qCR, qR, fluxR, poutR);
 
+          #ifdef DO_THE_SWAP
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);
+          #endif
 
-          fluxL = rotate_back(fluxL, normL);
-          fluxR = rotate_back(fluxR, normR);
+          fluxL = rotate_back(fluxL, normL, dir);
+          fluxR = rotate_back(fluxR, normR, dir);
 
           fluxL = lenL * fluxL;
           fluxR = lenR * fluxR;

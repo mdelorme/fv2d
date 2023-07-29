@@ -38,20 +38,20 @@ namespace {
     const real_t cos = normale[IX];
     const real_t sin = normale[IY];
 
-    // if(dir == IX)
-    // {
-    //   res[IU] =  cos * u - sin * v;
-    //   res[IV] =  sin * u + cos * v;
-    // }
-    // else //if(dir == IY)
-    // {
-    //   res[IU] = -cos * u + sin * v;
-    //   res[IV] =  sin * u + cos * v;
-    // }
+    if(dir == IX)
+    {
+      res[IU] =  cos * u + sin * v;
+      res[IV] = -sin * u + cos * v;
+    }
+    else //if(dir == IY)
+    {
+      res[IU] = -cos * u - sin * v;
+      res[IV] = -sin * u + cos * v;
+    }
 
-    #define DO_THE_SWAP
-    res[IU] =  cos * u + sin * v;
-    res[IV] = -sin * u + cos * v;
+    // #define DO_THE_SWAP
+    // res[IU] =  cos * u + sin * v;
+    // res[IV] = -sin * u + cos * v;
     return res;
   }
   KOKKOS_INLINE_FUNCTION
@@ -62,19 +62,19 @@ namespace {
     const real_t cos = normale[IX];
     const real_t sin = normale[IY];
 
-    // if(dir == IX)
-    // {
-    //   res[IU] =  cos * u + sin * v;
-    //   res[IV] = -sin * u + cos * v;
-    // }
-    // else //if(dir == IY)
-    // {
-    //   res[IU] = -cos * u + sin * v;
-    //   res[IV] =  sin * u + cos * v;
-    // }
+    if(dir == IX)
+    {
+      res[IU] =  cos * u - sin * v;
+      res[IV] =  sin * u + cos * v;
+    }
+    else //if(dir == IY)
+    {
+      res[IU] = -cos * u - sin * v ;
+      res[IV] = -sin * u + cos * v ;
+    }
     
-    res[IU] =  cos * u - sin * v;
-    res[IV] =  sin * u + cos * v;
+    // res[IU] =  cos * u - sin * v;
+    // res[IV] =  sin * u + cos * v;
     return res;
   }
 }
@@ -230,9 +230,6 @@ public:
           fluxL = rotate_back(fluxL, normL, dir);
           fluxR = rotate_back(fluxR, normR, dir);
 
-          fluxL = lenL * fluxL;
-          fluxR = lenR * fluxR;
-
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
@@ -242,7 +239,7 @@ public:
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt*(fluxL - fluxR) / cellArea;
+          un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
         
           if (dir == IY && params.gravity) {
             

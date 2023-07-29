@@ -125,21 +125,21 @@ public:
 
 
     // normal at the interface
-    // return {
-    //    out[IY] / *interface_len,
-    //   -out[IX] / *interface_len,
-    // };
+    return {
+       out[IY] / *interface_len,
+      -out[IX] / *interface_len,
+    };
 
-    if(dir == IX)
-      return {
-        out[IY] / *interface_len,
-        -out[IX] / *interface_len,
-      };
-    else
-      return {
-        out[IX] / *interface_len,
-        out[IY] / *interface_len,
-      };
+    // if(dir == IX)
+    //   return {
+    //      out[IY] / *interface_len,
+    //     -out[IX] / *interface_len,
+    //   };
+    // else
+    //   return {
+    //     out[IX] / *interface_len,
+    //     out[IY] / *interface_len,
+    //   };
       
   }
 

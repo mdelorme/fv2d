@@ -234,28 +234,27 @@ namespace {
     const real_t rho_in = params.ring_rho_in;
     const real_t rho_out = params.ring_rho_out;
 
-    g = -g; //tmp
-    real_t p0 = 2.5 + g * rho_in * 0.5;
+    real_t p0 = 2.5;
 
     // fix pressure
     if(r < r0){
       Q(j, i, IR) = rho_in;
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IP) = p0 - g * rho_in * r;
+      Q(j, i, IP) = p0 + g * rho_in * (r - 0.5);
     }
     else{
       Q(j, i, IR) = rho_out;
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IP) = p0 - g * rho_out * r - g * (rho_in - rho_out) * r0;
+      Q(j, i, IP) = p0 + g * rho_out * (r - r0) + g * rho_in * (r0 - 0.5);
     }
 
     auto generator = random_pool.get_state();
     real_t pert = params.ring_velocity * (generator.drand(-1.0, 1.0));
     random_pool.free_state(generator);
 
-    pert = pert * sin(M_PI * r);
+    pert = pert * sin(2*M_PI*r);
 
     real_t _cos = x / r;
     real_t _sin = y / r;
@@ -356,7 +355,7 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y; // g ?? --> rho
+      Q(j, i, IP) = P0 + 0.1 * params.g * y;
     }
     else {
       Q(j, i, IR) = 2.0;

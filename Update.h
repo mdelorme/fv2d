@@ -37,23 +37,13 @@ namespace {
     const real_t v = q[IV];
     const real_t cos = normale[IX];
     const real_t sin = normale[IY];
-
-    if(dir == IX)
-    {
-      res[IU] =  cos * u + sin * v;
-      res[IV] = -sin * u + cos * v;
-    }
-    else //if(dir == IY)
-    {
-      res[IU] = -cos * u - sin * v;
-      res[IV] = -sin * u + cos * v;
-    }
-
-    // #define DO_THE_SWAP
-    // res[IU] =  cos * u + sin * v;
-    // res[IV] = -sin * u + cos * v;
+  
+    // printf("%s , %lf , %lf\n", (IX==dir) ? "IX" : "IY", cos, sin);
+    res[IU] =  cos * u + sin * v;
+    res[IV] = -sin * u + cos * v;
     return res;
   }
+  
   KOKKOS_INLINE_FUNCTION
   State rotate_back(State q, Pos normale, IDir dir) {
     State res = q;
@@ -62,19 +52,8 @@ namespace {
     const real_t cos = normale[IX];
     const real_t sin = normale[IY];
 
-    if(dir == IX)
-    {
-      res[IU] =  cos * u - sin * v;
-      res[IV] =  sin * u + cos * v;
-    }
-    else //if(dir == IY)
-    {
-      res[IU] = -cos * u - sin * v ;
-      res[IV] = -sin * u + cos * v ;
-    }
-    
-    // res[IU] =  cos * u - sin * v;
-    // res[IV] =  sin * u + cos * v;
+    res[IU] =  cos * u - sin * v;
+    res[IV] =  sin * u + cos * v;
     return res;
   }
 }
@@ -197,12 +176,6 @@ public:
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
             #endif
 
-            #ifdef DO_THE_SWAP
-            qCL = swap_component(qCL, dir);
-            qCR = swap_component(qCR, dir);
-            qL  = swap_component(qL , dir);
-            qR  = swap_component(qR , dir);
-            #endif
           }
 
           /////////////// end Geometry
@@ -221,11 +194,6 @@ public:
 
           riemann(qL, qCL, fluxL, poutL);
           riemann(qCR, qR, fluxR, poutR);
-
-          #ifdef DO_THE_SWAP
-          fluxL = swap_component(fluxL, dir);
-          fluxR = swap_component(fluxR, dir);
-          #endif
 
           fluxL = rotate_back(fluxL, normL, dir);
           fluxR = rotate_back(fluxR, normR, dir);

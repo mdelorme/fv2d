@@ -241,13 +241,13 @@ namespace {
       Q(j, i, IR) = rho_in;
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IP) = p0 + g * rho_in * (r - 0.5);
+      Q(j, i, IP) = p0 - g * rho_in * (r - 0.5);
     }
     else{
       Q(j, i, IR) = rho_out;
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IP) = p0 + g * rho_out * (r - r0) + g * rho_in * (r0 - 0.5);
+      Q(j, i, IP) = p0 - g * rho_out * (r - r0) - g * rho_in * (r0 - 0.5);
     }
 
     auto generator = random_pool.get_state();

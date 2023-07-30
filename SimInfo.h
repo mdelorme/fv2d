@@ -71,6 +71,7 @@ enum GeometryType {
   GEO_RADIAL,    // Geometry is radial (cf: Calhoun 2008)
   GEO_COLELLA,
   GEO_RING,
+  GEO_TEST,
 };
 
 // Run
@@ -248,6 +249,7 @@ Params readInifile(std::string filename) {
     {"radial",    GEO_RADIAL},
     {"colella",   GEO_COLELLA},
     {"ring",      GEO_RING},
+    {"maptest",   GEO_TEST},
   };
   res.geometry_type = geo_map[tmp];
   res.geometry_colella_param = reader.GetFloat("mesh", "geometry_colella_param", 0.6 / (2.0 * M_PI));

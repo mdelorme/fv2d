@@ -35,7 +35,7 @@ namespace fv2d {
           (y + sins)
         };
     }
-
+    
     KOKKOS_INLINE_FUNCTION
     Pos map_ring(const Pos& p)
     {
@@ -45,18 +45,58 @@ namespace fv2d {
       real_t r = p[IY];
       real_t t = p[IX]; // theta
 
-      real_t sin, cos;
-      sincos(M_PI_2 * t, &sin, &cos);
+      real_t _cos, _sin;
+      // sincos(M_PI_2 * t, &_sin, &_cos);
+      _cos = cos(M_PI_2 * t);
+      _sin = sin(M_PI_2 * t);
 
       r = r0 + r * (r1 - r0)/r1;
       return {
-          r * cos,
-          r * sin
+          r * _cos,
+          r * _sin
+        };
+    }
+    
+    KOKKOS_INLINE_FUNCTION
+    Pos map_test(const Pos& p, const real_t rot)
+    {
+      const real_t t = rot * M_PI;
+
+      real_t x = p[IX];
+      real_t y = p[IY];
+
+      real_t _cos, _sin;
+      _cos = cos(t);
+      _sin = sin(t);
+
+      return {
+          x * _cos - y * _sin,
+          x * _sin + y * _cos
         };
     }
   } // anonymous namespace
 
+  KOKKOS_INLINE_FUNCTION
+  Pos operator+(const Pos &p, const Pos &q)
+  {
+    return {p[IX] + q[IX],
+            p[IY] + q[IY]};
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  Pos operator*(real_t f, const Pos &p)
+  {
+    return {f * p[IX],
+            f * p[IY]};
+  }
+  KOKKOS_INLINE_FUNCTION
+  Pos operator*(const Pos &p, real_t f)
+  {
+    return f * p;
+  }
+
 class Geometry{
+  
 public:
   Params params;
 
@@ -72,6 +112,7 @@ public:
       case GEO_RADIAL:     return map_radial(p);
       case GEO_COLELLA:    return map_colella(p, params.geometry_colella_param);
       case GEO_RING:       return map_ring(p);
+      case GEO_TEST:       return map_test(p, params.geometry_colella_param);
       case GEO_CARTESIAN:  default: return p;
     }
   }
@@ -90,10 +131,11 @@ public:
     Pos tr = mapc2p_vertex(i+1,j+1); 
     Pos tl = mapc2p_vertex(i  ,j+1);
 
-    return {
-      (bl[IX] + br[IX] + tr[IX] + tl[IX]) / 4.0,
-      (bl[IY] + br[IY] + tr[IY] + tl[IY]) / 4.0
-    };
+    // return {
+    //   (bl[IX] + br[IX] + tr[IX] + tl[IX]) / 4.0,
+    //   (bl[IY] + br[IY] + tr[IY] + tl[IY]) / 4.0
+    // };
+    return 0.25 * (bl + br + tr + tl);
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -113,32 +155,40 @@ public:
   KOKKOS_INLINE_FUNCTION
   Pos interfaceRot(int i, int j, IDir dir, real_t *interface_len) const
   {
-    Pos p1 = mapc2p_vertex(i, j);
-    Pos p2 = mapc2p_vertex(i + (dir == IY), 
-                    j + (dir == IX)); 
+    Pos p, q;
+    if(dir == IX)
+    {
+      p = mapc2p_vertex(i, j);
+      q = mapc2p_vertex(i, j+1); 
+    }
+    else
+    {
+      p = mapc2p_vertex(i+1, j);
+      q = mapc2p_vertex(i, j); 
+    }
 
-    Pos out = {
-      p2[IX] - p1[IX],
-      p2[IY] - p1[IY],
+    Pos tanj = {
+      q[IX] - p[IX],
+      q[IY] - p[IY],
     };
-    *interface_len = sqrt(out[IX] * out[IX] + out[IY] * out[IY]);
+    *interface_len = sqrt(tanj[IX] * tanj[IX] + tanj[IY] * tanj[IY]);
 
 
     // normal at the interface
     return {
-       out[IY] / *interface_len,
-      -out[IX] / *interface_len,
+        tanj[IY] / *interface_len,
+       -tanj[IX] / *interface_len,
     };
 
     // if(dir == IX)
     //   return {
-    //      out[IY] / *interface_len,
-    //     -out[IX] / *interface_len,
+    //      tanj[IY] / *interface_len,
+    //     -tanj[IX] / *interface_len,
     //   };
     // else
     //   return {
-    //     out[IX] / *interface_len,
-    //     out[IY] / *interface_len,
+    //     tanj[IX] / *interface_len,
+    //     tanj[IY] / *interface_len,
     //   };
       
   }
@@ -146,19 +196,49 @@ public:
   KOKKOS_INLINE_FUNCTION
   real_t cellLength(int i, int j, IDir dir) const
   {
-    const real_t di = (dir == IX) ? 1.0 : 0.5;
-    const real_t dj = (dir == IX) ? 0.5 : 1.0;
+    // const real_t di = (dir == IX) ? 1.0 : 0.5;
+    // const real_t dj = (dir == IX) ? 0.5 : 1.0;
 
-    Pos p = mapc2p({params.xmin + (i-params.ibeg + ((dir == IX) ? 0.0 : di)) * params.dx,
-                    params.ymin + (j-params.jbeg + ((dir == IX) ? dj : 0.0)) * params.dy});
+    // Pos p = mapc2p({params.xmin + (i-params.ibeg + ((dir == IX) ? 0.0 : di)) * params.dx,
+    //                 params.ymin + (j-params.jbeg + ((dir == IX) ? dj : 0.0)) * params.dy});
 
-    Pos q = mapc2p({params.xmin + (i-params.ibeg + di) * params.dx,
-                    params.ymin + (j-params.jbeg + dj) * params.dy});
+    // Pos q = mapc2p({params.xmin + (i-params.ibeg + di) * params.dx,
+    //                 params.ymin + (j-params.jbeg + dj) * params.dy});
+    
+    
+    Pos bl = mapc2p_vertex(i  ,j  );
+    Pos br = mapc2p_vertex(i+1,j  ); 
+    Pos tr = mapc2p_vertex(i+1,j+1); 
+    Pos tl = mapc2p_vertex(i  ,j+1);
 
-    real_t x = (q[IX] - p[IX]);
-    real_t y = (q[IY] - p[IY]);
+    Pos l, c, r;
+    if(dir == IX)
+    {
+      l = 0.5 * (bl + tl);
+      c = 0.25 * (bl + br + tr + tl);
+      r = 0.5 * (br + tr);
+    }
+    else
+    {
+      l = 0.5 * (bl + br);
+      c = 0.25 * (bl + br + tr + tl);
+      r = 0.5 * (tl + tr);
+    }
 
-    return sqrt(x*x + y*y);
+    real_t dL, dR;
+    {
+      real_t x, y;
+      // left
+      x = c[IX] - l[IX];
+      y = c[IY] - l[IY];
+      dL = sqrt(x*x + y*y);
+      // right
+      x = r[IX] - c[IX];
+      y = r[IY] - c[IY];
+      dR = sqrt(x*x + y*y);
+    }
+
+    return dL + dR;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -167,7 +247,7 @@ public:
     // return {0.5,0.5}; // reconstruct like a cartesian grid
   
     // TODO: verif ---- 'refection' on boundary 
-    #if 1
+    #if 0
       if(i <= params.ibeg + 1 || i > params.iend ||
         j <= params.jbeg + 1 || j > params.jend )
           return {0.5, 0.5};
@@ -178,24 +258,39 @@ public:
     #endif
 
     Pos l, c, r;
+    // if(dir == IX)
+    // {
+    //   l = mapc2p({params.xmin + (i-params.ibeg - 1.0) * params.dx,
+    //               params.ymin + (j-params.jbeg + 0.5) * params.dy});
+    //   c = mapc2p({params.xmin + (i-params.ibeg + 0.0) * params.dx,
+    //               params.ymin + (j-params.jbeg + 0.5) * params.dy});
+    //   r = mapc2p({params.xmin + (i-params.ibeg + 1.0) * params.dx,
+    //               params.ymin + (j-params.jbeg + 0.5) * params.dy});
+    // }
+    // else
+    // {
+    //   l = mapc2p({params.xmin + (i-params.ibeg + 0.5) * params.dx,
+    //               params.ymin + (j-params.jbeg - 1.0) * params.dy});
+    //   c = mapc2p({params.xmin + (i-params.ibeg + 0.5) * params.dx,
+    //               params.ymin + (j-params.jbeg + 0.0) * params.dy});
+    //   r = mapc2p({params.xmin + (i-params.ibeg + 0.5) * params.dx,
+    //               params.ymin + (j-params.jbeg + 1.0) * params.dy});
+    // }
+
     if(dir == IX)
     {
-      l = mapc2p({params.xmin + (i-params.ibeg - 1.0) * params.dx,
-                  params.ymin + (j-params.jbeg + 0.5) * params.dy});
-      c = mapc2p({params.xmin + (i-params.ibeg + 0.0) * params.dx,
-                  params.ymin + (j-params.jbeg + 0.5) * params.dy});
-      r = mapc2p({params.xmin + (i-params.ibeg + 1.0) * params.dx,
-                  params.ymin + (j-params.jbeg + 0.5) * params.dy});
+      l = mapc2p_center(i-1, j);
+      c = 0.5 * (mapc2p_vertex(i,j) + mapc2p_vertex(i,j+1));
+      r = mapc2p_center(i, j);
     }
     else
     {
-      l = mapc2p({params.xmin + (i-params.ibeg + 0.5) * params.dx,
-                  params.ymin + (j-params.jbeg - 1.0) * params.dy});
-      c = mapc2p({params.xmin + (i-params.ibeg + 0.5) * params.dx,
-                  params.ymin + (j-params.jbeg + 0.0) * params.dy});
-      r = mapc2p({params.xmin + (i-params.ibeg + 0.5) * params.dx,
-                  params.ymin + (j-params.jbeg + 1.0) * params.dy});
+      l = mapc2p_center(i, j-1);
+      c = 0.5 * (mapc2p_vertex(i,j) + mapc2p_vertex(i+1,j));
+      r = mapc2p_center(i, j);
     }
+
+
     
     real_t dL, dR;
     {

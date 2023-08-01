@@ -34,8 +34,8 @@ int main(int argc, char **argv) {
 
     // Misc vars for iteration
     real_t t = 0.0;
+    int save_ite = 0;
     int ite = 0;
-    
     // Initializing primitive variables
     InitFunctor init(params);
     UpdateFunctor update(params);
@@ -64,18 +64,19 @@ int main(int argc, char **argv) {
 
       if (save_needed) {
         std::cout << " - Saving at time " << t << std::endl;
-        ioManager.saveSolution(Q, ite++, t, dt);
+        ioManager.saveSolution(Q, save_ite++, t, dt);
         next_save += params.save_freq;
       }
 
-      update.update(Q, Unew, dt);
+      update.update(Q, Unew, dt, ite);
 
       Kokkos::deep_copy(U, Unew);
 
       t += dt;
+      ite++;
     }
 
-    ioManager.saveSolution(Q, ite++, t, dt);
+    ioManager.saveSolution(Q, save_ite++, t, dt);
   }
   Kokkos::finalize();
 

@@ -158,6 +158,8 @@ struct Params {
   // Misc 
   int seed;
   int log_frequency;
+  bool log_energy_contributions;
+  int log_energy_frequency;
 };
 
 // Helper to get the position in the mesh
@@ -297,6 +299,8 @@ Params readInifile(std::string filename) {
   // Misc
   res.seed = reader.GetInteger("misc", "seed", 12345);
   res.log_frequency = reader.GetInteger("misc", "log_frequency", 10);
+  res.log_energy_contributions = reader.GetBoolean("misc", "log_energy_contributions", false);
+  res.log_energy_frequency = reader.GetFloat("misc", "log_energy_frequency", 10);
 
 
   // Parallel ranges

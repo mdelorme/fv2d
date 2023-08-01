@@ -15,6 +15,7 @@ public:
   ~ComputeDtFunctor() = default;
 
   real_t computeDt(Array Q, real_t max_dt, real_t t, bool diag) const {
+    using DtArray = Kokkos::Array<real_t, 3>;
     auto params = full_params.device_params;
 
     real_t inv_dt_hyp = 0.0;

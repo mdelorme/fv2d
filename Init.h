@@ -83,7 +83,6 @@ namespace {
     real_t x = pos[IX];
     real_t y = pos[IY];
 
-    real_t T = y;
     real_t rho = pow(y, params.m1);
     real_t prs = pow(y, params.m1+1.0); 
 

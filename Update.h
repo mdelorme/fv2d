@@ -50,7 +50,6 @@ public:
     };
   ~UpdateFunctor() = default;
 
-  KOKKOS_INLINE_FUNCTION
   void computeSlopes(const Array &Q) const {
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;

@@ -39,8 +39,6 @@ public:
 
   void applyHeating(Array Q, Array Unew, real_t dt, int ite) {
     auto params = this->params;
-    const real_t dx = params.dx;
-    const real_t dy = params.dy;
 
     real_t total_heating = 0.0;
     Kokkos::parallel_reduce(

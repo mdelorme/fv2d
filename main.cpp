@@ -72,7 +72,7 @@ int main(int argc, char **argv)
       if (save_needed)
       {
         std::cout << " - Saving at time " << t << std::endl;
-        ioManager.saveSolution(Q, ite++, t);
+        ioManager.saveSolution(Q, save_ite++, t, dt);
         next_save += params.save_freq;
       }
 
@@ -81,6 +81,7 @@ int main(int argc, char **argv)
       checkNegatives(Q, params);
 
       t += dt;
+      ite++;
     }
 
     std::cout << "Time at end is " << t << std::endl;

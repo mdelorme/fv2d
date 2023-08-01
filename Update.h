@@ -183,15 +183,15 @@ public:
     // Hypperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
-    computeFluxesAndUpdate(Q, Unew, dt);
+    computeFluxesAndUpdate(Q, Unew, dt, ite);
 
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-      tc_functor.applyThermalConduction(Q, Unew, dt);
+      tc_functor.applyThermalConduction(Q, Unew, dt, ite);
     if (full_params.device_params.viscosity_active)
-      visc_functor.applyViscosity(Q, Unew, dt);
+      visc_functor.applyViscosity(Q, Unew, dt, ite);
     if (params.heating_active)
-      heat_functor.applyHeating(Q, Unew, dt);
+      heat_functor.applyHeating(Q, Unew, dt, ite);
   }
 
   void update(Array Q, Array Unew, real_t dt)
@@ -212,7 +212,7 @@ public:
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, ite);
 
       // SSP-RK2
       Kokkos::parallel_for(

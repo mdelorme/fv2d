@@ -87,6 +87,7 @@ public:
             case BCTC_NO_FLUX:           FU = 0.0; break;
             default: break;
           }
+        }
 
         if (j==params.jend-1 && params.bctc_ymax != BCTC_NONE) {
           switch (params.bctc_ymax) {
@@ -96,7 +97,7 @@ public:
             case BCTC_NO_FLUX:           FD = 0.0; break;       
             default: break;
           }
-
+        }
           // And updating using a Godunov-like scheme
           Unew(j, i, IE) += dt / dx * (FR - FL) + dt / dy * (FD - FU);
         });

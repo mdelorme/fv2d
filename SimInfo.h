@@ -511,7 +511,83 @@ struct Params
   // Misc 
   int seed;
   int log_frequency;
-  real_t epsilon_reset_negative; // fixed value if negative value is encountered
+  real_t epsilon_reset_negative; // fixed value if negative value is encountered 
+  bool log_energy_contributions;
+  int log_energy_frequency;
+  
+  struct value_container {
+    std::string value;
+    bool from_file = false;
+    bool used = false;
+  };
+  std::map<std::string, std::map<std::string, value_container>> _values;
+  
+  template<typename T>
+  void registerValue(std::string section, std::string name, const T& default_value) {
+    // TODO: revoir la logique car affiche unused et default à chaque paramètre.
+    // Les valeurs sont par contre correctes.
+    auto hasValue = [&](const std::string& section, const std::string& name) {
+      return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0);
+    };
+
+    bool is_present_in_file = hasValue(section, name);
+    if (is_present_in_file) {
+      this->_values[section][name].used = true;
+      this->_values[section][name].from_file = true;
+    }
+    if constexpr (std::is_same_v<T, std::string>){
+      this->_values[section][name].value = default_value;
+    }
+    else {
+      this->_values[section][name].value = std::to_string(default_value);
+    }
+  }
+  bool GetBoolean(std::string section, std::string name, bool default_value){
+    bool res = this->reader.GetBoolean(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+  
+  int GetInteger(std::string section, std::string name, int default_value){
+    int res = this->reader.GetInteger(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+  
+  real_t GetFloat(std::string section, std::string name, real_t default_value){
+    real_t res = this->reader.GetFloat(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+  std::string Get(std::string section, std::string name, std::string default_value){
+    std::string res = this->reader.Get(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+
+  void outputValues(std::ostream& o){
+    constexpr std::string::size_type name_width = 20;
+    constexpr std::string::size_type value_width = 20;
+    auto initial_format = o.flags();
+    std::string problem = this->Get("physics", "problem", "unknown");
+    o << "Parameters used for the problem: " << problem << std::endl;
+    o << std::left;
+    for( auto p_section : this->_values )
+    {
+      const std::string& section_name = p_section.first;
+      const std::map<std::string, value_container>& map_section = p_section.second;
+
+      o << "\n[" << section_name << "]" << std::endl;
+      for( auto p_var : map_section )
+      {
+        const std::string& var_name = p_var.first;
+        const value_container& val = p_var.second;
+
+        o << std::setw(std::max(var_name.length(),name_width)) << var_name << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value << std::endl;
+      }
+    }
+    o.flags(initial_format);
+  }
 };
 
 // Helper to get the position in the mesh
@@ -575,6 +651,8 @@ Params readInifile(std::string filename)
   res.seed                   = reader.GetInteger("misc", "seed", 12345);
   res.log_frequency          = reader.GetInteger("misc", "log_frequency", 10);
   res.epsilon_reset_negative = reader.GetFloat("misc", "epsilon_reset_negative", 1.0e-8);
+  res.log_energy_contributions = reader.GetBoolean("misc", "log_energy_contributions", false);
+  res.log_energy_frequency = reader.GetFloat("misc", "log_energy_frequency", 10);
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);

@@ -19,15 +19,17 @@ public:
     : full_params(full_params) {};
   ~ViscosityFunctor() = default;
 
-  void applyViscosity(Array Q, Array Unew, real_t dt) {
+  void applyViscosity(Array Q, Array Unew, real_t dt, int ite) {
     auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
 
-    Kokkos::parallel_for(
+    real_t total_viscous_contrib = 0.0;
+
+    Kokkos::parallel_reduce(
       "Viscosity",
       full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
+      KOKKOS_LAMBDA(const int i, const int j, real_t &viscous_contrib) {
         Pos pos = getPos(params, i, j);
         real_t x = pos[IX];
         real_t y = pos[IY];
@@ -102,9 +104,14 @@ public:
 
         State un_loc = getStateFromArray(Unew, i, j);
         un_loc += dt * (vf_x + vf_y);
+
+        viscous_contrib += dt * (vf_x[IE] + vf_y[IE]);
         setStateInArray(Unew, i, j, un_loc);
 
-      });
+      }, Kokkos::Sum<real_t>(total_viscous_contrib));
+
+    if (params.log_energy_contributions && ite % params.log_energy_frequency == 0)
+      std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
   }
 };
 

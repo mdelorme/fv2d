@@ -38,15 +38,17 @@ public:
     : full_params(full_params) {};
   ~ThermalConductionFunctor() = default;
 
-  void applyThermalConduction(Array Q, Array Unew, real_t dt) {
+  void applyThermalConduction(Array Q, Array Unew, real_t dt, int ite) {
     auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
 
-    Kokkos::parallel_for(
+    real_t total_thermal_contrib = 0.0;
+
+    Kokkos::parallel_reduce(
       "Thermal conduction", 
       full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
+      KOKKOS_LAMBDA(const int i, const int j, real_t &thermal_contrib) {
         Pos pos = getPos(params, i, j);
         real_t x = pos[IX];
         real_t y = pos[IY];
@@ -98,7 +100,11 @@ public:
 
         // And updating using a Godunov-like scheme
         Unew(j, i, IE) += dt/dx * (FR - FL) + dt/dy * (FD - FU);
-      });
+        thermal_contrib += dt/dx * (FR - FL) + dt/dy * (FD - FU);
+      }, Kokkos::Sum<real_t>(total_thermal_contrib));
+
+    if (params.log_energy_contributions && ite % params.log_energy_frequency == 0)
+      std::cout << "Total thermal contribution to energy : " << total_thermal_contrib << std::endl;
   }
 };
 

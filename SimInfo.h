@@ -296,6 +296,8 @@ struct Params {
   // Misc 
   int seed;
   int log_frequency;
+  bool log_energy_contributions;
+  int log_energy_frequency;
   
   struct value_container {
     std::string value;
@@ -405,8 +407,10 @@ Params readInifile(std::string filename) {
   res.c20_H = reader.GetFloat("C20", "H", 0.2);
 
   // Misc
-  res.seed = res.GetInteger("misc", "seed", 12345);
-  res.log_frequency = res.GetInteger("misc", "log_frequency", 10);
+  res.seed = reader.GetInteger("misc", "seed", 12345);
+  res.log_frequency = reader.GetInteger("misc", "log_frequency", 10);
+  res.log_energy_contributions = reader.GetBoolean("misc", "log_energy_contributions", false);
+  res.log_energy_frequency = reader.GetFloat("misc", "log_energy_frequency", 10);
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);

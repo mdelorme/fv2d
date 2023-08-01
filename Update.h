@@ -80,15 +80,17 @@ public:
 
   }
 
-  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
+  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt, int ite) const {
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
 
-    Kokkos::parallel_for(
+    real_t total_hydro_contrib = 0.0;
+
+    Kokkos::parallel_reduce(
       "Update", 
       full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
+      KOKKOS_LAMBDA(const int i, const int j, real_t &hydro_contrib) {
         // Lambda to update the cell along a direction
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
@@ -129,7 +131,10 @@ public:
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
+          const real_t dh = (dir == IX ? params.dx : params.dy);
+          un_loc += dt*(fluxL - fluxR)/dh;
+
+          hydro_contrib += dt * (fluxL[IE]-fluxR[IE])/dh;
         
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
@@ -141,30 +146,35 @@ public:
 
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
-      });
+
+        Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
+      }, Kokkos::Sum<real_t>(total_hydro_contrib));
+
+    if (params.log_energy_contributions && ite % params.log_energy_frequency == 0)
+      std::cout << "Total hydro contribution to energy : " << total_hydro_contrib << std::endl;
   }
 
-  void euler_step(Array Q, Array Unew, real_t dt) {
+  void euler_step(Array Q, Array Unew, real_t dt, int ite) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
 
     // Hypperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
-    computeFluxesAndUpdate(Q, Unew, dt);
+    computeFluxesAndUpdate(Q, Unew, dt, ite);
 
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-      tc_functor.applyThermalConduction(Q, Unew, dt);
+      tc_functor.applyThermalConduction(Q, Unew, dt, ite);
     if (full_params.device_params.viscosity_active)
-      visc_functor.applyViscosity(Q, Unew, dt);
+      visc_functor.applyViscosity(Q, Unew, dt, ite);
     if (params.heating_active)
-      heat_functor.applyHeating(Q, Unew, dt);
+      heat_functor.applyHeating(Q, Unew, dt, ite);
   }
 
   void update(Array Q, Array Unew, real_t dt) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, ite);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
@@ -173,12 +183,12 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
-      euler_step(Q, Ustar, dt);
+      euler_step(Q, Ustar, dt, ite);
       
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, ite);
 
       // SSP-RK2
       Kokkos::parallel_for(

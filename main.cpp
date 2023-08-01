@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
 
     // Misc vars for iteration
     real_t t = 0.0;
+    int save_ite = 0;
     int ite = 0;
     real_t next_save = 0.0;
     
@@ -71,7 +72,7 @@ int main(int argc, char **argv) {
 
       if (save_needed) {
         std::cout << " - Saving at time " << t << std::endl;
-        ioManager.saveSolution(Q, ite++, t, dt);
+        ioManager.saveSolution(Q, save_ite++, t, dt);
         next_save += params.save_freq;
       }
 
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
       checkNegatives(Q, params);
 
       t += dt;
+      ite++;
     }
 
     std::cout << "Time at end is " << t << std::endl;

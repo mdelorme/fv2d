@@ -156,6 +156,7 @@ struct Params {
 
   // Currie 2020
   real_t c20_H;
+  real_t c20_heating_fac;
 
   // Tri-Layer
   real_t tri_y1, tri_y2;
@@ -304,6 +305,7 @@ Params readInifile(std::string filename) {
 
   // C20
   res.c20_H = reader.GetFloat("C20", "H", 0.2);
+  res.c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
 
   // Tri-layer
   res.tri_y1 = reader.GetFloat("tri_layer", "y1", 1.0);

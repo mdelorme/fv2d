@@ -32,7 +32,7 @@ real_t heatC2020_tri(Array Q, const int i, const int j, const Params &params) {
   Pos pos = getPos(params, i, j);
   real_t y = pos[IY];
 
-  real_t F = params.kappa*params.theta1*params.gamma0/(params.gamma0-1.0) * 2.0;
+  real_t F = params.kappa*params.theta1*params.gamma0/(params.gamma0-1.0) * params.c20_heating_fac;
   
   // Limits of the convection zone
   const real_t y1 = params.tri_y1;

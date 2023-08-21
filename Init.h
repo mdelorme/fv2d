@@ -75,6 +75,59 @@ void initSodX(Array Q, int i, int j, const DeviceParams &params)
     Q(j, i, IU)      = -ynr * u_phi;
     Q(j, i, IV)      = xnr * u_phi;
   }
+
+  /* @brief Tri-Layer setup for a Currie2020 type of run
+   * 
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initTriLayer(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+    Pos pos = getPos(params, i, j);
+    const real_t y = pos[IY];
+    
+    const real_t T0 = 10.0;
+    const real_t rho0 = 10.0;
+    const real_t p0 = rho0 * T0;
+
+    const real_t T1   = T0 + params.theta2 * params.tri_y1;
+    const real_t rho1 = rho0 * pow(T1/T0, params.m2);
+    const real_t p1   = p0 * pow(T1/T0, params.m2+1.0);
+
+    const real_t T2   = T1 + params.theta1 * (params.tri_y2-params.tri_y1);
+    const real_t rho2 = rho1 * pow(T2/T1, params.m1);
+    const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
+    
+    // Top layer
+    real_t T;
+    if (y <= params.tri_y1) {
+      T = T0 + params.theta2*y;
+      Q(j, i, IR) = rho0 * pow(T/T0, params.m2);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p0 * pow(T/T0, params.m2+1.0);
+    } 
+    // Middle layer
+    else if (y <= params.tri_y2) {
+      auto generator = random_pool.get_state();
+      T = T1 + params.theta1*(y-params.tri_y1);
+      Q(j, i, IR) = rho1 * pow(T/T1, params.m1);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+
+      real_t pert = params.tri_pert * (generator.drand(-0.5, 0.5));
+      if (y-params.tri_y1 < 0.1 || params.tri_y2-y < 0.1)
+        pert = 0.0;
+      Q(j, i, IP) = (p1 * pow(T/T1, params.m1+1.0)) * (1.0 + pert);
+      random_pool.free_state(generator);
+    }
+    // Bottom layer
+    else {
+      T = T2 + params.theta2*(y-params.tri_y2);
+      Q(j, i, IR) = rho2 * pow(T/T2, params.m2);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
+    }
+  } 
 }
 
 /**
@@ -265,6 +318,7 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
 }
 } // namespace
 
+
 /**
  * @brief Enum describing the type of initialization possible
  */
@@ -278,6 +332,8 @@ enum InitType
   H84,
   C91,
   KELVIN_HELMHOLTZ,
+  B02,
+  TRI_LAYER,
   GRESHO_VORTEX
 };
 
@@ -288,17 +344,20 @@ private:
   InitType init_type;
 
 public:
-  InitFunctor(Params &full_params) : full_params(full_params)
-  {
-    std::map<std::string, InitType> init_map{{"sod_x", SOD_X},
-                                             {"sod_y", SOD_Y},
-                                             {"blast", BLAST},
-                                             {"rayleigh-taylor", RAYLEIGH_TAYLOR},
-                                             {"diffusion", DIFFUSION},
-                                             {"H84", H84},
-                                             {"C91", C91},
-                                             {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
-                                             {"gresho_vortex", GRESHO_VORTEX}};
+  InitFunctor(Params &full_params)
+    : full_params(full_params) {
+    std::map<std::string, InitType> init_map {
+      {"sod_x", SOD_X},
+      {"sod_y", SOD_Y},
+      {"blast", BLAST},
+      {"rayleigh-taylor", RAYLEIGH_TAYLOR},
+      {"diffusion", DIFFUSION},
+      {"H84", H84},
+      {"C91", C91},
+      {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
+      {"tri-layer", TRI_LAYER},
+      {"gresho_vortex", GRESHO_VORTEX}
+    };
 
     if (init_map.count(full_params.problem) == 0)
       throw std::runtime_error("Error unknown problem " + full_params.problem);
@@ -346,6 +405,7 @@ public:
           case KELVIN_HELMHOLTZ:
             initKelvinHelmholtz(Q, i, j, params);
             break;
+          case TRI_LAYER:       initTriLayer(Q, i, j, params, random_pool); break;
           case GRESHO_VORTEX:
             initGreshoVortex(Q, i, j, params);
             break;

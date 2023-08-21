@@ -73,10 +73,12 @@ enum ReconstructionType {
 enum ThermalConductivityMode {
   TCM_CONSTANT,
   TCM_B02,
+  TCM_C2020_TRI
 };
 
 enum HeatingMode {
   HM_C2020,
+  HM_C2020_TRI,
 };
 
 // Thermal conduction at boundary
@@ -226,7 +228,8 @@ struct DeviceParams {
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
       {"constant", TCM_CONSTANT},
-      {"B02",      TCM_B02}
+      {"B02",      TCM_B02},
+      {"tri_layer", TCM_C2020_TRI}
     };
     thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
@@ -234,7 +237,9 @@ struct DeviceParams {
     std::map<std::string, BCTC_Mode> bctc_map{
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
-      {"fixed_gradient",    BCTC_FIXED_GRADIENT}
+      {"fixed_gradient",    BCTC_FIXED_GRADIENT},
+      {"no_flux",           BCTC_NO_FLUX},
+      {"no_conduction",     BCTC_NO_CONDUCTION},
     };
     bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_xmin", "none");
     bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
@@ -254,6 +259,7 @@ struct DeviceParams {
     tmp = reader.Get("heating", "mode", "C2020");
     std::map<std::string, HeatingMode> heating_map{
       {"C2020", HM_C2020},
+      {"tri_layer", HM_C2020_TRI}
     };
     heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
@@ -292,6 +298,11 @@ struct Params {
 
   // Currie 2020
   real_t c20_H;
+
+  // Tri-Layer
+  real_t tri_y1, tri_y2;
+  real_t tri_pert;
+  real_t tri_k1, tri_k2;
 
   // Misc 
   int seed;
@@ -405,6 +416,13 @@ Params readInifile(std::string filename) {
 
   // C20
   res.c20_H = reader.GetFloat("C20", "H", 0.2);
+
+  // Tri-layer
+  res.tri_y1 = reader.GetFloat("tri_layer", "y1", 1.0);
+  res.tri_y2 = reader.GetFloat("tri_layer", "y2", 2.0);
+  res.tri_pert = reader.GetFloat("tri_layer", "perturbation", 1.0e-3);
+  res.tri_k1 = reader.GetFloat("tri_layer", "kappa1", 0.07);
+  res.tri_k2 = reader.GetFloat("tri_layer", "kappa2", 1.5);
 
   // Misc
   res.seed = reader.GetInteger("misc", "seed", 12345);

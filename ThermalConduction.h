@@ -15,6 +15,15 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
       res = params.kappa * (params.b02_kappa1 * (1.0-tr) + params.b02_kappa2 * tr);
       break;
     }
+    case TCM_C2020_TRI:
+    {
+      const real_t y = getPos(params, i, j)[IY];
+      const real_t th = 0.05; // Thickness of transition layer
+      const real_t tr1 = (tanh((y-params.tri_y1)/th) + 1.0) * 0.5;
+      const real_t tr2 = (tanh((params.tri_y2-y)/th) + 1.0) * 0.5;
+      const real_t tr = tr1*tr2;
+      res = params.kappa * (params.b02_kappa2 * (1.0-tr) + params.b02_kappa1 * tr);
+    }
     /*case TCM_C20_STABLE:
     {
       const real_t y = getPos(params, i, j)[IY];

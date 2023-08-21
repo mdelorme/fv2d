@@ -27,6 +27,29 @@ real_t heatC2020(Array Q, const int i, const int j, const Params &params) {
   return F * qc;
 }
 
+KOKKOS_INLINE_FUNCTION
+real_t heatC2020_tri(Array Q, const int i, const int j, const Params &params) {
+  Pos pos = getPos(params, i, j);
+  real_t y = pos[IY];
+
+  real_t F = params.kappa*params.theta1*params.gamma0/(params.gamma0-1.0) * 2.0;
+  
+  // Limits of the convection zone
+  const real_t y1 = params.tri_y1;
+  const real_t y2 = params.tri_y2;
+
+  const real_t H = params.c20_H;
+  real_t qc;
+  if (y >= y1 - 0.5*H && y <= y1 + 0.5*H)
+    qc = -1.0 - cos(2.0*M_PI*(y-y1)/H);
+  else if (y >= y2 - 0.5*H && y <= y2 + 0.5*H)
+    qc = 1.0 + cos(2.0*M_PI*(y-y2)/H);
+  else 
+    qc = 0.0;
+
+  return F * qc;
+}
+
 }
 
 class HeatingFunctor {
@@ -49,6 +72,7 @@ public:
 
         switch(params.heating_mode) {
           case HM_C2020: q = heatC2020(Q, i, j, params); break;
+          case HM_C2020_TRI: q = heatC2020_tri(Q, i, j, params); break;
         } 
 
         // Explicit update

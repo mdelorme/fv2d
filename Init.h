@@ -135,6 +135,39 @@ namespace {
       Q(j, i, IP) =  0.1 * tr + 10.0 * (1-tr);
     #endif
   }
+
+
+  KOKKOS_INLINE_FUNCTION
+  void initKelvinHelmholtz(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    constexpr real_t yl =  0.333;
+    constexpr real_t yh = 0.666;
+
+    auto generator = random_pool.get_state();
+    real_t pertx = 0.005 * (generator.drand(-1.0, 1.0));
+    real_t perty = 0.005 * (generator.drand(-1.0, 1.0));
+    random_pool.free_state(generator);
+
+    real_t velocity = params.ring_velocity;
+    // fix pressure
+    if(yl < y && y < yh){
+      Q(j, i, IR) = params.ring_rho_in;
+      Q(j, i, IU) = velocity;
+      Q(j, i, IV) = 0;
+      Q(j, i, IP) = params.ring_p_in;
+    }
+    else{
+      Q(j, i, IR) = params.ring_rho_out;
+      Q(j, i, IU) = - velocity;
+      Q(j, i, IV) = 0;
+      Q(j, i, IP) = params.ring_p_out;
+    }
+    Q(j, i, IU) += pertx;
+    Q(j, i, IV) += perty;
+  }
 //////////////////////////////////////////////////////////////////////////
 ////////////////////////////      RING       /////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -230,7 +263,7 @@ namespace {
     real_t r = sqrt(x*x + y*y);
 
     
-    real_t g = params.g;
+    real_t g = - params.g;
     const real_t rho_in = params.ring_rho_in;
     const real_t rho_out = params.ring_rho_out;
 
@@ -254,7 +287,7 @@ namespace {
     real_t pert = params.ring_velocity * (generator.drand(-1.0, 1.0));
     random_pool.free_state(generator);
 
-    pert = pert * sin(2*M_PI*r);
+    pert = pert * sin(2*M_PI*r); 
 
     real_t _cos = x / r;
     real_t _sin = y / r;
@@ -342,7 +375,7 @@ namespace {
   /**
    * @brief Rayleigh-Taylor instability setup
    */
-  KOKKOS_INLINE_FUNCTION
+/*   KOKKOS_INLINE_FUNCTION
   void initRayleighTaylor(Array Q, int i, int j, const Params &params) {
     real_t ymid = 0.5*(params.ymin + params.ymax);
 
@@ -365,6 +398,42 @@ namespace {
 
     if (y > -1.0/3.0 && y < 1.0/3.0)
       Q(j, i, IV) = 0.01 * (1.0 + cos(4*M_PI*x)) * (1 + cos(3.0*M_PI*y))/4.0;
+  } */
+
+
+  KOKKOS_INLINE_FUNCTION
+  void initRayleighTaylor(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY]; // [0,1]
+
+    real_t y0 = 0.5;
+
+    real_t g = - params.g;
+    const real_t rho_in = params.ring_rho_in;
+    const real_t rho_out = params.ring_rho_out;
+
+    real_t p0 = 2.5;
+
+    // fix pressure
+    if(y < y0){
+      Q(j, i, IR) = rho_in;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p0 - g * rho_in * y;
+    }
+    else{
+      Q(j, i, IR) = rho_out;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p0 - g * rho_out * (y - y0) - g * rho_in * y0;
+    }
+
+    auto generator = random_pool.get_state();
+    real_t pert = params.ring_velocity * (generator.drand(-1.0, 1.0));
+    random_pool.free_state(generator);
+
+    Q(j, i, IV) = pert * sin(M_PI*y);
   }
 }
 
@@ -381,6 +450,7 @@ enum InitType {
   RING_KE,
   RING_RT,
 
+  KELVIN_HELM,
   LAXLIU,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
@@ -402,6 +472,7 @@ public:
       {"sod_y", SOD_Y},
       {"blast", BLAST},
       {"laxliu", LAXLIU},
+      {"kelvin-helmholtz", KELVIN_HELM},
       {"ring_blast", RING_BLAST},
       {"ring_kelvin-helmholtz", RING_KE},
       {"ring_rayleigh-taylor", RING_RT},
@@ -437,11 +508,13 @@ public:
                               case LAXLIU:          initLaxLiu(Q, i, j, params, geometry); break;
                               case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
                               case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;
+                              case KELVIN_HELM:     initKelvinHelmholtz(Q, i, j, params, geometry, random_pool); break;
                               case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry, random_pool); break;
                               
                               
                               // case DIFFUSION:       initDiffusion(Q, i, j, params); break;
-                              case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
+                              // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
+                              case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params, geometry, random_pool); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;
                               // case C91:             initC91(Q, i, j, params, random_pool); break;
                             }

@@ -31,17 +31,21 @@ Nf = len(f)-2
 
 x = np.array(f['x'])
 y = np.array(f['y'])
+dy = y[1]-y[0]
 Nx = x.shape[0]
 Ny = y.shape[0]
+g = 20.0
+y1 = 1.5
+y2 = 2.5
 
 xmin=x.min()
 xmax=x.max()
 ymin=y.min()
 ymax=y.max()
 
-mosaic = '''A
-B
-C'''
+mosaic = '''AB
+CD
+EF'''
 
 ext = [xmin, xmax, ymin, ymax]
 
@@ -56,40 +60,38 @@ def get_array(field, ite):
   elif field == 'T':
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
-    return prs/rho
-  elif field == 'logT':
+    return prs/rho 
+  elif field == 'HSE':
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
-    return np.log10(prs/rho)
+    dP = (prs[2:,:] - prs[:-2,:]) / (2.0 * dy)
+    return dP - rho[1:-1,:]*g
   else:
     path = f'ite_{ite}/{field}'
     return np.array(f[path]).reshape((Ny, Nx))
 
 def plot_field(field, cax, i, clim=None, cmap='viridis'):
   arr = get_array(field, i)
-  im = cax.imshow(arr, extent=ext, cmap=cmap, clim=clim)
-  cax.axhline(0.0, linestyle='--', color='k')
-  cax.axhline(1.0, linestyle='--', color='k')
+  im = cax.imshow(arr, extent=ext, clim=clim, cmap=cmap)
   cax.set_title(field)
+  cax.axhline(ymax-y1, linestyle='--', color='k')
+  cax.axhline(ymax-y2, linestyle='--', color='k')
   divider = make_axes_locatable(cax)
   cax = divider.append_axes('right', size='5%', pad=0.05)
-  
   fig.colorbar(im, cax=cax, orientation='vertical')
 
   
 print('Rendering animation')
-ext[2] -= 0.2
-ext[3] -= 0.2 
-  
 for i in tqdm(range(start_ite, Nf)):
   fig, ax = plt.subplot_mosaic(mosaic, figsize=(10, 10))
-  #plot_field('T-<T>', ax['A'], i, (-2.0, 2.0), 'seismic')
-  plot_field('logT', ax['A'], i, (4.0, 12.0), 'YlOrBr_r')
-  plot_field('u',     ax['B'], i, (-1.5, 1.5), 'seismic')
-  plot_field('v',     ax['C'], i, (-1.5, 1.5), 'seismic')
-
-  time = f[f'ite_{i}'].attrs['time']
-  plt.suptitle('t={:.4f}'.format(time))
+  Tlim = None
+  plot_field('rho',   ax['A'], i)
+  plot_field('prs',   ax['B'], i)
+  plot_field('T',     ax['C'], i, Tlim, 'YlOrBr_r')
+  plot_field('u',     ax['D'], i, (-0.1, 0.1), 'seismic')
+  plot_field('v',     ax['E'], i, (-0.1, 0.1), 'seismic')
+  plot_field('HSE',   ax['F'], i)
+  #fig.delaxes(ax['F'])
 
   plt.tight_layout()
 

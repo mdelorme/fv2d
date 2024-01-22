@@ -70,10 +70,16 @@ int main(int argc, char **argv) {
       else
         next_log--;
 
+      if (dt < 1.0e-6) {
+        std::cout << "DT too small : Aborting" << std::endl;
+        break;
+      }
+
       if (save_needed) {
         std::cout << " - Saving at time " << t << std::endl;
         ioManager.saveSolution(Q, save_ite++, t, dt);
         next_save += params.save_freq;
+
       }
 
       update.update(Q, U, dt);

@@ -74,6 +74,7 @@ int main(int argc, char **argv)
         std::cout << " - Saving at time " << t << std::endl;
         ioManager.saveSolution(Q, save_ite++, t, dt);
         next_save += params.save_freq;
+
       }
 
       update.update(Q, U, dt);

@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 
     while (t + params.epsilon < params.tend) {
       Kokkos::deep_copy(Unew, U);
-      
+
       bool save_needed = (t + params.epsilon > next_save);
 
       consToPrim(U, Q, params);
@@ -62,10 +62,16 @@ int main(int argc, char **argv) {
       else
         next_log--;
 
+      if (dt < 1.0e-6) {
+        std::cout << "DT too small : Aborting" << std::endl;
+        break;
+      }
+
       if (save_needed) {
         std::cout << " - Saving at time " << t << std::endl;
         ioManager.saveSolution(Q, save_ite++, t, dt);
         next_save += params.save_freq;
+
       }
 
       update.update(Q, Unew, dt, ite);

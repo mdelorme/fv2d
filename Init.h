@@ -84,7 +84,7 @@ namespace {
     real_t y = pos[IY];
 
     real_t rho = pow(y, params.m1);
-    real_t prs = pow(y, params.m1+1.0); 
+    real_t prs = pow(y, params.m1+1.0);
 
     auto generator = random_pool.get_state();
     real_t pert = params.h84_pert * (generator.drand(-0.5, 0.5));
@@ -136,7 +136,7 @@ namespace {
 
     real_t r = sqrt(x0*x0+y0*y0);
 
-    if (r < 0.2) 
+    if (r < 0.2)
       Q(j, i, IR) = 1.0;
     else
       Q(j, i, IR) = 0.1;
@@ -176,15 +176,15 @@ namespace {
 
   /**
    * @brief Tri-Layer setup for a Currie2020 type of run
-   * 
+   *
    */
   KOKKOS_INLINE_FUNCTION
   void initTriLayer(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     const real_t y = pos[IY];
-    
-    const real_t T0 = 10.0;
-    const real_t rho0 = 10.0;
+
+    const real_t T0 = 1.0;
+    const real_t rho0 = 1.0;
     const real_t p0 = rho0 * T0;
 
     const real_t T1   = T0 + params.theta2 * params.tri_y1;
@@ -194,7 +194,7 @@ namespace {
     const real_t T2   = T1 + params.theta1 * (params.tri_y2-params.tri_y1);
     const real_t rho2 = rho1 * pow(T2/T1, params.m1);
     const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
-    
+
     // Top layer
     real_t T;
     if (y <= params.tri_y1) {
@@ -203,7 +203,7 @@ namespace {
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
       Q(j, i, IP) = p0 * pow(T/T0, params.m2+1.0);
-    } 
+    }
     // Middle layer
     else if (y <= params.tri_y2) {
       auto generator = random_pool.get_state();
@@ -226,7 +226,7 @@ namespace {
       Q(j, i, IV) = 0.0;
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
-  } 
+  }
 }
 
 
@@ -279,8 +279,8 @@ public:
     RandomPool random_pool(params.seed);
 
     // Filling active domain ...
-    Kokkos::parallel_for( "Initialization", 
-                          params.range_dom, 
+    Kokkos::parallel_for( "Initialization",
+                          params.range_dom,
                           KOKKOS_LAMBDA(const int i, const int j) {
                             switch(init_type) {
                               case SOD_X:           initSodX(Q, i, j, params); break;
@@ -295,7 +295,7 @@ public:
                               default: break;
                             }
                           });
-  
+
     // ... and boundaries
     BoundaryManager bc(params);
     bc.fillBoundaries(Q);

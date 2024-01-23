@@ -22,7 +22,8 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
       const real_t tr1 = (tanh((y-params.tri_y1)/th) + 1.0) * 0.5;
       const real_t tr2 = (tanh((params.tri_y2-y)/th) + 1.0) * 0.5;
       const real_t tr = tr1*tr2;
-      res = params.kappa * (params.b02_kappa2 * (1.0-tr) + params.b02_kappa1 * tr);
+      res = params.kappa * (params.tri_k2 * (1.0-tr) + params.tri_k1 * tr);
+      break;
     }
     /*case TCM_C20_STABLE:
     {
@@ -62,10 +63,10 @@ public:
         real_t x = pos[IX];
         real_t y = pos[IY];
 
-        real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(x-dx, y, params));
-        real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(x+dx, y, params));
-        real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(x, y-dy, params));
-        real_t kappaD = 0.5 * (computeKappa(i, j, params) + computeKappa(x, y+dy, params));
+        real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(i-1, j, params));
+        real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(i+1, j, params));
+        real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j-1, params));
+        real_t kappaD = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j+1, params));
 
         // Ideal EOS with R = 1 assumed. T = P/rho
         real_t TC = Q(j, i, IP)   / Q(j, i,   IR);
@@ -89,8 +90,9 @@ public:
          */
         if (j==params.jbeg && params.bctc_ymin != BCTC_NONE) {
           switch (params.bctc_ymin) {
-            case BCTC_FIXED_TEMPERATURE: FU = kappaL * 2.0 * (TC-params.bctc_ymin_value) / dy; break;
-            case BCTC_FIXED_GRADIENT:    FU = kappaL * params.bctc_ymin_value; break;
+            case BCTC_FIXED_TEMPERATURE: FU = kappaU * 2.0 * (TC-params.bctc_ymin_value) / dy; break;
+            case BCTC_FIXED_GRADIENT:    FU = kappaU * params.bctc_ymin_value; 
+            break;
             case BCTC_NO_CONDUCTION:     FU = FD; break;
             case BCTC_NO_FLUX:           FU = 0.0; break;
             default: break;
@@ -99,8 +101,8 @@ public:
 
         if (j==params.jend-1 && params.bctc_ymax != BCTC_NONE) {
           switch (params.bctc_ymax) {
-            case BCTC_FIXED_TEMPERATURE: FD = kappaR * 2.0 * (params.bctc_ymax_value-TC) / dy; break;
-            case BCTC_FIXED_GRADIENT:    FD = kappaR * params.bctc_ymax_value; break;
+            case BCTC_FIXED_TEMPERATURE: FD = kappaD * 2.0 * (params.bctc_ymax_value-TC) / dy; break;
+            case BCTC_FIXED_GRADIENT:    FD = kappaD * params.bctc_ymax_value; break;
             case BCTC_NO_CONDUCTION:     FD = FU; break;
             case BCTC_NO_FLUX:           FD = 0.0; break;       
             default: break;

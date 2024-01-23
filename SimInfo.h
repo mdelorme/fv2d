@@ -522,6 +522,7 @@ struct Params
   real_t tri_y1, tri_y2;
   real_t tri_pert;
   real_t tri_k1, tri_k2;
+  real_t T0, rho0;
 
   // Misc 
   int seed;
@@ -664,11 +665,13 @@ Params readInifile(std::string filename)
   res.c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
 
   // Tri-layer
-  res.tri_y1 = reader.GetFloat("tri_layer", "y1", 1.0);
-  res.tri_y2 = reader.GetFloat("tri_layer", "y2", 2.0);
+  res.tri_y1   = reader.GetFloat("tri_layer", "y1", 1.0);
+  res.tri_y2   = reader.GetFloat("tri_layer", "y2", 2.0);
   res.tri_pert = reader.GetFloat("tri_layer", "perturbation", 1.0e-3);
-  res.tri_k1 = reader.GetFloat("tri_layer", "kappa1", 0.07);
-  res.tri_k2 = reader.GetFloat("tri_layer", "kappa2", 1.5);
+  res.tri_k1   = reader.GetFloat("tri_layer", "kappa1", 0.07);
+  res.tri_k2   = reader.GetFloat("tri_layer", "kappa2", 1.5);
+  res.T0       = reader.GetFloat("tri_layer", "T0", 1.0);
+  res.rho0     = reader.GetFloat("tri_layer", "rho0", 1.0);
 
   // Misc
   res.seed                   = reader.GetInteger("misc", "seed", 12345);

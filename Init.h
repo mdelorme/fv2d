@@ -183,8 +183,8 @@ namespace {
     Pos pos = getPos(params, i, j);
     const real_t y = pos[IY];
 
-    const real_t T0 = 10.0;
-    const real_t rho0 = 10.0;
+    const real_t T0 = params.T0;
+    const real_t rho0 = params.rho0;
     const real_t p0 = rho0 * T0;
 
     const real_t T1   = T0 + params.theta2 * params.tri_y1;

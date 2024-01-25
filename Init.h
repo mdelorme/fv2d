@@ -252,17 +252,16 @@ namespace {
     real_t th = 0.1;
     if (y <= params.tri_y2 - (params.tri_y2-params.tri_y1)/2.) {
       real_t Tin = T0 + params.theta2*y;
-      real_t Tout = T0 + params.theta2*params.tri_y1 + params.theta1*(y-params.tri_y1);
-      real_t fin = (tanh((y-params.tri_y1)/th) + 1.0) * 0.5;
-      real_t fout = (tanh((params.tri_y1-y)/th) + 1.0) * 0.5;
+      real_t Tout = T1 + params.theta1*(y-params.tri_y1);
+      real_t fin = (tanh((params.tri_y1-y)/th) + 1.0) * 0.5;
+      real_t fout = (tanh((y-params.tri_y1)/th) + 1.0) * 0.5;
       T = Tin*fin+Tout*fout;
     }
     else {
-      auto generator = random_pool.get_state();
-      real_t Tin = T0 + params.theta2*params.tri_y1 + params.theta1*(y-params.tri_y1);
-      real_t Tout = T0 + params.theta2*params.tri_y1 + params.theta1*(params.tri_y2-params.tri_y1) + params.theta2*y;
-      real_t fin = (tanh((y-params.tri_y2)/th) + 1.0) * 0.5;
-      real_t fout = (tanh((params.tri_y2-y)/th) + 1.0) * 0.5;
+      real_t Tin = T1 + params.theta1*(y-params.tri_y1);
+      real_t Tout = T2 + params.theta2*(y-params.tri_y2);
+      real_t fin = (tanh((params.tri_y2-y)/th) + 1.0) * 0.5;
+      real_t fout = (tanh((y-params.tri_y2)/th) + 1.0) * 0.5;
       T = Tin*fin+Tout*fout;
     }
     // Top layer

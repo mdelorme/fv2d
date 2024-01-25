@@ -128,6 +128,69 @@ void initSodX(Array Q, int i, int j, const DeviceParams &params)
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
   }
+
+  KOKKOS_INLINE_FUNCTION
+  void initTriLayerSmooth(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+    Pos pos = getPos(params, i, j);
+    const real_t y = pos[IY];
+
+    const real_t T0 = params.T0;
+    const real_t rho0 = params.rho0;
+    const real_t p0 = rho0 * T0;
+
+    const real_t T1   = T0 + params.theta2 * params.tri_y1;
+    const real_t rho1 = rho0 * pow(T1/T0, params.m2);
+    const real_t p1   = p0 * pow(T1/T0, params.m2+1.0);
+
+    const real_t T2   = T1 + params.theta1 * (params.tri_y2-params.tri_y1);
+    const real_t rho2 = rho1 * pow(T2/T1, params.m1);
+    const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
+
+    // Smooth temperature profile
+    real_t T;
+    real_t th = 0.1;
+    if (y <= params.tri_y2 - (params.tri_y2-params.tri_y1)/2.) {
+      real_t Tin = T0 + params.theta2*y;
+      real_t Tout = T0 + params.theta2*params.tri_y1 + params.theta1*(y-params.tri_y1);
+      real_t fin = (tanh((y-params.tri_y1)/th) + 1.0) * 0.5;
+      real_t fout = (tanh((params.tri_y1-y)/th) + 1.0) * 0.5;
+      T = Tin*fin+Tout*fout;
+    }
+    else {
+      auto generator = random_pool.get_state();
+      real_t Tin = T0 + params.theta2*params.tri_y1 + params.theta1*(y-params.tri_y1);
+      real_t Tout = T0 + params.theta2*params.tri_y1 + params.theta1*(params.tri_y2-params.tri_y1) + params.theta2*y;
+      real_t fin = (tanh((y-params.tri_y2)/th) + 1.0) * 0.5;
+      real_t fout = (tanh((params.tri_y2-y)/th) + 1.0) * 0.5;
+      T = Tin*fin+Tout*fout;
+    }
+    // Top layer
+    if (y <= params.tri_y1) {
+      Q(j, i, IR) = rho0 * pow(T/T0, params.m2);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p0 * pow(T/T0, params.m2+1.0);
+    }
+    // Middle layer
+    else if (y <= params.tri_y2) {
+      auto generator = random_pool.get_state();
+      Q(j, i, IR) = rho1 * pow(T/T1, params.m1);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      real_t pert = params.tri_pert * (generator.drand(-0.5, 0.5));
+      if (y-params.tri_y1 < 0.1 || params.tri_y2-y < 0.1)
+        pert = 0.0;
+      Q(j, i, IP) = (p1 * pow(T/T1, params.m1+1.0)) * (1.0 + pert);
+      random_pool.free_state(generator);
+    }
+    // Bottom layer
+    else {
+      Q(j, i, IR) = rho2 * pow(T/T2, params.m2);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
+    }
+  }
 }
 
 /**
@@ -334,7 +397,8 @@ enum InitType
   KELVIN_HELMHOLTZ,
   B02,
   TRI_LAYER,
-  GRESHO_VORTEX
+  GRESHO_VORTEX,
+  TRI_LAYER_SMOOTH
 };
 
 struct InitFunctor
@@ -356,6 +420,7 @@ public:
       {"C91", C91},
       {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
       {"tri-layer", TRI_LAYER},
+      {"tri-layer-smooth", TRI_LAYER_SMOOTH},
       {"gresho_vortex", GRESHO_VORTEX}
     };
 
@@ -406,6 +471,8 @@ public:
             initKelvinHelmholtz(Q, i, j, params);
             break;
           case TRI_LAYER:       initTriLayer(Q, i, j, params, random_pool); break;
+          case TRI_LAYER_SMOOTH:initTriLayerSmooth(Q, i, j, params, random_pool); break;
+
           case GRESHO_VORTEX:
             initGreshoVortex(Q, i, j, params);
             break;

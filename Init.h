@@ -138,11 +138,11 @@ void initSodX(Array Q, int i, int j, const DeviceParams &params)
     const real_t rho0 = params.rho0;
     const real_t p0 = 8.31 * rho0 * T0;
 
-    const real_t T1   = T0 + params.tri_y1 / params.kappa / params.tri_k2;
+    const real_t T1   = T0 + params.theta2 * params.tri_y1;
     const real_t rho1 = rho0 * pow(T1/T0, params.m2);
     const real_t p1   = p0 * pow(T1/T0, params.m2+1.0);
 
-    const real_t T2   = T1 + params.theta1 * (params.tri_y2 - params.tri_y1);
+    const real_t T2   = T1 + params.theta1 * (params.tri_y2-params.tri_y1);
     const real_t rho2 = rho1 * pow(T2/T1, params.m1);
     const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
 

@@ -63,7 +63,7 @@ public:
           Pos pos  = getPos(params, i, j);
           real_t x = pos[IX];
           real_t y = pos[IY];
-          
+
           real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(i-1, j, params));
           real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(i+1, j, params));
           real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j-1, params));
@@ -82,7 +82,7 @@ public:
           real_t FU = kappaU * (TC - TU) / dy;
           real_t FD = kappaD * (TD - TC) / dy;
 
-        /** 
+        /**
          * Boundaries treatment
          * IMPORTANT NOTE :
          * To be accurate, in the case of fixed temperature, since the temperature is taken at the interface
@@ -92,8 +92,7 @@ public:
         if (j==params.jbeg && params.bctc_ymin != BCTC_NONE) {
           switch (params.bctc_ymin) {
             case BCTC_FIXED_TEMPERATURE: FU = kappaU * 2.0 * (TC-params.bctc_ymin_value) / dy; break;
-            case BCTC_FIXED_GRADIENT:    FU = kappaU * params.bctc_ymin_value; 
-            break;
+            case BCTC_FIXED_GRADIENT:    FU = kappaU * params.bctc_ymin_value; break;
             case BCTC_NO_CONDUCTION:     FU = FD; break;
             case BCTC_NO_FLUX:           FU = 0.0; break;
             default: break;
@@ -105,7 +104,7 @@ public:
             case BCTC_FIXED_TEMPERATURE: FD = kappaD * 2.0 * (params.bctc_ymax_value-TC) / dy; break;
             case BCTC_FIXED_GRADIENT:    FD = kappaD * params.bctc_ymax_value; break;
             case BCTC_NO_CONDUCTION:     FD = FU; break;
-            case BCTC_NO_FLUX:           FD = 0.0; break;       
+            case BCTC_NO_FLUX:           FD = 0.0; break;
             default: break;
           }
         }

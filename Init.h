@@ -241,18 +241,13 @@ namespace {
     const real_t rho1 = rho0 * pow(T1/T0, params.m2);
     const real_t p1   = p0 * pow(T1/T0, params.m2+1.0);
 
-<<<<<<< HEAD
     const real_t T2   = T1 + params.theta1 * (params.tri_y2 - params.tri_y1);
-=======
-    const real_t T2   = T1 + (params.tri_y2-params.tri_y1) / params.kappa / params.tri_k1;
->>>>>>> 746a19f71590a7ed11fc6494770009b91863ef5c
     const real_t rho2 = rho1 * pow(T2/T1, params.m1);
     const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
 
     // Smooth temperature profile
     real_t T;
     real_t th = 0.1;
-<<<<<<< HEAD
     if (y <= params.tri_y2 - (params.tri_y2 - params.tri_y1)/2.) {
       real_t Tin = T0 + params.theta2 * y;
       real_t Tout = T1 + params.theta1 * (y - params.tri_y1);
@@ -266,21 +261,6 @@ namespace {
       real_t fin = (tanh((params.tri_y2 - y)/th) + 1.0) * 0.5;
       real_t fout = (tanh((y - params.tri_y2)/th) + 1.0) * 0.5;
       T = Tin * fin + Tout * fout;
-=======
-    if (y <= params.tri_y2 - (params.tri_y2-params.tri_y1)/2.) {
-      real_t Tin = T0 + y / params.kappa / params.tri_k2;
-      real_t Tout = T1 + (y-params.tri_y1) / params.kappa / params.tri_k1;
-      real_t fin = (tanh((params.tri_y1-y)/th) + 1.0) * 0.5;
-      real_t fout = (tanh((y-params.tri_y1)/th) + 1.0) * 0.5;
-      T = Tin*fin+Tout*fout;
-    }
-    else {
-      real_t Tin = T1 + (y-params.tri_y1) / params.kappa / params.tri_k1;
-      real_t Tout = T2 + (y-params.tri_y2) / params.kappa / params.tri_k2;
-      real_t fin = (tanh((params.tri_y2-y)/th) + 1.0) * 0.5;
-      real_t fout = (tanh((y-params.tri_y2)/th) + 1.0) * 0.5;
-      T = Tin*fin+Tout*fout;
->>>>>>> 746a19f71590a7ed11fc6494770009b91863ef5c
     }
     // Top layer
     if (y <= params.tri_y1) {

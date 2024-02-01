@@ -107,7 +107,7 @@ namespace {
     real_t x = pos[IX];
     real_t y = pos[IY];
 
-    real_t T = (1.0 + params.theta1*y);
+    real_t T = (params.T0 + params.theta1*y);
     real_t rho = pow(T, params.m1);
     real_t prs = pow(T, params.m1+1.0);
 

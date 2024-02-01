@@ -187,7 +187,7 @@ namespace {
 
     const real_t T0 = params.T0;
     const real_t rho0 = params.rho0;
-    const real_t p0 = rho0 * T0 * (params.gamma0 - 1.0);
+    const real_t p0 = rho0 * T0 ;
 
     const real_t T1   = T0 + params.theta2 * params.tri_y1;
     const real_t rho1 = rho0 * pow(T1/T0, params.m2);

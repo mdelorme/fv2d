@@ -69,7 +69,7 @@ enum ViscosityMode {
 struct Params {
   real_t save_freq;
   real_t tend;
-  std::string filename_out = "run.h5";
+  std::string filename_out = "run";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
@@ -180,7 +180,7 @@ Params readInifile(std::string filename) {
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = reader.Get("run", "output_filename", "run.h5");
+  res.filename_out = reader.Get("run", "output_filename", "run");
 
   std::string tmp;
   tmp = reader.Get("run", "boundaries_x", "reflecting");

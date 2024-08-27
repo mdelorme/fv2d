@@ -183,7 +183,7 @@ Params readInifile(std::string filename) {
   res.tend = reader.GetFloat("run", "tend", 1.0);
   res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = reader.Get("run", "output_filename", "run.h5");
+  res.filename_out = reader.Get("run", "output_filename", "run");
 
   std::string tmp;
   tmp = reader.Get("run", "boundaries_x", "reflecting");

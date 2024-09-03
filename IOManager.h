@@ -93,8 +93,8 @@ public:
 
     auto flag_h5 = (iteration == 0 ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (iteration == 0 ? "w+" : "r+");
-    File file(params.filename_out + ".h5", flag_h5);
-    FILE* xdmf_fd = fopen((params.filename_out + ".xdmf").c_str(), flag_xdmf);
+    File file(params.path_out + params.filename_out + ".h5", flag_h5);
+    FILE* xdmf_fd = fopen((params.path_out + params.filename_out + ".xdmf").c_str(), flag_xdmf);
 
     if (iteration == 0) {
       file.createAttribute("Ntx", params.Ntx);

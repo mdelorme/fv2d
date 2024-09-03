@@ -70,6 +70,7 @@ struct Params {
   real_t save_freq;
   real_t tend;
   std::string filename_out = "run";
+  std::string path_out = "";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
@@ -178,11 +179,21 @@ Params readInifile(std::string filename) {
   res.dy = (res.ymax-res.ymin) / res.Ny;
 
   // Run
+  std::string tmp;
   res.tend = reader.GetFloat("run", "tend", 1.0);
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = reader.Get("run", "output_filename", "run");
+  
+  tmp = reader.Get("run", "output_filename", "run");
+  const size_t filename_separator = tmp.find_last_of('/');
+  if (filename_separator != std::string::npos) {
+    res.path_out = tmp.substr(0,filename_separator+1);
+    res.filename_out = tmp.substr(filename_separator+1);
+  }
+  else { // no subdirectories
+    res.path_out = "";
+    res.filename_out = tmp;
+  }
 
-  std::string tmp;
   tmp = reader.Get("run", "boundaries_x", "reflecting");
   std::map<std::string, BoundaryType> bc_map{
     {"reflecting",         BC_REFLECTING},

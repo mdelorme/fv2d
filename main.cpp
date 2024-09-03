@@ -26,6 +26,9 @@ int main(int argc, char **argv) {
     // Reading parameters from .ini file
     auto params = readInifile(argv[1]);
 
+    // Do not lock HDF5 file, prevent crash when using paraview at the same time
+    setenv("HDF5_USE_FILE_LOCKING", "FALSE", 0);
+
     // Allocating main views
     Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);
     Array Unew = Kokkos::View<real_t***>("Unew", params.Nty, params.Ntx, Nfields);

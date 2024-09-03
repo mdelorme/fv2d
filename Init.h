@@ -13,6 +13,33 @@ namespace {
   using RandomPool = Kokkos::Random_XorShift64_Pool<>;
 
   /**
+   * @brief lane-emden n=1, soluton of the form sinc
+   */
+KOKKOS_INLINE_FUNCTION
+void initPolySinc(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  Pos pos = getPos(params, i, j);
+  real_t x = pos[IX];
+  real_t y = pos[IY];
+
+  auto generator = random_pool.get_state();
+  real_t pert = params.poly_pert * (generator.drand(-0.5, 0.5));
+  random_pool.free_state(generator);
+
+  const real_t margin = 5*params.dy;
+  if (y < margin || y > (params.ymax - margin))
+    pert = 0.0;
+
+  real_t th  = sin(y)/y;
+  real_t rho = pow(th, params.m1);
+  real_t prs = pow(th, params.m1+1.0);
+
+  Q(j, i, IR) = rho;
+  Q(j, i, IU) = 0.0;
+  Q(j, i, IV) = 0.0;
+  Q(j, i, IP) = prs * (1+pert);
+}
+
+  /**
    * @brief Sod Shock tube aligned along the X axis
    */
   KOKKOS_INLINE_FUNCTION
@@ -84,8 +111,8 @@ namespace {
     real_t y = pos[IY];
 
     real_t T = y;
-    real_t rho = pow(y, params.m1);
-    real_t prs = pow(y, params.m1+1.0); 
+    real_t rho = pow(T, params.m1);
+    real_t prs = pow(T, params.m1+1.0); 
 
     auto generator = random_pool.get_state();
     real_t pert = params.h84_pert * (generator.drand(-0.5, 0.5));
@@ -188,7 +215,8 @@ enum InitType {
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
-  C91
+  C91,
+  POLY_SINC,
 };
 
 struct InitFunctor {
@@ -205,7 +233,8 @@ public:
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
-      {"C91", C91}
+      {"C91", C91},
+      {"poly_sinc", POLY_SINC},
     };
 
     if (init_map.count(params.problem) == 0)
@@ -233,6 +262,7 @@ public:
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;
                               case C91:             initC91(Q, i, j, params, random_pool); break;
+                              case POLY_SINC:       initPolySinc(Q, i, j, params, random_pool); break;
                             }
                           });
   

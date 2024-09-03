@@ -5,12 +5,13 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Gravity.h"
 
 namespace fv2d {
 
 namespace {
   KOKKOS_INLINE_FUNCTION
-  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const Params &params) {
+  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, real_t g, const Params &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
     
@@ -21,7 +22,7 @@ namespace {
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
-        res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * params.g * params.dy * 0.5);
+        res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * g * params.dy * 0.5);
         break;
       default:  res = q; // Piecewise Constant
     }
@@ -91,16 +92,24 @@ public:
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
         auto updateAlongDir = [&](int i, int j, IDir dir) {
+
+          const real_t yL = getPos(params, i, j-1)[IY];
+          const real_t y  = getPos(params, i, j  )[IY];
+          const real_t yR = getPos(params, i, j+1)[IY];
+          const real_t gL = GetGravityValue(Q, 0.5*(yL+y), params);
+          const real_t g  = GetGravityValue(Q, y,          params);
+          const real_t gR = GetGravityValue(Q, 0.5*(yR+y), params);
+
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
           int dxp = (dir == IX ?  1 : 0);
           int dym = (dir == IY ? -1 : 0);
           int dyp = (dir == IY ?  1 : 0);
 
-          State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
-          State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
-          State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
-          State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
+          State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, gL, params);
+          State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, gR, params);
+          State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, gL, params);
+          State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, gR, params);
 
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
@@ -123,17 +132,17 @@ public:
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
             else 
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
         
           if (dir == IY && params.gravity) {
-            un_loc[IV] += dt * Q(j, i, IR) * params.g;
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+            un_loc[IV] += dt * Q(j, i, IR) * g;
+            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
 
           setStateInArray(Unew, i, j, un_loc);

@@ -38,6 +38,11 @@ enum BoundaryType {
   BC_PERIODIC
 };
 
+enum GravityType {
+  GT_CONSTANT,
+  GT_POLY_SINC
+};
+
 enum TimeStepping {
   TS_EULER,
   TS_RK2
@@ -52,6 +57,7 @@ enum ReconstructionType {
 enum ThermalConductivityMode {
   TCM_CONSTANT,
   TCM_B02,
+  TCM_poly_sinc,
 };
 
 // Thermal conduction at boundary
@@ -106,6 +112,7 @@ struct Params {
   real_t epsilon = 1.0e-6;
   real_t gamma0 = 5.0/3.0;
   bool gravity = false;
+  enum GravityType gravity_type;
   real_t g;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
@@ -129,6 +136,7 @@ struct Params {
   real_t theta1;
   real_t m2;
   real_t theta2;
+  real_t poly_pert;
 
   // H84
   real_t h84_pert;
@@ -229,23 +237,31 @@ Params readInifile(std::string filename) {
   res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
 
   // Physics
-  res.epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
-  res.gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
-  res.gravity = reader.GetBoolean("physics", "gravity", false);
-  res.g       = reader.GetFloat("physics", "g", 0.0);
-  res.m1      = reader.GetFloat("polytrope", "m1", 1.0);
-  res.theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
-  res.m2      = reader.GetFloat("polytrope", "m2", 1.0);
-  res.theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
-  res.problem = reader.Get("physics", "problem", "blast");
+  res.epsilon   = reader.GetFloat("misc", "epsilon", 1.0e-6);
+  res.gamma0    = reader.GetFloat("physics", "gamma0", 5.0/3.0);
+  res.gravity   = reader.GetBoolean("physics", "gravity", false);
+  res.g         = reader.GetFloat("physics", "g", 0.0);
+  res.m1        = reader.GetFloat("polytrope", "m1", 1.0);
+  res.theta1    = reader.GetFloat("polytrope", "theta1", 10.0);
+  res.m2        = reader.GetFloat("polytrope", "m2", 1.0);
+  res.theta2    = reader.GetFloat("polytrope", "theta2", 10.0);
+  res.poly_pert = reader.GetFloat("polytrope", "perturbation", 1.0e-4);
+  res.problem   = reader.Get("physics", "problem", "blast");
   res.well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+  tmp = reader.Get("physics", "gravity_type", "constant");
+  std::map<std::string, GravityType> gravity_type_map{
+    {"constant",  GT_CONSTANT},
+    {"poly_sinc", GT_POLY_SINC}
+  };
+  res.gravity_type = gravity_type_map[tmp];
 
   // Thermal conductivity
   res.thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
   tmp = reader.Get("thermal_conduction", "conductivity_mode", "constant");
   std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
-    {"constant", TCM_CONSTANT},
-    {"B02",      TCM_B02}
+    {"constant",  TCM_CONSTANT},
+    {"B02",       TCM_B02},
+    {"poly_sinc", TCM_poly_sinc},
   };
   res.thermal_conductivity_mode = thermal_conductivity_map[tmp];
   res.kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);

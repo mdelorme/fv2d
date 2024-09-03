@@ -15,6 +15,13 @@ real_t computeKappa(int i, int j, const Params &params) {
       res = params.kappa * (params.b02_kappa1 * (1.0-tr) + params.b02_kappa2 * tr);
       break;
     }
+    case TCM_poly_sinc:
+    {
+      const real_t y = getPos(params, i, j)[IY];
+      res = params.kappa * y*y/(sin(y) - y*cos(y));
+      if (y < 0) res = -res; // left ghost, otherwise it makes kappa null on the boundaries and so T cannot be fixed.
+      break;
+    }
     default:
       res = params.kappa;
   }
@@ -43,10 +50,10 @@ public:
         real_t x = pos[IX];
         real_t y = pos[IY];
 
-        real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(x-dx, y, params));
-        real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(x+dx, y, params));
-        real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(x, y-dy, params));
-        real_t kappaD = 0.5 * (computeKappa(i, j, params) + computeKappa(x, y+dy, params));
+        real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(i-1, j, params));
+        real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(i+1, j, params));
+        real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j-1, params));
+        real_t kappaD = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j+1, params));
 
         // Ideal EOS with R = 1 assumed. T = P/rho
         real_t TC = Q(j, i, IP)   / Q(j, i,   IR);

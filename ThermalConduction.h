@@ -33,8 +33,6 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
       const real_t th = 0.05; // Thickness of transition layer
       const real_t tr = (tanh((y-y2)/th) + 1.0) * 0.5;
       res = params.kappa * (params.iso3_k1 * (1.0-tr) + params.iso3_k2 * tr);
-      if (y < y1)
-        res = 0.0;
       break;      
     }
     /*case TCM_C20_STABLE:

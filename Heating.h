@@ -10,11 +10,12 @@ KOKKOS_INLINE_FUNCTION
 real_t cooling_layer(Array Q, const int i, const int j, const Params &params) {
   Pos pos = getPos(params, i, j);
   real_t y = pos[IY];
-  real_t kappa = params.kappa*params.iso3_k2;
+  real_t kappa = params.kappa*params.iso3_k2*params.gamma0/(params.gamma0-1.0);
   real_t F = params.iso3_theta2*kappa*params.dy;
 
   real_t qc;
-  if (y - params.dy < 0.0)
+  real_t ydiff = y-params.iso3_dy0;
+  if (fabs(ydiff) < params.dy && ydiff > 0.0)
     qc = -F;
     
   return qc;

@@ -69,12 +69,14 @@ enum ThermalConductivityMode
 {
   TCM_CONSTANT,
   TCM_B02,
-  TCM_C2020_TRI
+  TCM_C2020_TRI,
+  TCM_ISO3
 };
 
 enum HeatingMode {
   HM_C2020,
   HM_C2020_TRI,
+  HM_COOLING_ISO,
 };
 
 // Thermal conduction at boundary
@@ -428,7 +430,8 @@ struct DeviceParams
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
       {"constant", TCM_CONSTANT},
       {"B02",      TCM_B02},
-      {"tri_layer", TCM_C2020_TRI}
+      {"tri_layer", TCM_C2020_TRI},
+      {"iso-three", TCM_ISO3}
     };
     thermal_conductivity_mode = reader.GetMapValue(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
@@ -458,7 +461,8 @@ struct DeviceParams
     tmp = reader.Get("heating", "mode", "C2020");
     std::map<std::string, HeatingMode> heating_map{
       {"C2020", HM_C2020},
-      {"tri_layer", HM_C2020_TRI}
+      {"tri_layer", HM_C2020_TRI},
+      {"isothermal_cooling", HM_COOLING_ISO}
     };
     heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
@@ -523,6 +527,14 @@ struct Params
   real_t tri_pert;
   real_t tri_k1, tri_k2;
   real_t T0, rho0;
+
+  // Isothermal triple layer
+  real_t iso3_dy0, iso3_dy1, iso3_dy2;
+  real_t iso3_theta1, iso3_theta2;
+  real_t iso3_m1, iso3_m2;
+  real_t iso3_pert;
+  real_t iso3_k1, iso3_k2;
+  real_t iso3_T0, iso3_rho0;
 
   // Misc 
   int seed;
@@ -672,6 +684,21 @@ Params readInifile(std::string filename)
   res.tri_k2   = reader.GetFloat("tri_layer", "kappa2", 1.5);
   res.T0       = reader.GetFloat("tri_layer", "T0", 1.0);
   res.rho0     = reader.GetFloat("tri_layer", "rho0", 1.0);
+
+  // Isothermal triple layer
+  res.iso3_dy0    = reader.GetFloat("iso_three_layer", "dy0", 1.0);
+  res.iso3_dy1    = reader.GetFloat("iso_three_layer", "dy1", 2.0);
+  res.iso3_dy2    = reader.GetFloat("iso_three_layer", "dy2", 2.0);
+  res.iso3_theta1 = reader.GetFloat("iso_three_layer", "theta1", 2.0);
+  res.iso3_theta2 = reader.GetFloat("iso_three_layer", "theta2", 2.0);
+  res.iso3_pert   = reader.GetFloat("iso_three_layer", "perturbation", 1.0e-3);
+  res.iso3_k1     = reader.GetFloat("iso_three_layer", "k1", 0.07);
+  res.iso3_k2     = reader.GetFloat("iso_three_layer", "k2", 1.5);
+  res.iso3_m1     = reader.GetFloat("iso_three_layer", "m1", 1.0);
+  res.iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
+  res.iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
+  res.iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
+
 
   // Misc
   res.seed                   = reader.GetInteger("misc", "seed", 12345);

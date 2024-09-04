@@ -335,7 +335,63 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
   }
-  
+
+
+  KOKKOS_INLINE_FUNCTION
+  void initIso3(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+    const real_t T0 = params.iso3_T0;
+    const real_t rho0 = params.iso3_rho0;
+    const real_t p0 = rho0*T0;
+
+    const real_t T1   = T0;
+    const real_t p1   = p0 * exp(params.iso3_dy0 * params.g / T0);
+    const real_t rho1 = p1 / T1;
+
+    const real_t T2   = T1 + params.iso3_theta1 * params.iso3_dy1;
+    const real_t rho2 = rho1 * pow(T2/T1, params.m1);
+    const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
+
+    const real_t y1 = params.iso3_dy0;
+    const real_t y2 = params.iso3_dy0+params.iso3_dy1;
+
+    Pos pos = getPos(params, i, j);
+    const real_t d = pos[IY];
+
+    // Top layer (iso-thermal)
+    real_t rho, p;
+    real_t T;
+    if (d <= y1) {
+      p   = p0 * exp(params.g * d / T0);
+      rho = p / T0;
+    }
+    // Middle layer (convective)
+    else if (d <= y2) {
+      T = T1 + params.iso3_theta1*(d-y1);
+
+      // We add a pressure perturbation as in C91
+      auto generator = random_pool.get_state();
+      real_t pert = params.iso3_pert * generator.drand(-0.5, 0.5);
+      random_pool.free_state(generator);
+
+      if (d-y1 < 0.1 || y2-d < 0.1)
+        pert = 0.0;
+      
+      rho = rho1 * pow(T/T1, params.iso3_m1);
+      p   = p1 * (1.0 + pert) * pow(T/T1, params.iso3_m1+1.0);
+    }
+    // Bottom layer (stable)
+    else {
+      T = T2 + params.iso3_theta2 * (d-y2);
+      rho = rho2 * pow(T/T2, params.iso3_m2);
+      p   = p2 * pow(T/T2, params.iso3_m2+1.0);
+    }
+
+    Q(j, i, IR) = rho;
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IP) = p;
+  }
+
   /**
    * @brief Gresho-Vortex setup for Low-mach flows
    *
@@ -350,7 +406,6 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
     const real_t xr   = pos[IX] - xmid;
     const real_t yr   = pos[IY] - ymid;
     const real_t r    = sqrt(xr * xr + yr * yr);
-
     // Pressure is given from density and Mach
     const real_t p0 = params.gresho_density / (params.gamma0 * params.gresho_Mach * params.gresho_Mach);
 
@@ -396,8 +451,9 @@ enum InitType
   KELVIN_HELMHOLTZ,
   B02,
   TRI_LAYER,
+  TRI_LAYER_SMOOTH,
+  ISOTHERMAL_TRIPLE,
   GRESHO_VORTEX,
-  TRI_LAYER_SMOOTH
 };
 
 struct InitFunctor
@@ -420,6 +476,7 @@ public:
       {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
       {"tri-layer", TRI_LAYER},
       {"tri-layer-smooth", TRI_LAYER_SMOOTH},
+      {"iso-thermal-triple", ISOTHERMAL_TRIPLE},
       {"gresho_vortex", GRESHO_VORTEX}
     };
 
@@ -471,6 +528,7 @@ public:
             break;
           case TRI_LAYER:       initTriLayer(Q, i, j, params, random_pool); break;
           case TRI_LAYER_SMOOTH:initTriLayerSmooth(Q, i, j, params, random_pool); break;
+          case ISOTHERMAL_TRIPLE:initIso3(Q, i, j, params, random_pool); break;
 
           case GRESHO_VORTEX:
             initGreshoVortex(Q, i, j, params);

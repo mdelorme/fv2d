@@ -142,6 +142,27 @@ public:
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
           }
 
+          /*if (params.well_balanced_flux_at_y_bc && j==params.jbeg && dir == IY) {
+            auto evol = dt*(fluxL-fluxR)/dh;
+            evol[IV] += dt * Q(j, i, IR) * params.g;
+            evol[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+            printf("At jbeg: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n", 
+                    fluxL[IR], fluxL[IU], fluxL[IV], fluxL[IE],
+                    fluxR[IR], fluxR[IU], fluxR[IV], fluxR[IE],
+                    dt * Q(j, i, IR) * params.g, dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g,
+                    evol[IR], evol[IU], evol[IV], evol[IP]);
+          }
+
+          if (params.well_balanced_flux_at_y_bc && j==params.jbeg+1 && dir == IY) {
+            auto evol = dt*(fluxL-fluxR)/dh;
+            evol[IV] += dt * Q(j, i, IR) * params.g;
+            evol[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+            printf("At jbeg+1: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n", 
+                    fluxL[IR], fluxL[IU], fluxL[IV], fluxL[IE],
+                    fluxR[IR], fluxR[IU], fluxR[IV], fluxR[IE],
+                    dt * Q(j, i, IR) * params.g, dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g,
+                    evol[IR], evol[IU], evol[IV], evol[IP]);
+          }*/
           setStateInArray(Unew, i, j, un_loc);
         };
 

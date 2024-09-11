@@ -5,12 +5,39 @@
 
 #include "SimInfo.h"
 #include "BoundaryConditions.h"
+#include "polyfit.h"
 
 namespace fv2d {
 
 namespace {
 
   using RandomPool = Kokkos::Random_XorShift64_Pool<>;
+
+  /**
+   * @brief polynomial fitting initialisation --> polyfit.h
+   */
+KOKKOS_INLINE_FUNCTION
+void initPolyFit(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  Pos pos = getPos(params, i, j);
+  real_t x = pos[IX];
+  real_t y = pos[IY];
+
+  auto generator = random_pool.get_state();
+  real_t pert = params.poly_pert * (generator.drand(-0.5, 0.5));
+  random_pool.free_state(generator);
+
+  const real_t margin = 5*params.dy;
+  if (y < margin || y > (params.ymax - margin))
+    pert = 0.0;
+
+  real_t rho = get_rho(y);
+  real_t prs = get_prs(y);
+
+  Q(j, i, IR) = rho;
+  Q(j, i, IU) = 0.0;
+  Q(j, i, IV) = 0.0;
+  Q(j, i, IP) = prs * (1+pert);
+}
 
   /**
    * @brief lane-emden n=1, soluton of the form sinc
@@ -217,6 +244,7 @@ enum InitType {
   H84,
   C91,
   POLY_SINC,
+  POLYFIT,
 };
 
 struct InitFunctor {
@@ -235,6 +263,7 @@ public:
       {"H84", H84},
       {"C91", C91},
       {"poly_sinc", POLY_SINC},
+      {"polyfit", POLYFIT},
     };
 
     if (init_map.count(params.problem) == 0)
@@ -263,6 +292,7 @@ public:
                               case H84:             initH84(Q, i, j, params, random_pool); break;
                               case C91:             initC91(Q, i, j, params, random_pool); break;
                               case POLY_SINC:       initPolySinc(Q, i, j, params, random_pool); break;
+                              case POLYFIT:         initPolyFit(Q, i, j, params, random_pool); break;
                             }
                           });
   

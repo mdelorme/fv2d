@@ -40,7 +40,8 @@ enum BoundaryType {
 
 enum GravityType {
   GT_CONSTANT,
-  GT_POLY_SINC
+  GT_POLY_SINC,
+  GT_POLYFIT,
 };
 
 enum TimeStepping {
@@ -58,6 +59,7 @@ enum ThermalConductivityMode {
   TCM_CONSTANT,
   TCM_B02,
   TCM_poly_sinc,
+  TCM_polyfit,
 };
 
 // Thermal conduction at boundary
@@ -251,7 +253,8 @@ Params readInifile(std::string filename) {
   tmp = reader.Get("physics", "gravity_type", "constant");
   std::map<std::string, GravityType> gravity_type_map{
     {"constant",  GT_CONSTANT},
-    {"poly_sinc", GT_POLY_SINC}
+    {"poly_sinc", GT_POLY_SINC},
+    {"polyfit",   GT_POLYFIT},
   };
   res.gravity_type = gravity_type_map[tmp];
 
@@ -262,6 +265,7 @@ Params readInifile(std::string filename) {
     {"constant",  TCM_CONSTANT},
     {"B02",       TCM_B02},
     {"poly_sinc", TCM_poly_sinc},
+    {"polyfit",   TCM_polyfit},
   };
   res.thermal_conductivity_mode = thermal_conductivity_map[tmp];
   res.kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
@@ -334,3 +338,4 @@ void primToCons(Array &Q, Array &U, const Params &params) {
 }
 
 }
+

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SimInfo.h"
+#include "polyfit.h"
 
 namespace fv2d {
 
@@ -20,6 +21,14 @@ real_t computeKappa(int i, int j, const Params &params) {
       const real_t y = getPos(params, i, j)[IY];
       res = params.kappa * y*y/(sin(y) - y*cos(y));
       if (y < 0) res = -res; // left ghost, otherwise it makes kappa null on the boundaries and so T cannot be fixed.
+      break;
+    }
+    case TCM_polyfit:
+    {
+      const real_t y = getPos(params, i, j)[IY];
+      res = params.kappa * get_kappa(y);
+      // if (y > 0.1) res = 0.1;
+      // if (y < 0) res = 0; // left ghost, otherwise it makes kappa null on the boundaries and so T cannot be fixed.
       break;
     }
     default:

@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
       else
         next_log--;
 
-      if (dt < 1.0e-6) {
+      if (dt < 1.0e-10) {
         std::cout << "DT too small : Aborting" << std::endl;
         break;
       }

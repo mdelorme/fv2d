@@ -348,8 +348,8 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
     const real_t rho1 = p1 / T1;
 
     const real_t T2   = T1 + params.iso3_theta1 * params.iso3_dy1;
-    const real_t rho2 = rho1 * pow(T2/T1, params.m1);
-    const real_t p2   = p1 * pow(T2/T1, params.m1+1.0);
+    const real_t rho2 = rho1 * pow(T2/T1, params.iso3_m1);
+    const real_t p2   = p1 * pow(T2/T1, params.iso3_m1+1.0);
 
     const real_t y1 = params.iso3_dy0;
     const real_t y2 = params.iso3_dy0+params.iso3_dy1;
@@ -373,8 +373,8 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
       real_t pert = params.iso3_pert * generator.drand(-0.5, 0.5);
       random_pool.free_state(generator);
 
-      if (d-y1 < 0.1 || y2-d < 0.1)
-        pert = 0.0;
+      if (d - y1 < params.dy || y2 - d < params.dy)
+        pert = 0.0; 
       
       rho = rho1 * pow(T/T1, params.iso3_m1);
       p   = p1 * (1.0 + pert) * pow(T/T1, params.iso3_m1+1.0);

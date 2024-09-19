@@ -5,6 +5,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Heating.h"
 #include "Gravity.h"
 
 namespace fv2d {
@@ -37,12 +38,13 @@ public:
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
+  HeatingFunctor heating_functor;
 
   Array slopesX, slopesY;
 
   UpdateFunctor(const Params &params)
     : params(params), bc_manager(params),
-      tc_functor(params), visc_functor(params) {
+      tc_functor(params), visc_functor(params), heating_functor(params) {
       
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
       slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
@@ -169,6 +171,8 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
+    if (params.heating_active)
+      heating_functor.applyHeating(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt) {

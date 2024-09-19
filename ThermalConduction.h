@@ -6,27 +6,24 @@
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
-real_t computeKappa(int i, int j, const Params &params) {
+real_t computeKappa(real_t x, real_t y, const Params &params) {
   real_t res;
   switch (params.thermal_conductivity_mode) {
     case TCM_B02:
     {
-      const real_t y = getPos(params, i, j)[IY];
       const real_t tr = (tanh((y-params.b02_ymid)/params.b02_thickness) + 1.0) * 0.5;
       res = params.kappa * (params.b02_kappa1 * (1.0-tr) + params.b02_kappa2 * tr);
       break;
     }
     case TCM_poly_sinc:
     {
-      const real_t y = getPos(params, i, j)[IY];
       res = params.kappa * y*y/(sin(y) - y*cos(y));
       if (y < 0) res = -res; // left ghost, otherwise it makes kappa null on the boundaries and so T cannot be fixed.
       break;
     }
     case TCM_polyfit:
     {
-      const real_t y = getPos(params, i, j)[IY];
-      res = params.kappa * get_kappa(y);
+      res = get_kappa(y);
       // if (y > 0.1) res = 0.1;
       // if (y < 0) res = 0; // left ghost, otherwise it makes kappa null on the boundaries and so T cannot be fixed.
       break;
@@ -59,10 +56,17 @@ public:
         real_t x = pos[IX];
         real_t y = pos[IY];
 
-        real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(i-1, j, params));
-        real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(i+1, j, params));
-        real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j-1, params));
-        real_t kappaD = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j+1, params));
+        // real_t kappaL = 0.5 * (computeKappa(x, y, params) + computeKappa(x-1, y, params));
+        // real_t kappaR = 0.5 * (computeKappa(x, y, params) + computeKappa(x+1, y, params));
+        // real_t kappaU = 0.5 * (computeKappa(x, y, params) + computeKappa(x, y-1, params));
+        // real_t kappaD = 0.5 * (computeKappa(x, y, params) + computeKappa(x, y+1, params));
+
+        real_t yL = 0.5 * (y + getPos(params, i, j-1)[IY]);
+        real_t yR = 0.5 * (y + getPos(params, i, j+1)[IY]);
+        real_t kappaL = computeKappa(x, y, params);
+        real_t kappaR = computeKappa(x, y, params);
+        real_t kappaU = computeKappa(x, yL, params);
+        real_t kappaD = computeKappa(x, yR, params);
 
         // Ideal EOS with R = 1 assumed. T = P/rho
         real_t TC = Q(j, i, IP)   / Q(j, i,   IR);
@@ -86,7 +90,10 @@ public:
          */
         if (j==params.jbeg && params.bctc_ymin != BCTC_NONE) {
           switch (params.bctc_ymin) {
-            case BCTC_FIXED_TEMPERATURE: FL = kappaL * 2.0 * (TC-params.bctc_ymin_value) / dy; break;
+            case BCTC_FIXED_TEMPERATURE: 
+              kappaL = computeKappa(x, 0.25*dy, params);
+              FL = kappaL * 2.0 * (TC-params.bctc_ymin_value) / dy; 
+              break;
             case BCTC_FIXED_GRADIENT:    FL = kappaL * params.bctc_ymin_value; break;
             default: break;
           }
@@ -94,7 +101,10 @@ public:
 
         if (j==params.jend-1 && params.bctc_ymax != BCTC_NONE) {
           switch (params.bctc_ymax) {
-            case BCTC_FIXED_TEMPERATURE: FR = kappaR * 2.0 * (params.bctc_ymax_value-TC) / dy; break;
+            case BCTC_FIXED_TEMPERATURE: 
+              kappaR = computeKappa(x, params.ymax - 0.25*dy, params);
+              FR = kappaR * 2.0 * (params.bctc_ymax_value-TC) / dy; 
+              break;
             case BCTC_FIXED_GRADIENT:    FR = kappaR * params.bctc_ymax_value; break;       
             default: break;
           }

@@ -73,6 +73,11 @@ enum ViscosityMode {
   VSC_CONSTANT
 };
 
+enum HeatingMode {
+  HM_NONE,
+  HM_POLYFIT,
+};
+
 // Run
 struct Params {
   real_t save_freq;
@@ -132,6 +137,10 @@ struct Params {
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
+
+  // Heating
+  bool heating_active;
+  HeatingMode heating_mode;
 
   // Polytropes and such
   real_t m1;
@@ -290,6 +299,15 @@ Params readInifile(std::string filename) {
   };
   res.viscosity_mode = viscosity_map[tmp];
   res.mu = reader.GetFloat("viscosity", "mu", 0.0);
+
+  // Heating
+  res.heating_active = reader.GetBoolean("heating", "active", false);
+  tmp = reader.Get("heating", "heating_mode", "none");
+  std::map<std::string, HeatingMode> heating_map{
+    {"polyfit", HM_POLYFIT},
+    {"none",    HM_NONE},
+  };
+  res.heating_mode = heating_map[tmp];
 
   // H84
   res.h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);

@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
         next_log--;
 
       if (dt < 1.0e-10) {
-        std::cout << "DT too small : Aborting" << std::endl;
+        std::cout << "DT too small : Aborting (dt=" << dt << ")" << std::endl;
         break;
       }
 

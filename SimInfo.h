@@ -5,6 +5,8 @@
 #include "INIReader.h"
 #include <Kokkos_Core.hpp>
 
+#include "polyfit.h"
+
 namespace fv2d {
 
 using real_t = double;
@@ -290,6 +292,17 @@ Params readInifile(std::string filename) {
   res.bctc_ymax = bctc_map[tmp];
   res.bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
   res.bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
+
+  if (res.thermal_conductivity_mode == TCM_polyfit) {
+    if (res.bctc_ymin == BCTC_FIXED_TEMPERATURE)
+      res.bctc_ymin_value = T_bounds[0];
+    else if (res.bctc_ymin == BCTC_FIXED_GRADIENT)
+      res.bctc_ymin_value = dTdr_bounds[0];
+    if (res.bctc_ymax == BCTC_FIXED_TEMPERATURE)
+      res.bctc_ymax_value = T_bounds[1];
+    else if (res.bctc_ymax == BCTC_FIXED_GRADIENT)
+      res.bctc_ymax_value = dTdr_bounds[1];
+  }
 
   // Viscosity
   res.viscosity_active = reader.GetBoolean("viscosity", "active", false);

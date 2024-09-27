@@ -15,9 +15,6 @@ public:
   ~ComputeDtFunctor() = default;
 
   real_t computeDt(Array Q, real_t max_dt, real_t t, bool diag) const {
-    using DtArray = Kokkos::Array<real_t, 3>;
-    DtArray inv_dts {0,0,0};
-
     auto params = this->params;
 
     real_t inv_dt_hyp = 0.0;
@@ -30,18 +27,21 @@ public:
                               // Hydro time-step
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
+                              Pos pos = getPos(params, i, j);
+                              real_t x = pos[IX];
+                              real_t y = pos[IY];
 
                               real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dx;
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active)
-                                inv_dt_par_tc_loc = fmax(2.0*computeKappa(i, j, params) / (params.dx*params.dx),
-                                                         2.0*computeKappa(i, j, params) / (params.dy*params.dy));
-                              
+                                inv_dt_par_tc_loc = fmax(2.0*computeKappa(x, y, params) / (params.dx*params.dx) * (params.gamma0 - 1) / q[IR],
+                                                         2.0*computeKappa(x, y, params) / (params.dy*params.dy) * (params.gamma0 - 1) / q[IR]);
+
                               real_t inv_dt_par_visc_loc = params.epsilon;
                               if (params.viscosity_active)
-                                inv_dt_par_visc_loc = fmax(2.0*computeMu(i, j, params) / (params.dx*params.dx),
-                                                           2.0*computeMu(i, j, params) / (params.dy*params.dy));
+                                inv_dt_par_visc_loc = fmax(2.0*computeMu(x, y, params) / (params.dx*params.dx),
+                                                           2.0*computeMu(x, y, params) / (params.dy*params.dy));
 
                               inv_dt_hyp      = fmax(inv_dt_hyp, inv_dt_hyp_loc);
                               inv_dt_par_tc   = fmax(inv_dt_par_tc, inv_dt_par_tc_loc);

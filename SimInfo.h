@@ -35,7 +35,8 @@ enum RiemannSolver {
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_TRILAYER_DAMPING
 };
 
 enum TimeStepping {
@@ -46,6 +47,7 @@ enum TimeStepping {
 enum ReconstructionType {
   PCM,
   PCM_WB,
+  PCM_WB2,
   PLM
 };
 
@@ -222,7 +224,8 @@ Params readInifile(std::string filename) {
   std::map<std::string, BoundaryType> bc_map{
     {"reflecting",         BC_REFLECTING},
     {"absorbing",          BC_ABSORBING},
-    {"periodic",           BC_PERIODIC}
+    {"periodic",           BC_PERIODIC},
+    {"tri_layer_damping",  BC_TRILAYER_DAMPING}
   };
   res.boundary_x = bc_map[tmp];
   tmp = reader.Get("run", "boundaries_y", "reflecting");
@@ -230,9 +233,10 @@ Params readInifile(std::string filename) {
 
   tmp = reader.Get("solvers", "reconstruction", "pcm");
   std::map<std::string, ReconstructionType> recons_map{
-    {"pcm",    PCM},
-    {"pcm_wb", PCM_WB},
-    {"plm",    PLM}
+    {"pcm",     PCM},
+    {"pcm_wb",  PCM_WB},
+    {"pcm_wb2", PCM_WB2},
+    {"plm",     PLM}
   };
   res.reconstruction = recons_map[tmp];
 

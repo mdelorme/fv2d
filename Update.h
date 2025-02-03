@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include "SimInfo.h"
 #include "RiemannSolvers.h"
@@ -14,7 +14,7 @@ namespace {
   State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
-    
+
     State res;
     switch (params.reconstruction) {
       case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
@@ -61,8 +61,8 @@ public:
         for (int ivar=0; ivar < Nfields; ++ivar) {
           real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
           real_t dR = Q(j, i+1, ivar) - Q(j, i, ivar);
-          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar); 
-          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar); 
+          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar);
+          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar);
 
           auto minmod = [](real_t dL, real_t dR) -> real_t {
             if (dL*dR < 0.0)
@@ -126,7 +126,7 @@ public:
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
               fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
-            else 
+            else
               fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
           }
 
@@ -135,7 +135,7 @@ public:
           un_loc += dt*(fluxL - fluxR)/dh;
 
           hydro_contrib += dt * (fluxL[IE]-fluxR[IE])/dh;
-        
+
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
@@ -145,7 +145,7 @@ public:
             auto evol = dt*(fluxL-fluxR)/dh;
             evol[IV] += dt * Q(j, i, IR) * params.g;
             evol[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-            printf("At jbeg: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n", 
+            printf("At jbeg: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n",
                     fluxL[IR], fluxL[IU], fluxL[IV], fluxL[IE],
                     fluxR[IR], fluxR[IU], fluxR[IV], fluxR[IE],
                     dt * Q(j, i, IR) * params.g, dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g,
@@ -156,7 +156,7 @@ public:
             auto evol = dt*(fluxL-fluxR)/dh;
             evol[IV] += dt * Q(j, i, IR) * params.g;
             evol[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-            printf("At jbeg+1: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n", 
+            printf("At jbeg+1: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n",
                     fluxL[IR], fluxL[IU], fluxL[IV], fluxL[IE],
                     fluxR[IR], fluxR[IU], fluxR[IV], fluxR[IE],
                     dt * Q(j, i, IR) * params.g, dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g,
@@ -200,12 +200,12 @@ public:
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
       Array Ustar = Array("Ustar", params.Nty, params.Ntx, Nfields);
-      
+
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
       euler_step(Q, Ustar, dt, ite);
-      
+
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);

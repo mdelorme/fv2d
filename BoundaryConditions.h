@@ -33,7 +33,7 @@ namespace fv2d {
     }
 
     State q = getStateFromArray(Q, isym, jsym);
-  
+
     if (dir == IX)
       q[IU] *= -1.0;
     else
@@ -44,7 +44,7 @@ namespace fv2d {
 
   /**
    * @brief Periodic boundary conditions
-   * 
+   *
    */
   KOKKOS_INLINE_FUNCTION
   State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
@@ -62,6 +62,36 @@ namespace fv2d {
     }
 
     return getStateFromArray(Q, i, j);
+  }
+
+  /**
+   * @brief Experimental stuff for tri-layer
+   */
+  KOKKOS_INLINE_FUNCTION
+  State fillTriLayerDamping(Array Q, int i, int j, int iref, int jref, IDir dir, const Params &params) {
+    if (dir == IY && j < 0) {
+      Pos pos = getPos(params, i, j);
+      const real_t T0 = params.iso3_T0;
+      const real_t rho0 = params.iso3_rho0 * exp(-params.iso3_dy0 * params.g / T0);
+      const real_t p0 = rho0*T0;
+      const real_t d = pos[IY];
+
+      // Top layer (iso-thermal)
+      real_t rho, p;
+      p   = p0 * exp(params.g * d / T0);
+      rho = p / T0;
+
+      State q;
+
+      q = getStateFromArray(Q, i, jref);
+      q[IR] = rho;
+      // q[IU] = 0.0;
+      // q[IV] = 0.0;
+      q[IP] = p;
+      return q;
+    }
+    else
+      return fillAbsorbing(Q, iref, jref);
   }
 } // anonymous namespace
 
@@ -115,6 +145,7 @@ public:
                                 default:
                                 case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
+                                case BC_TRILAYER_DAMPING: return fillTriLayerDamping(Q, i, j, i, jref, IY, params); break;
                                 default:   return fillPeriodic(Q, i, j, IY, params); break;
                               }
                             };

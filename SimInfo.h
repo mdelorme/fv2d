@@ -49,7 +49,8 @@ enum BoundaryType
 {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_TRILAYER_DAMPING
 };
 
 enum TimeStepping
@@ -62,6 +63,7 @@ enum ReconstructionType
 {
   PCM,
   PCM_WB,
+  PCM_WB2,
   PLM
 };
 
@@ -431,7 +433,7 @@ struct DeviceParams
       {"constant", TCM_CONSTANT},
       {"B02",      TCM_B02},
       {"tri_layer", TCM_C2020_TRI},
-      {"iso-three", TCM_ISO3}
+      {"iso-three", TCM_ISO3},
     };
     thermal_conductivity_mode = reader.GetMapValue(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);

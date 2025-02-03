@@ -66,15 +66,14 @@ public:
     auto slopesY = this->slopesY;
 
     Kokkos::parallel_for(
-        "Slopes",
-        full_params.range_slopes,
-        KOKKOS_LAMBDA(const int i, const int j) {
-          for (int ivar = 0; ivar < Nfields; ++ivar)
-          {
-            real_t dL = Q(j, i, ivar) - Q(j, i - 1, ivar);
-            real_t dR = Q(j, i + 1, ivar) - Q(j, i, ivar);
-            real_t dU = Q(j, i, ivar) - Q(j - 1, i, ivar);
-            real_t dD = Q(j + 1, i, ivar) - Q(j, i, ivar);
+      "Slopes",
+      full_params.range_slopes,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        for (int ivar=0; ivar < Nfields; ++ivar) {
+          real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
+          real_t dR = Q(j, i+1, ivar) - Q(j, i, ivar);
+          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar);
+          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar);
 
             auto minmod = [](real_t dL, real_t dR) -> real_t
             {

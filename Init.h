@@ -339,13 +339,14 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
 
   KOKKOS_INLINE_FUNCTION
   void initIso3(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
-    const real_t T0 = params.iso3_T0;
-    const real_t rho0 = params.iso3_rho0;
-    const real_t p0 = rho0*T0;
 
-    const real_t T1   = T0;
-    const real_t p1   = p0 * exp(params.iso3_dy0 * params.g / T0);
-    const real_t rho1 = p1 / T1;
+    const real_t T1   = params.iso3_T0;
+    const real_t rho1   = params.iso3_rho0;
+    const real_t p1 = rho1 * T1;
+
+    const real_t T0 = T1;
+    const real_t rho0 = rho1 * exp(-params.iso3_dy0 * params.g / T0);
+    const real_t p0 = rho0 * T0;
 
     const real_t T2   = T1 + params.iso3_theta1 * params.iso3_dy1;
     const real_t rho2 = rho1 * pow(T2/T1, params.iso3_m1);
@@ -373,9 +374,9 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
       real_t pert = params.iso3_pert * generator.drand(-0.5, 0.5);
       random_pool.free_state(generator);
 
-      if (d - y1 < params.dy || y2 - d < params.dy)
-        pert = 0.0; 
-      
+      if (d-y1 < 0.1 || y2-d < 0.1)
+        pert = 0.0;
+
       rho = rho1 * pow(T/T1, params.iso3_m1);
       p   = p1 * (1.0 + pert) * pow(T/T1, params.iso3_m1+1.0);
     }

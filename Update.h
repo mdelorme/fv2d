@@ -6,6 +6,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Gravity.h"
 
 namespace fv2d {
 
@@ -64,13 +65,14 @@ public:
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
+  GravityFunctor grav_functor;
   Geometry geometry;
 
   Array slopesX, slopesY;
 
   UpdateFunctor(const Params &params)
     : params(params), bc_manager(params),
-      tc_functor(params), visc_functor(params),
+      tc_functor(params), visc_functor(params), grav_functor(params),
       geometry(params) {
       
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
@@ -133,18 +135,11 @@ public:
           ///////////////// Geometry things
 
           real_t lenL, lenR;
-          Pos normL = geometry.interfaceRot(i, j, dir, &lenL);
-          Pos normR = geometry.interfaceRot(i+dxp, j+dyp, dir, &lenR);
+          Pos rotL = geometry.getRotationMatrix(i, j, dir, ILEFT,  lenL);
+          Pos rotR = geometry.getRotationMatrix(i, j, dir, IRIGHT, lenR);
 
-          real_t dLL, dLR, dRL, dRR;
-          {
-            Pos reconsLengthL = geometry.cellReconsLength(i, j, dir);
-            Pos reconsLengthR = geometry.cellReconsLength(i+dxp, j+dyp, dir);
-            dLL = reconsLengthL[0];
-            dLR = reconsLengthL[1];
-            dRL = reconsLengthR[0];
-            dRR = reconsLengthR[1];
-          }
+          auto [dLL, dLR] = geometry.cellReconsLength(i, j, dir);
+          auto [dRL, dRR] = geometry.cellReconsLength(i+dxp, j+dyp, dir);
           
           State qCL, qCR, qL, qR;
           {
@@ -154,25 +149,25 @@ public:
 
             #if 1
             // reconstruction before rotate
+              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qCL = reconstruct(qC, slopes, i,     j,     -dLR, dir, params);
               qCR = reconstruct(qC, slopes, i,     j,      dRL, dir, params);
-              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
 
-              qCL = rotate(qCL, normL, dir);
-              qCR = rotate(qCR, normR, dir);
-              qL  = rotate(qL , normL, dir);
-              qR  = rotate(qR , normR, dir);
+              qL  = rotate(qL , rotL, dir);
+              qCL = rotate(qCL, rotL, dir);
+              qCR = rotate(qCR, rotR, dir);
+              qR  = rotate(qR , rotR, dir);
             #else
             // rotate before reconstruction
-              qCL = rotate(qC,  normL, dir);
-              qCR = rotate(qC,  normR, dir);
-              qL  = rotate(qL , normL, dir);
-              qR  = rotate(qR , normR, dir);
+              qL  = rotate(qL , rotL, dir);
+              qCL = rotate(qC,  rotL, dir);
+              qCR = rotate(qC,  rotR, dir);
+              qR  = rotate(qR , rotR, dir);
 
+              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qCL = reconstruct(qCL, slopes, i,    j,     -dLR, dir, params);
               qCR = reconstruct(qCR, slopes, i,    j,      dRL, dir, params);
-              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
               qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
             #endif
 
@@ -195,40 +190,54 @@ public:
           riemann(qL, qCL, fluxL, poutL);
           riemann(qCR, qR, fluxR, poutR);
 
-          fluxL = rotate_back(fluxL, normL, dir);
-          fluxR = rotate_back(fluxR, normR, dir);
-
           // Remove mechanical flux in a well-balanced fashion
-          if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
-            if (j==params.jbeg)
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
-            else 
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+          // if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
+          //   if (j==params.jbeg)
+          //     fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
+          //   else 
+          //     fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+          // }
+
+          // reflective fluxes
+          if (dir == IX) {
+            if (i==params.ibeg)
+              fluxL = State{0.0, poutL, 0.0, 0.0};
+            else if (i==params.iend-1)
+              fluxR = State{0.0, poutR, 0.0, 0.0};
           }
+          else {
+            if (j==params.jbeg)
+              fluxL = State{0.0, poutL, 0.0, 0.0};
+            else if (j==params.jend-1)
+              fluxR = State{0.0, poutR, 0.0, 0.0};
+          }
+
+          fluxL = rotate_back(fluxL, rotL, dir);
+          fluxR = rotate_back(fluxR, rotR, dir);
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
         
-          if (dir == IY && params.gravity) {
+          // if (dir == IY && params.gravity) {
             
-            //TODO: rendre plus propre...
-            #if 1 // gravity toward (0,0)
-              real_t cos, sin;
-              {
-                Pos pos = geometry.mapc2p_center(i, j);
-                real_t norm = sqrt(pos[IX]*pos[IX] + pos[IY]*pos[IY]);
-                cos = -pos[IX] / norm;
-                sin = -pos[IY] / norm;
-              }
-              un_loc[IU] += dt * Q(j, i, IR) * params.g * cos;
-              un_loc[IV] += dt * Q(j, i, IR) * params.g * sin;
+          //   //TODO: rendre plus propre...
+          //   #if 1 // gravity toward (0,0)
+          //     real_t cos, sin;
+          //     {
+          //       Pos pos = geometry.mapc2p_center(i, j);
+          //       real_t norm = sqrt(pos[IX]*pos[IX] + pos[IY]*pos[IY]);
+          //       cos = -pos[IX] / norm;
+          //       sin = -pos[IY] / norm;
+          //     }
+          //     un_loc[IU] += dt * Q(j, i, IR) * params.g * cos;
+          //     un_loc[IV] += dt * Q(j, i, IR) * params.g * sin;
 
-            #else // gravity down
-              un_loc[IV] += dt * Q(j, i, IR) * params.g;
-            #endif
+          //   #else // gravity down
+          //     un_loc[IV] += dt * Q(j, i, IR) * params.g;
+          //   #endif
 
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-          }
+          //   un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+          // }
 
           setStateInArray(Unew, i, j, un_loc);
         };
@@ -254,6 +263,8 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
+    if (params.gravity != GRAV_NONE)
+      grav_functor.applyGravity(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt) {

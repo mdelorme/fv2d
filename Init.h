@@ -7,6 +7,7 @@
 #include "BoundaryConditions.h"
 
 #include "Geometry.h"
+#include "Spline.h"
 
 namespace fv2d {
 
@@ -107,9 +108,10 @@ namespace {
     real_t yr = ymid - y;
     real_t r = sqrt(xr*xr+yr*yr);
 
-    const real_t xsize = (params.xmax - params.xmin);
-    const real_t ysize = (params.ymax - params.ymin);
-    const real_t blast_radius = 0.20 * ((xsize < ysize) ? xsize : ysize);
+    // const real_t xsize = (params.xmax - params.xmin);
+    // const real_t ysize = (params.ymax - params.ymin);
+    // const real_t blast_radius = 0.25 * ((xsize < ysize) ? xsize : ysize);
+    const real_t blast_radius = 0.2;
 
     #if 0
       if (r < blast_radius) {
@@ -126,13 +128,14 @@ namespace {
       }
 
     #else // lissage
-      const real_t thck = 0.02;
+      // const real_t thck = 0.02;
+      const real_t thck = 0.005;
       real_t tr = 0.5 * (tanh((r - blast_radius) / thck) + 1.0);
       
-      Q(j, i, IR) = 1.2 * tr + 1.0 * (1-tr);
+      Q(j, i, IR) = 1.0 * tr + 1.0 * (1-tr);
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IP) =  0.1 * tr + 10.0 * (1-tr);
+      Q(j, i, IP) =  1.0 * tr + 5.0 * (1-tr);
     #endif
   }
 
@@ -435,6 +438,23 @@ namespace {
 
     Q(j, i, IV) = pert * sin(M_PI*y);
   }
+
+
+  KOKKOS_INLINE_FUNCTION
+  void initReadfile(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
+    Pos pos = geo.mapc2p_center(i,j);
+    const real_t r = norm(pos);
+
+    auto generator = random_pool.get_state();
+    real_t pert = params.pert * (generator.drand(-1.0, 1.0));
+    random_pool.free_state(generator);
+
+
+    Q(j, i, IR) = params.spl_rho(r);
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IP) = params.spl_prs(r) * (1+pert);
+  }
 }
 
 
@@ -455,7 +475,9 @@ enum InitType {
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
-  C91
+  C91,
+
+  READFILE,
 };
 
 struct InitFunctor {
@@ -480,7 +502,9 @@ public:
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
-      {"C91", C91}
+      {"C91", C91},
+
+      {"readfile", READFILE},
     };
 
     if (init_map.count(params.problem) == 0)
@@ -517,6 +541,8 @@ public:
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params, geometry, random_pool); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;
                               // case C91:             initC91(Q, i, j, params, random_pool); break;
+
+                              case READFILE:        initReadfile(Q, i, j, params, geometry, random_pool); break;
                             }
                           });
   

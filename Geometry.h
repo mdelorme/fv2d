@@ -7,9 +7,13 @@ namespace fv2d {
   // mappings
   namespace{
     KOKKOS_INLINE_FUNCTION
-    Pos map_radial(const Pos& p)
+    real_t norm(const Pos& p) {
+      return sqrt(p[IX]*p[IX] + p[IY]*p[IY]);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    Pos map_radial(const Pos& p, const real_t R)
     {
-      constexpr real_t r1 = 1.0;
       constexpr real_t epsilon = 1e-10;
       
       real_t d = (fabs(p[IX]) > fabs(p[IY])) ? fabs(p[IX]) : fabs(p[IY]);
@@ -17,8 +21,8 @@ namespace fv2d {
       r = (r > epsilon) ? r : epsilon;
 
       return {
-          r1 * d * p[IX] / r,
-          r1 * d * p[IY] / r
+          R * d * p[IX] / r,
+          R * d * p[IY] / r
         };
     }
 
@@ -77,20 +81,25 @@ namespace fv2d {
   } // anonymous namespace
 
   KOKKOS_INLINE_FUNCTION
-  Pos operator+(const Pos &p, const Pos &q)
+  const Pos operator+(const Pos &p, const Pos &q)
   {
     return {p[IX] + q[IX],
             p[IY] + q[IY]};
   }
-
   KOKKOS_INLINE_FUNCTION
-  Pos operator*(real_t f, const Pos &p)
+  const Pos operator-(const Pos &p, const Pos &q)
+  {
+    return {p[IX] - q[IX],
+            p[IY] - q[IY]};
+  }
+  KOKKOS_INLINE_FUNCTION
+  const Pos operator*(real_t f, const Pos &p)
   {
     return {f * p[IX],
             f * p[IY]};
   }
   KOKKOS_INLINE_FUNCTION
-  Pos operator*(const Pos &p, real_t f)
+  const Pos operator*(const Pos &p, real_t f)
   {
     return f * p;
   }
@@ -109,7 +118,7 @@ public:
   {
     switch (params.geometry_type)
     {
-      case GEO_RADIAL:     return map_radial(p);
+      case GEO_RADIAL:     return map_radial(p, params.radial_radius);
       case GEO_COLELLA:    return map_colella(p, params.geometry_colella_param);
       case GEO_RING:       return map_ring(p);
       case GEO_TEST:       return map_test(p, params.geometry_colella_param);
@@ -131,11 +140,17 @@ public:
     Pos tr = mapc2p_vertex(i+1,j+1); 
     Pos tl = mapc2p_vertex(i  ,j+1);
 
-    // return {
-    //   (bl[IX] + br[IX] + tr[IX] + tl[IX]) / 4.0,
-    //   (bl[IY] + br[IY] + tr[IY] + tl[IY]) / 4.0
-    // };
-    return 0.25 * (bl + br + tr + tl);
+    switch(params.mapc2p_type) {
+      case MAP_MAPPED:
+        return mapc2p(getCenter(i,j));
+      case MAP_CENTER:
+        return 0.25 * (bl + br + tr + tl);
+      case MAP_CENTROID: default:
+        const real_t vol = (bl[IX]*br[IY] - bl[IX]*tl[IY] - br[IX]*bl[IY] + br[IX]*tr[IY] - tr[IX]*br[IY] + tr[IX]*tl[IY] + tl[IX]*bl[IY] - tl[IX]*tr[IY]);
+        real_t cx = ((bl[IX] + br[IX])*(bl[IX]*br[IY] - br[IX]*bl[IY]) - (bl[IX] + tl[IX])*(bl[IX]*tl[IY] - tl[IX]*bl[IY]) + (br[IX] + tr[IX])*(br[IX]*tr[IY] - tr[IX]*br[IY]) + (tr[IX] + tl[IX])*(tr[IX]*tl[IY] - tl[IX]*tr[IY])) / (3*vol);
+        real_t cy = ((bl[IY] + br[IY])*(bl[IX]*br[IY] - br[IX]*bl[IY]) - (bl[IY] + tl[IY])*(bl[IX]*tl[IY] - tl[IX]*bl[IY]) + (br[IY] + tr[IY])*(br[IX]*tr[IY] - tr[IX]*br[IY]) + (tr[IY] + tl[IY])*(tr[IX]*tl[IY] - tl[IX]*tr[IY])) / (3*vol);
+        return {cx, cy};
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -152,6 +167,7 @@ public:
                       (tl[IY] - br[IY]) * (tr[IX] - bl[IX]));
   }
 
+/*
   KOKKOS_INLINE_FUNCTION
   Pos interfaceRot(int i, int j, IDir dir, real_t *interface_len) const
   {
@@ -167,10 +183,7 @@ public:
       q = mapc2p_vertex(i, j); 
     }
 
-    Pos tanj = {
-      q[IX] - p[IX],
-      q[IY] - p[IY],
-    };
+    Pos tanj = q-p;
     *interface_len = sqrt(tanj[IX] * tanj[IX] + tanj[IY] * tanj[IY]);
 
 
@@ -192,6 +205,33 @@ public:
     //   };
       
   }
+*/
+
+  KOKKOS_INLINE_FUNCTION
+  Pos getRotationMatrix(int i, int j, IDir dir, ISide side, real_t &interface_len) const
+  {
+    Pos tj; // tangential vector to the face
+    switch(dir)
+    {
+      case IX:
+        if(side == ILEFT)
+          tj = mapc2p_vertex(i,   j+1) - mapc2p_vertex(i,   j);
+        else
+          tj = mapc2p_vertex(i+1, j+1) - mapc2p_vertex(i+1, j);
+        break;
+      default:
+        if(side == ILEFT)
+          tj = mapc2p_vertex(i, j)     - mapc2p_vertex(i+1, j);
+        else
+          tj = mapc2p_vertex(i, j+1)   - mapc2p_vertex(i+1, j+1);
+        break;
+    }
+    interface_len = norm(tj);
+    return {
+       tj[IY] / interface_len,
+      -tj[IX] / interface_len
+    };
+  }
 
   KOKKOS_INLINE_FUNCTION
   real_t cellLength(int i, int j, IDir dir) const
@@ -205,11 +245,27 @@ public:
     // Pos q = mapc2p({params.xmin + (i-params.ibeg + di) * params.dx,
     //                 params.ymin + (j-params.jbeg + dj) * params.dy});
     
-    
+  #if 1
+
     Pos bl = mapc2p_vertex(i  ,j  );
     Pos br = mapc2p_vertex(i+1,j  ); 
     Pos tr = mapc2p_vertex(i+1,j+1); 
     Pos tl = mapc2p_vertex(i  ,j+1);
+  
+    Pos l, r;
+    if(dir == IX)
+    {
+      l = 0.5 * (bl + tl);
+      r = 0.5 * (br + tr);
+    }
+    else
+    {
+      l = 0.5 * (bl + br);
+      r = 0.5 * (tl + tr);
+    }
+    return norm(l-r);
+  
+  #else
 
     Pos l, c, r;
     if(dir == IX)
@@ -239,6 +295,7 @@ public:
     }
 
     return dL + dR;
+    #endif
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -290,20 +347,8 @@ public:
       r = mapc2p_center(i, j);
     }
 
-
-    
-    real_t dL, dR;
-    {
-      real_t x, y;
-      // left
-      x = c[IX] - l[IX];
-      y = c[IY] - l[IY];
-      dL = sqrt(x*x + y*y);
-      // right
-      x = r[IX] - c[IX];
-      y = r[IY] - c[IY];
-      dR = sqrt(x*x + y*y);
-    }
+    real_t dL = norm(c-l);
+    real_t dR = norm(r-c);
 
     return {dL, dR};
     // return {dL / (dL + dR),
@@ -313,8 +358,14 @@ public:
   KOKKOS_INLINE_FUNCTION
   real_t cellReconsLengthSlope(int i, int j, IDir dir) const
   {
-    Pos p = cellReconsLength(i, j, dir);
-    return p[0] + p[1];
+    Pos p = mapc2p_center(i, j);
+    Pos q;
+    if (dir == IX) q = mapc2p_center(i-1, j);
+    else           q = mapc2p_center(i, j-1);
+    return norm(p-q);
+    
+    // Pos p = cellReconsLength(i, j, dir);
+    // return p[0] + p[1];
   }
 
   private:

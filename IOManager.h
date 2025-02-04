@@ -87,9 +87,10 @@ namespace fv2d {
 class IOManager {
 public:
   Params params;
+  Geometry geo;
 
   IOManager(Params &params)
-    : params(params) {};
+    : params(params), geo(params) {};
 
   ~IOManager() = default;
 
@@ -118,7 +119,6 @@ public:
       file.createAttribute("problem", params.problem);
 
       std::vector<real_t> x, y;
-      Geometry geo(params);
 
       // -- vertex pos
       for (int j=params.jbeg; j <= params.jend; ++j)

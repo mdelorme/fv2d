@@ -123,4 +123,10 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
   flux[IE] = (E + st[IP])*st[IU];
 }
 
+/** TODO Lucas */
+KOKKOS_INLINE_FUNCTION
+void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &params) {
+
+}
+
 }

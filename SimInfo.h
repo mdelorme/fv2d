@@ -8,7 +8,13 @@
 namespace fv2d {
 
 using real_t = double;
+
+#ifdef MHD
+constexpr int Nfields = 7;
+#else
 constexpr int Nfields = 4;
+#endif
+
 using Pos   = Kokkos::Array<real_t, 2>;
 using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
@@ -24,6 +30,18 @@ enum IDir : uint8_t {
   IY = 1
 };
 
+#ifdef MHD
+enum IVar : uint8_t {
+  IR = 0,
+  IU = 1,
+  IV = 2,
+  IP = 3,
+  IE = 3,
+  IBX = 4,
+  IBY = 5,
+  IBZ = 6
+};
+#else
 enum IVar : uint8_t {
   IR = 0,
   IU = 1,
@@ -31,10 +49,12 @@ enum IVar : uint8_t {
   IP = 3,
   IE = 3
 };
+#endif
 
 enum RiemannSolver {
   HLL,
-  HLLC
+  HLLC,
+  HLLD
 };
 
 enum BoundaryType {

@@ -7,3 +7,5 @@ constexpr bool mhd_run = true;
 #include "StatesHydro.h"
 constexpr bool mhd_run = false;
 #endif
+
+}

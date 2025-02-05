@@ -22,6 +22,7 @@ namespace {
         res[IU] = q[IU];
         res[IV] = q[IV];
         res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * params.g * params.dy * 0.5);
+        // TODO Lucas : Ajouter les éléments mhd si le run est mhd (en constexpr)
         break;
       default:  res = q; // Piecewise Constant
     }
@@ -45,6 +46,8 @@ public:
       
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
       slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
+
+      /** TODO Lucas : Check qu'on n'essaie pas d'utiliser hllc/hll avec un run MHD */
     };
   ~UpdateFunctor() = default;
 
@@ -105,8 +108,9 @@ public:
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
             switch (params.riemann_solver) {
-              case HLL: hll(qL, qR, flux, pout, params); break;
-              default: hllc(qL, qR, flux, pout, params); break;
+              case HLL: hll(qL, qR, flux, pout, params);   break;
+              case HLLD: hlld(qL, qR, flux, pout, params); break;
+              default: hllc(qL, qR, flux, pout, params);   break;
             }
           };
 

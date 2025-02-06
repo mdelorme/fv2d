@@ -45,7 +45,6 @@ int main(int argc, char **argv) {
       
       bool save_needed = (t + params.epsilon > next_save);
 
-      consToPrim(U, Q, params);
       dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
       if (next_log == 0)
         next_log = params.log_frequency;
@@ -59,6 +58,8 @@ int main(int argc, char **argv) {
       }
 
       update.update(Q, Unew, dt);
+      consToPrim(U, Q, params);
+      checkNegatives(Q, params);
 
       Kokkos::deep_copy(U, Unew);
 

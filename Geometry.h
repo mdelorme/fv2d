@@ -27,6 +27,23 @@ namespace fv2d {
     }
 
     KOKKOS_INLINE_FUNCTION
+    Pos map_radial_convex(const Pos& p, const real_t R)
+    {
+      constexpr real_t epsilon = 1e-10;
+      
+      real_t d = (fabs(p[IX]) > fabs(p[IY])) ? fabs(p[IX]) : fabs(p[IY]);
+      real_t r = norm(p);
+      r = (r > epsilon) ? r : epsilon;
+
+      const real_t w = d*d;
+
+      const Pos radial = R / r * d * p;
+      const Pos cart = p * R * M_SQRT1_2;
+
+      return w * radial + (1-w) * cart;
+    }
+
+    KOKKOS_INLINE_FUNCTION
     Pos map_colella(const Pos& p, const real_t deformation_factor)
     {
       real_t x = p[IX];
@@ -80,30 +97,6 @@ namespace fv2d {
     }
   } // anonymous namespace
 
-  KOKKOS_INLINE_FUNCTION
-  const Pos operator+(const Pos &p, const Pos &q)
-  {
-    return {p[IX] + q[IX],
-            p[IY] + q[IY]};
-  }
-  KOKKOS_INLINE_FUNCTION
-  const Pos operator-(const Pos &p, const Pos &q)
-  {
-    return {p[IX] - q[IX],
-            p[IY] - q[IY]};
-  }
-  KOKKOS_INLINE_FUNCTION
-  const Pos operator*(real_t f, const Pos &p)
-  {
-    return {f * p[IX],
-            f * p[IY]};
-  }
-  KOKKOS_INLINE_FUNCTION
-  const Pos operator*(const Pos &p, real_t f)
-  {
-    return f * p;
-  }
-
 class Geometry{
   
 public:
@@ -118,11 +111,12 @@ public:
   {
     switch (params.geometry_type)
     {
-      case GEO_RADIAL:     return map_radial(p, params.radial_radius);
-      case GEO_COLELLA:    return map_colella(p, params.geometry_colella_param);
-      case GEO_RING:       return map_ring(p);
-      case GEO_TEST:       return map_test(p, params.geometry_colella_param);
-      case GEO_CARTESIAN:  default: return p;
+      case GEO_RADIAL:             return map_radial(p, params.radial_radius);
+      case GEO_RADIAL_CONVEX:      return map_radial_convex(p, params.radial_radius);
+      case GEO_COLELLA:            return map_colella(p, params.geometry_colella_param);
+      case GEO_RING:               return map_ring(p);
+      case GEO_TEST:               return map_test(p, params.geometry_colella_param);
+      case GEO_CARTESIAN: default: return p;
     }
   }
 

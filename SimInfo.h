@@ -69,13 +69,15 @@ enum ViscosityMode {
 struct Params {
   real_t save_freq;
   real_t tend;
-  std::string filename_out = "run.h5";
+  std::string filename_out = "run";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
   TimeStepping time_stepping = TS_EULER;
   real_t CFL = 0.1;
+
+  bool multiple_outputs = false;
 
   // Parallel stuff
   ParallelRange range_tot;
@@ -179,6 +181,7 @@ Params readInifile(std::string filename) {
 
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
+  res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run.h5");
 

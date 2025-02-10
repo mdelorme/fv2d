@@ -29,9 +29,10 @@ public:
   void saveSolutionMultiple(const Array &Q, int iteration, real_t t, real_t dt) {
     std::ostringstream oss;
     
-    oss << params.filename_out << "_" << std::setw(4) << std::setfill('0') << iteration << ".h5";
+    oss << params.filename_out << "_" << std::setw(4) << std::setfill('0') << iteration;
+    std::string h5_filename = oss.str() + ".h5";
 
-    File file(oss.str(), File::Truncate);
+    File file(h5_filename, File::Truncate);
 
     file.createAttribute("Ntx", params.Ntx);
     file.createAttribute("Nty", params.Nty);

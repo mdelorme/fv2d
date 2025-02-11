@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
     // Misc vars for iteration
     real_t t = 0.0;
     int ite = 0;
+    real_t next_save = 0.0;
     
     // Initializing primitive variables
     InitFunctor init(params);
@@ -42,12 +43,20 @@ int main(int argc, char **argv) {
     ComputeDtFunctor computeDt(params);
     IOManager ioManager(params);
 
-    init.init(Q);
+    if (params.restart_file != "") {
+      auto restart_info = ioManager.loadSnapshot(Q);
+      t = restart_info.time;
+      ite = restart_info.iteration;
+      std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
+      next_save = t + params.save_freq;
+    }
+    else
+      init.init(Q);
     primToCons(Q, U, params);
 
+    ioManager.saveSolution(Q, 1000, t, 0.01);
+
     real_t dt;
-    t = 0.0;
-    real_t next_save = 0.0;
     int next_log = 0;
 
     while (t + params.epsilon < params.tend) {
@@ -74,6 +83,8 @@ int main(int argc, char **argv) {
 
       t += dt;
     }
+
+    std::cout << "Time at end is " << t << std::endl;
 
     ioManager.saveSolution(Q, ite++, t, dt);
   }

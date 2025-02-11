@@ -14,6 +14,11 @@ using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 
+struct RestartInfo {
+  real_t time;
+  int iteration;
+};
+
 enum IDir : uint8_t {
   IX = 0,
   IY = 1
@@ -69,13 +74,16 @@ enum ViscosityMode {
 struct Params {
   real_t save_freq;
   real_t tend;
-  std::string filename_out = "run.h5";
+  std::string filename_out = "run";
+  std::string restart_file = "";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
   TimeStepping time_stepping = TS_EULER;
   real_t CFL = 0.1;
+
+  bool multiple_outputs = false;
 
   // Parallel stuff
   ParallelRange range_tot;
@@ -179,8 +187,13 @@ Params readInifile(std::string filename) {
 
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
+  res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
+  res.restart_file = reader.Get("run", "restart_file", "");
+  if (res.restart_file != "" && !res.multiple_outputs)
+    throw std::runtime_error("Restart one unique files is not implemented yet !");
+    
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = reader.Get("run", "output_filename", "run.h5");
+  res.filename_out = reader.Get("run", "output_filename", "run");
 
   std::string tmp;
   tmp = reader.Get("run", "boundaries_x", "reflecting");

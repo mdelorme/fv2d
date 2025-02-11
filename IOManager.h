@@ -110,6 +110,7 @@ public:
     file.createAttribute("jbeg", params.jbeg);
     file.createAttribute("jend", params.jend);
     file.createAttribute("problem", params.problem);
+    file.createAttribute("iteration", iteration);
 
     std::vector<real_t> x, y;
     // -- vertex pos
@@ -123,14 +124,13 @@ public:
     file.createDataSet("x", x);
     file.createDataSet("y", y);
 
-    using Table = std::vector<std::vector<real_t>>;
+    using Table = std::vector<real_t>;
 
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 
     Table trho, tu, tv, tprs;
     for (int j=params.jbeg; j<params.jend; ++j) {
-      std::vector<real_t> rrho, ru, rv, rprs;
 
       for (int i=params.ibeg; i<params.iend; ++i) {
         real_t rho = Qhost(j, i, IR);
@@ -138,16 +138,11 @@ public:
         real_t v   = Qhost(j, i, IV);
         real_t p   = Qhost(j, i, IP);
 
-        rrho.push_back(rho);
-        ru.push_back(u);
-        rv.push_back(v);
-        rprs.push_back(p);
+        trho.push_back(rho);
+        tu.push_back(u);
+        tv.push_back(v);
+        tprs.push_back(p);
       }
-
-      trho.push_back(rrho);
-      tu.push_back(ru);
-      tv.push_back(rv);
-      tprs.push_back(rprs);
     }
 
     file.createDataSet("rho", trho);
@@ -248,6 +243,46 @@ public:
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);
   }
-};
 
+  RestartInfo loadSnapshot(Array &Q) {
+    File file(params.restart_file, File::ReadOnly);
+
+    auto Nt = getShape(file, "rho")[0];
+
+    if (Nt != params.Nx*params.Ny) {
+      std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = " 
+                << params.Nx << "x" << params.Ny << "=" << params.Nx*params.Ny << std::endl;
+      throw std::runtime_error("ERROR : Trying to restart from a file with a different resolution !");
+    }
+
+    auto Qhost = Kokkos::create_mirror(Q);
+    using Table = std::vector<real_t>;
+
+    std::cout << "Loading restart data from hdf5" << std::endl;
+
+    auto load_and_copy = [&](std::string var_name, IVar var_id) {
+      auto table = load<Table>(file, var_name);
+      // Parallel for here ?
+      int lid = 0;
+      for (int y=0; y < params.Ny; ++y) {
+        for (int x=0; x < params.Nx; ++x) {
+          Qhost(y+params.jbeg, x+params.ibeg, var_id) = table[lid++];
+        }
+      }
+    };
+    load_and_copy("rho", IR);
+    load_and_copy("u", IU);
+    load_and_copy("v", IV);
+    load_and_copy("prs", IP);
+
+    Kokkos::deep_copy(Q, Qhost);
+
+    std::cout << "Restart finished !" << std::endl;
+
+    real_t time = loadAttribute<real_t>(file, "", "time");
+    int iteration = loadAttribute<int>(file, "", "iteration");
+
+    return {time, iteration};
+  }
+};
 }

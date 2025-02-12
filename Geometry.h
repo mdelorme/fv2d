@@ -7,6 +7,11 @@ namespace fv2d {
   // mappings
   namespace{
     KOKKOS_INLINE_FUNCTION
+    real_t dot(const Pos& p, const Pos& q) {
+      return p[IX]*q[IX] + p[IY]*q[IY];
+    }
+
+    KOKKOS_INLINE_FUNCTION
     real_t norm(const Pos& p) {
       return sqrt(p[IX]*p[IX] + p[IY]*p[IY]);
     }
@@ -353,13 +358,45 @@ public:
   real_t cellReconsLengthSlope(int i, int j, IDir dir) const
   {
     Pos p = mapc2p_center(i, j);
-    Pos q;
-    if (dir == IX) q = mapc2p_center(i-1, j);
-    else           q = mapc2p_center(i, j-1);
+    Pos q = (dir == IX) ? mapc2p_center(i-1, j) : mapc2p_center(i, j-1);
     return norm(p-q);
     
     // Pos p = cellReconsLength(i, j, dir);
     // return p[0] + p[1];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  Pos faceCenter(int i, int j, IDir dir, ISide side) const
+  {
+    const Pos bl = mapc2p_vertex(i  ,j  );
+    const Pos br = mapc2p_vertex(i+1,j  ); 
+    const Pos tr = mapc2p_vertex(i+1,j+1); 
+    const Pos tl = mapc2p_vertex(i  ,j+1);
+
+    if      (dir == IX && side == ILEFT)
+      return 0.5 * (bl + tl);
+    else if (dir == IX && side == IRIGHT)
+      return 0.5 * (br + tr);
+    else if (dir == IY && side == ILEFT)
+      return 0.5 * (bl + br);
+    else if (dir == IY && side == IRIGHT)
+      return 0.5 * (tl + tr);
+    else {
+      std::cout << "strange buggy" << std::endl;
+      exit(1);
+    }
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  Pos centerToFace(int i, int j, IDir dir, ISide side) const
+  {
+    return faceCenter(i,j,dir,side) - mapc2p_center(i, j);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  Pos faceToFace(int i, int j, IDir dir) const
+  {
+    return faceCenter(i,j,dir,IRIGHT) - faceCenter(i,j,dir,ILEFT);
   }
 
   private:

@@ -142,36 +142,34 @@ public:
           auto [dRL, dRR] = geometry.cellReconsLength(i+dxp, j+dyp, dir);
           
           State qCL, qCR, qL, qR;
-          {
-            State qC = getStateFromArray(Q, i, j);
-                  qL = getStateFromArray(Q, i+dxm, j+dym);
-                  qR = getStateFromArray(Q, i+dxp, j+dyp);
+          State qC = getStateFromArray(Q, i, j);
+                qL = getStateFromArray(Q, i+dxm, j+dym);
+                qR = getStateFromArray(Q, i+dxp, j+dyp);
 
-            #if 1
-            // reconstruction before rotate
-              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
-              qCL = reconstruct(qC, slopes, i,     j,     -dLR, dir, params);
-              qCR = reconstruct(qC, slopes, i,     j,      dRL, dir, params);
-              qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
+          #if 1
+          // reconstruction before rotate
+            qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
+            qCL = reconstruct(qC, slopes, i,     j,     -dLR, dir, params);
+            qCR = reconstruct(qC, slopes, i,     j,      dRL, dir, params);
+            qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
 
-              qL  = rotate(qL , rotL, dir);
-              qCL = rotate(qCL, rotL, dir);
-              qCR = rotate(qCR, rotR, dir);
-              qR  = rotate(qR , rotR, dir);
-            #else
-            // rotate before reconstruction
-              qL  = rotate(qL , rotL, dir);
-              qCL = rotate(qC,  rotL, dir);
-              qCR = rotate(qC,  rotR, dir);
-              qR  = rotate(qR , rotR, dir);
+            qL  = rotate(qL , rotL, dir);
+            qCL = rotate(qCL, rotL, dir);
+            qCR = rotate(qCR, rotR, dir);
+            qR  = rotate(qR , rotR, dir);
+          #else
+          // rotate before reconstruction
+            qL  = rotate(qL , rotL, dir);
+            qCL = rotate(qC,  rotL, dir);
+            qCR = rotate(qC,  rotR, dir);
+            qR  = rotate(qR , rotR, dir);
 
-              qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
-              qCL = reconstruct(qCL, slopes, i,    j,     -dLR, dir, params);
-              qCR = reconstruct(qCR, slopes, i,    j,      dRL, dir, params);
-              qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
-            #endif
+            qL  = reconstruct(qL, slopes, i+dxm, j+dym,  dLL, dir, params);
+            qCL = reconstruct(qCL, slopes, i,    j,     -dLR, dir, params);
+            qCR = reconstruct(qCR, slopes, i,    j,      dRL, dir, params);
+            qR  = reconstruct(qR, slopes, i+dxp, j+dyp, -dRR, dir, params);
+          #endif
 
-          }
 
           /////////////// end Geometry
 
@@ -199,45 +197,59 @@ public:
           // }
 
           // reflective fluxes
+          #if 0 // well balancing à réparer
+          auto get_dP_wb = [&](ISide side) {
+              const Pos center = geometry.mapc2p_center(i,j);
+              const real_t r = norm(center);
+              // const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
+              const Pos face_to_face = geometry.faceToFace(i,j,dir);
+              // return 0;
+              // std::string sideinfo; sideinfo += (dir==IX?'X':'Y');sideinfo += (side==ILEFT?'L':'R'); 
+              // sideinfo += "  ";
+              // if (dir == IY && side == IRIGHT)
+              // std::cout << sideinfo << '('<< i << ',' << j << ")\t"
+              // << dot(center, center_to_face) / r << "\t" 
+              // << norm(geometry.faceCenter(i,j,dir,side)) << std::endl;
+              // const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
+              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r;
+              // std::cout << (dir==IX?'X':'Y') << (side==ILEFT?'L':'R') << ": " << dP << std::endl;
+              // return params.spl_grav.GetValue(r) * qC[IR] * dot(center, center_to_face) / r;
+              return dP * (side==IRIGHT?-1.0:1.0);
+              };
+          
           if (dir == IX) {
             if (i==params.ibeg)
-              fluxL = State{0.0, poutL, 0.0, 0.0};
+              fluxL = State{0.0, poutR + get_dP_wb(ILEFT),  0.0, 0.0};
+            else if (i==params.iend-1)
+              fluxR = State{0.0, poutL + get_dP_wb(IRIGHT), 0.0, 0.0};
+          }
+          else {
+            if (j==params.jbeg)
+              fluxL = State{0.0, poutR + get_dP_wb(ILEFT),  0.0, 0.0};
+            else if (j==params.jend-1)
+              fluxR = State{0.0, poutL + get_dP_wb(IRIGHT), 0.0, 0.0};
+          }
+          #else
+
+          if (dir == IX) {
+            if (i==params.ibeg)
+              fluxL = State{0.0, poutL,  0.0, 0.0};
             else if (i==params.iend-1)
               fluxR = State{0.0, poutR, 0.0, 0.0};
           }
           else {
             if (j==params.jbeg)
-              fluxL = State{0.0, poutL, 0.0, 0.0};
+              fluxL = State{0.0, poutL,  0.0, 0.0};
             else if (j==params.jend-1)
               fluxR = State{0.0, poutR, 0.0, 0.0};
           }
+          #endif
 
           fluxL = rotate_back(fluxL, rotL, dir);
           fluxR = rotate_back(fluxR, rotR, dir);
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
-        
-          // if (dir == IY && params.gravity) {
-            
-          //   //TODO: rendre plus propre...
-          //   #if 1 // gravity toward (0,0)
-          //     real_t cos, sin;
-          //     {
-          //       Pos pos = geometry.mapc2p_center(i, j);
-          //       real_t norm = sqrt(pos[IX]*pos[IX] + pos[IY]*pos[IY]);
-          //       cos = -pos[IX] / norm;
-          //       sin = -pos[IY] / norm;
-          //     }
-          //     un_loc[IU] += dt * Q(j, i, IR) * params.g * cos;
-          //     un_loc[IV] += dt * Q(j, i, IR) * params.g * sin;
-
-          //   #else // gravity down
-          //     un_loc[IV] += dt * Q(j, i, IR) * params.g;
-          //   #endif
-
-          //   un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-          // }
 
           setStateInArray(Unew, i, j, un_loc);
         };

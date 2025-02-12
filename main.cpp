@@ -17,9 +17,9 @@ int main(int argc, char **argv) {
     Params params = readInifile(argv[1]);
 
     // Allocating main views
-    Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);
-    Array Unew = Kokkos::View<real_t***>("Unew", params.Nty, params.Ntx, Nfields);
-    Array Q    = Kokkos::View<real_t***>("Q",    params.Nty, params.Ntx, Nfields);
+    Array U    = Array("U",    params.Nty, params.Ntx, Nfields);
+    Array Unew = Array("Unew", params.Nty, params.Ntx, Nfields);
+    Array Q    = Array("Q",    params.Nty, params.Ntx, Nfields);
 
 
     // Misc vars for iteration

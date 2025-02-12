@@ -64,25 +64,12 @@ public:
     return c[0] + ri * c[1] + ri*ri * c[2] + ri*ri*ri * c[3];
   }
 
-  KOKKOS_INLINE_FUNCTION
-  real_t Get_dTdr_bound(int dir) const
-  {
-    return header.dT_bound[dir];
-  }
-  KOKKOS_INLINE_FUNCTION
-  real_t Get_T_bound(int dir) const
-  {
-    return header.T_bound[dir];
-  }
-
 private:
   struct {
     uint32_t N;
-    int has_heating_with_rho_factor;
-    real_t r0, dr;
-    real_t dT_bound[2];
-    real_t T_bound[2];
-    uint32_t offset_variable[6];
+    uint32_t offset_variable[5];
+    real_t r0, dr, rcut;
+    real_t Cp, R;
   } header;
   Kokkos::View<real_t*[4]> spline;
 };

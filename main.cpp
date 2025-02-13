@@ -54,8 +54,6 @@ int main(int argc, char **argv) {
       init.init(Q);
     primToCons(Q, U, params);
 
-    ioManager.saveSolution(Q, 1000, t, 0.01);
-
     real_t dt;
     int next_log = 0;
 

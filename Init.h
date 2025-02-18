@@ -356,18 +356,20 @@ private:
   InitType init_type;
 
 public:
-  InitFunctor(Params &full_params) : full_params(full_params)
-  {
-    std::map<std::string, InitType> init_map{{"sod_x", SOD_X},
-                                             {"sod_y", SOD_Y},
-                                             {"blast", BLAST},
-                                             {"rayleigh-taylor", RAYLEIGH_TAYLOR},
-                                             {"diffusion", DIFFUSION},
-                                             {"H84", H84},
-                                             {"C91", C91},
-                                             {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
-                                             {"gresho_vortex", GRESHO_VORTEX},
-                                             {"profile", PROFILE}};
+  InitFunctor(Params &full_params)
+    : full_params(full_params) {
+    std::map<std::string, InitType> init_map {
+      {"sod_x", SOD_X},
+      {"sod_y", SOD_Y},
+      {"blast", BLAST},
+      {"rayleigh-taylor", RAYLEIGH_TAYLOR},
+      {"diffusion", DIFFUSION},
+      {"H84", H84},
+      {"C91", C91},
+      {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
+      {"profile", PROFILE},
+      {"gresho_vortex", GRESHO_VORTEX}
+    };
 
     if (init_map.count(full_params.problem) == 0)
       throw std::runtime_error("Error unknown problem " + full_params.problem);

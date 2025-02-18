@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gravity.h"
 #include "SimInfo.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"

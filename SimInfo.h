@@ -356,7 +356,6 @@ struct DeviceParams
 
   void init_from_inifile(Reader &reader)
   {
-
     // Mesh
     Nx   = reader.GetInteger("mesh", "Nx", 32);
     Ny   = reader.GetInteger("mesh", "Ny", 32);

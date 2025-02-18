@@ -68,7 +68,7 @@ namespace fv2d {
    * @brief Reflecting boundary condition in hydrostatic equilibrium
    **/
    KOKKOS_INLINE_FUNCTION
-   State fillHSE(Array Q, int i, int j, IDir dir, const Params &params) {
+   State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
     if (dir == IX) {
       Kokkos::abort("ERROR : Cannot use hse boundary conditions along X");
     }

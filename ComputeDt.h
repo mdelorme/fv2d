@@ -20,11 +20,16 @@ public:
     real_t inv_dt_hyp = 0.0;
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
+    bool is_fslp = (params.riemann_solver == FSLP);
+    const real_t fslp_K = params.fslp_K;
+    const real_t gamma0 = params.gamma0;
+    const real_t gdx = params.g * params.dy;
 
     Kokkos::parallel_reduce("Computing DT",
                             full_params.range_dom,
                             KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
-                              // Hydro time-step
+                              real_t inv_dt_hyp_loc;
+                              // Traditional Hydro time-step
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
 

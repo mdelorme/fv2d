@@ -100,11 +100,14 @@ public:
           State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
           State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
 
+          const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
+
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
             switch (params.riemann_solver) {
-              case HLL: hll(qL, qR, flux, pout, params); break;
-              default: hllc(qL, qR, flux, pout, params); break;
+              case HLL:  hll(qL, qR, flux, pout, params); break;
+              case FSLP: fslp(qL, qR, flux, pout, gdx, params); break;
+              default:   hllc(qL, qR, flux, pout, params); break;
             }
           };
 

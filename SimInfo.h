@@ -50,7 +50,8 @@ enum IVar : uint8_t {
 
 enum RiemannSolver {
   HLL,
-  HLLC
+  HLLC,
+  FSLP,
 };
 
 enum BoundaryType {
@@ -98,6 +99,8 @@ struct DeviceParams {
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
   
+  real_t fslp_K = 1.1;
+
   // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
@@ -127,7 +130,10 @@ struct DeviceParams {
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
-  
+
+  // Gresho Vortex
+  real_t gresho_density, gresho_Mach;
+
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
@@ -158,8 +164,6 @@ struct DeviceParams {
   real_t epsilon = 1.0e-6;
   
   void init_from_inifile(INIReader &reader) {
-    
-    
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -212,6 +216,7 @@ struct DeviceParams {
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+    fslp_K  = reader.GetFloat("physics", "fslp_K", 1.1);
 
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -245,6 +250,10 @@ struct DeviceParams {
 
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
+
+    // Gresho Vortex
+    gresho_density = reader.GetFloat("gresho_vortex", "density",  1.0);
+    gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach",     0.1);
   }
 };
 
@@ -255,6 +264,7 @@ struct Params {
   INIReader reader;
   std::string filename_out = "run";
   std::string restart_file = "";
+  std::string init_filename;
   TimeStepping time_stepping = TS_EULER;
 
   bool multiple_outputs = false;
@@ -397,9 +407,8 @@ Params readInifile(std::string filename) {
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
 
-
   return res;
-} 
+}
 }
 
 

@@ -177,9 +177,9 @@ namespace {
   /**
    * @brief Reading a spline from the disk
    **/
-   void initProfile(Array Q, const Params &params) {
+   void initProfile(Array Q, const Params &full_params) {
     // Reading input file
-    std::string filename = params.init_filename;
+    std::string filename = full_params.init_filename;
     std::vector<real_t> y, rho, u, v, p;
     std::ifstream f_in(filename);
 
@@ -213,9 +213,11 @@ namespace {
 
     Kokkos::deep_copy(profile, profile_host);
 
+    auto params = full_params.device_params;
+
     // Initializing domain
     Kokkos::parallel_for("Initialization from profile",
-                         params.range_dom,
+                         full_params.range_dom,
                          KOKKOS_LAMBDA(const int i, const int j) {
                           auto pos = getPos(params, i, j);
                           real_t y = pos[IY];
@@ -237,6 +239,46 @@ namespace {
                         
                           // Todo : Edge case extrapolation
                          });
+   }
+
+   /**
+   * @brief Gresho-Vortex setup for Low-mach flows
+   * 
+   * Based on Miczek et al. 2015 "New numerical solver for flows at various Mach numbers"
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initGreshoVortex(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    const real_t xmid = 0.5*(params.xmin + params.xmax);
+    const real_t ymid = 0.5*(params.ymin + params.ymax);
+    const real_t xr = pos[IX]-xmid;
+    const real_t yr = pos[IY]-ymid;
+    const real_t r = sqrt(xr*xr+yr*yr);
+
+    // Pressure is given from density and Mach
+    const real_t pressure = params.gresho_density / (params.gamma0 * params.gresho_Mach*params.gresho_Mach);
+
+    Q(j, i, IR) = params.gresho_density;
+
+    real_t u_phi, p;
+    if (r < 0.2) {
+      u_phi = 5.0*r;
+      Q(j, i, IP) = pressure + 12.5*r*r;
+    }
+    else if (r < 0.4) {
+      u_phi = 2.0 - 5.0*r;
+      Q(j, i, IP) = pressure + 12.5*r*r + 4.0*(1.0-5.0*r+log(5.0*r));
+    }
+    else {
+      u_phi = 0.0;
+      Q(j, i, IP) = pressure - 2.0 + 4.0*log(2.0);
+    }
+
+    const real_t xnr = xr / r;
+    const real_t ynr = yr / r;
+    Q(j, i, IU) = -ynr * u_phi;
+    Q(j, i, IV) =  xnr * u_phi;
+    
   }
 }
 
@@ -253,8 +295,8 @@ enum InitType {
   DIFFUSION,
   H84,
   C91,
-  HSE,
-  PROFILE
+  PROFILE,
+  GRESHO_VORTEX
 };
 
 struct InitFunctor {
@@ -272,7 +314,8 @@ public:
       {"diffusion", DIFFUSION},
       {"H84", H84},
       {"C91", C91},
-      {"profile", PROFILE}
+      {"profile", PROFILE},
+      {"gresho_vortex", GRESHO_VORTEX}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -300,13 +343,14 @@ public:
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;
                               case C91:             initC91(Q, i, j, params, random_pool); break;
+                              case GRESHO_VORTEX:   initGreshoVortex(Q, i, j, params); break;
                               default: break;
                             }
                           });
 
     // If filling is via a spline
     if (init_type == PROFILE)
-      initProfile(Q, params);
+      initProfile(Q, full_params);
   
     // ... and boundaries
     BoundaryManager bc(full_params);

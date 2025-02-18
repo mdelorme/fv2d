@@ -6,4 +6,4 @@
 	url = https://github.com/kokkos/kokkos.git
 [submodule "external/HighFive"]
 	path = external/HighFive
-	url = https://github.com/BlueBrain/HighFive
+	url = https://github.com/highfive-devs/highfive.git

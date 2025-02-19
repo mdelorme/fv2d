@@ -128,7 +128,7 @@ State computeFlux(State &q, const Params &params) {
     q[IR] * q[IW] * q[IU] - q[IBZ] * q[IBX],
     q[IBY] * q[IU] - q[IBX] * q[IV],
     q[IBZ] * q[IU] - q[IBX] * q[IW],
-    (q[IE] + Ptot) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ])
+    (E + Ptot) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ])
 
   };
 

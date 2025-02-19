@@ -106,7 +106,7 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
   else if (SR > 0.0) {
     st[IR] = rSR;
     st[IU] = uS;
-    st[IV] = qR[IV];
+    st[IV] = qR[IV]; 
     st[IP] = pS;
     E = ESR;
     pout = pS;
@@ -126,6 +126,55 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
 /** TODO Lucas */
 KOKKOS_INLINE_FUNCTION
 void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &params) {
+  const real_t rL = qL[IR];
+  const real_t uL = qL[IU];
+  const real_t vL = qL[IV];
+  const real_t wL = qL[IW];
+  const real_t pL = qL[IP];
+  const real_t BxL = qL[IBX];
+  const real_t ByL = qL[IBY];
+  const real_t BzL = qL[IBZ];
+  const real_t EL = qL[IP]/(params.gamma-1.0) + 0.5*rL*(uL*uL + vL*vL + wL*wL) + 0.5*(BxL*BxL + ByL*ByL + BzL*BzL);
+  
+  const real_t rR = qR[IR];
+  const real_t uR = qR[IU];
+  const real_t vR = qR[IV];
+  const real_t wR = qR[IW];
+  const real_t pR = qR[IP];
+  const real_t BxR = qR[IBX]; 
+  const real_t ByR = qR[IBY];
+  const real_t BzR = qR[IBZ];
+  const real_t ER = qR[IP]/(params.gamma-1.0) + 0.5*rR*(uR*uR + vR*vR + wR*wR) + 0.5*(BxR*BxR + ByR*ByR + BzR*BzR);
+
+  // Calcul des vitesses d'ondes
+  const real_t aL = std::sqrt(params.gamma * pL / rL);
+  const real_t aR = std::sqrt(params.gamma * pR / rR);
+
+  const real_t ptotL = pL + 0.5*(BxL*BxL + ByL*ByL + BzL*BzL);
+  const real_t ptotR = pR + 0.5*(BxR*BxR + ByR*ByR + BzR*BzR);
+
+  // Vitesses des ondes rapides
+  const real_t SL = std::min(uL - aL, uR - aR);
+  const real_t SR = std::max(uL + aL, uR + aR);
+
+  // État intermédiaire
+  const real_t SM = (rR*uR*(SR-uR) - rL*uL*(SL-uL) - ptotR + ptotL)
+                  / (rR*(SR-uR) - rL*(SL-uL));
+
+  // Calcul des états intermédiaires
+  const real_t rLst = rL * (SL-uL)/(SL-SM);
+  const real_t rRst = rR * (SR-uR)/(SR-SM);
+  
+  const real_t pst = rL*(SL-uL)*(SM-uL) + ptotL;
+  const real_t Bxst = BxL; // Bx constant
+
+  // Vitesses d'Alfvén
+  const real_t aLst = std::abs(Bxst)/std::sqrt(rLst);
+  const real_t aRst = std::abs(Bxst)/std::sqrt(rRst);
+  
+  const real_t SLst = SM - aLst;
+  const real_t SRst = SM + aRst;
+
 
 }
 

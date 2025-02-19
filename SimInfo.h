@@ -10,7 +10,7 @@ namespace fv2d {
 using real_t = double;
 
 #ifdef MHD
-constexpr int Nfields = 7;
+constexpr int Nfields = 8;
 #else
 constexpr int Nfields = 4;
 #endif
@@ -35,11 +35,12 @@ enum IVar : uint8_t {
   IR = 0,
   IU = 1,
   IV = 2,
-  IP = 3,
-  IE = 3,
-  IBX = 4,
-  IBY = 5,
-  IBZ = 6
+  IW = 3,
+  IP = 4,
+  IE = 4,
+  IBX = 5,
+  IBY = 6,
+  IBZ = 7
 };
 #else
 enum IVar : uint8_t {

@@ -113,16 +113,4 @@ State swap_component(State &q, IDir dir) {
     return {q[IR], q[IV], q[IU], q[IP], q[IBY], q[IBX], q[IBZ]};
 }
 
-/** TODO Lucas */
-KOKKOS_INLINE_FUNCTION
-State computeFlux(State &q, const Params &params) {
-  const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
-  const real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
-  const real_t E = (q[IP] / (params.gamma0-1.0) + Ek + Em);
-  const real_t Ptot = q[IP] + Em;
-
-  State fout {
-  };
-
-  return fout;
 }

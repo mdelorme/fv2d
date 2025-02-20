@@ -48,6 +48,9 @@ public:
       slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
 
       /** TODO Lucas : Check qu'on n'essaie pas d'utiliser hllc/hll avec un run MHD */
+      if (mhd_run && (params.riemann_solver==HLL || params.riemann_solver==HLLD)){
+        throw std::runtime_error("HLL and HLLD are not supported for MHD runs.")
+      }
     };
   ~UpdateFunctor() = default;
 

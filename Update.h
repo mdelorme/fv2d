@@ -110,11 +110,18 @@ public:
 
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
+            #ifdef MHD
             switch (params.riemann_solver) {
               case HLL: hll(qL, qR, flux, pout, params);   break;
               case HLLD: hlld(qL, qR, flux, pout, params); break;
               default: hllc(qL, qR, flux, pout, params);   break;
             }
+            #else
+            switch (params.riemann_solver) {
+              case HLL: hll(qL, qR, flux, pout, params);   break;
+              default: hllc(qL, qR, flux, pout, params);   break;
+            }
+            #endif
           };
 
           // Calculating flux left and right of the cell

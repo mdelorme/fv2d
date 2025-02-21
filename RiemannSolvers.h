@@ -136,8 +136,8 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
 
   auto FastMagnetocousticSpeed = [&](State &q, const Params &params) {
     const real_t B2 = q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];
-    const real_t lhs = params.gamma * q[IP] + B2;
-    const real_t rhs = lhs*lhs - 4.0 * params.gamma * q[IP] * q[IBX]*q[IBX];
+    const real_t lhs = params.gamma0 * q[IP] + B2;
+    const real_t rhs = lhs*lhs - 4.0 * params.gamma0 * q[IP] * q[IBX]*q[IBX];
     const real_t frac = (lhs + std::sqrt(rhs)) / (2.0 * q[IR]);
     return std::sqrt(frac);
   };
@@ -169,7 +169,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   const real_t cfR = FastMagnetocousticSpeed(qR, params);
   const real_t SL = std::min(uL, uR) - std::max(cfL, cfR);
   const real_t SR = std::max(uL, uR) + std::max(cfL, cfR);
-  const real_t SM = ((SR-uR)*rR*uR - (SL-uL)*rL*uL - ptotR + ptotL)/((SR-uR)*rR - (SL-uL)*rL);
+  const real_t SM = ((SR-uR)*rR*uR - (SL-uL)*rL*uL - pTotR + pTotL)/((SR-uR)*rR - (SL-uL)*rL);
   // ----------------------------
 
   // -----  Common values in * zones --------
@@ -184,19 +184,19 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   // ------ Values in *L zone ---------
   const real_t dnmtLs = rL * (SL - uL) * (SL - SM) - BxL*BxL;
   const real_t numMagLs = rL * (SL - uL)*(SL - uL) - BxL*BxL;
-  const real_t vLs = vL - BxL*ByL * (SM - uL)/dnmtLs; 
-  const real_t wLs = wL - BxL*BzL * (SM - uL)/dnmtLs; 
-  const real_t ByLs = ByL * numMagLs/dnmtLs;
-  const real_t BzLs = BzL * numMagLs/dnmtLs;
+  real_t vLs = vL - BxL*ByL * (SM - uL)/dnmtLs; // Cannot be const because reaffected if 0/0
+  real_t wLs = wL - BxL*BzL * (SM - uL)/dnmtLs; 
+  real_t ByLs = ByL * numMagLs/dnmtLs;
+  real_t BzLs = BzL * numMagLs/dnmtLs;
   const real_t ELs = ((SL-uL)*EL - pTotL*uL + pTots*SM + BxL*(dot(uL, vL, wL, BxL, ByL, BzL) - dot(SM, vLs, wLs, BxL, ByLs, BzLs)))/(SL - SM);
 
   // ------ Values in *R zone ---------
   const real_t dnmtRs = rR * (SR - uR) * (SR - SM) - BxR*BxR;
   const real_t numMagRs = rR * (SR - uR)*(SR - uR) - BxR*BxR;
-  const real_t vRs = vR - BxR*ByR * (SM - uR)/dnmtRs; 
-  const real_t wRs = wR - BxR*BzR * (SM - uR)/dnmtRs; 
-  const real_t ByRs = ByR * numMagRs/dnmtRs;
-  const real_t BzRs = BzR * numMagRs/dnmtRs;
+  real_t vRs = vR - BxR*ByR * (SM - uR)/dnmtRs; 
+  real_t wRs = wR - BxR*BzR * (SM - uR)/dnmtRs; 
+  real_t ByRs = ByR * numMagRs/dnmtRs;
+  real_t BzRs = BzR * numMagRs/dnmtRs;
   const real_t ERs = ((SR-uR)*ER - pTotR*uR + pTots*SM + BxR*(dot(uR, vR, wR, BxR, ByR, BzR) - dot(SM, vRs, wRs, BxR, ByRs, BzRs)))/(SR - SM);
 
   // ----- Common values in ** zones -----
@@ -228,12 +228,14 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
  
   State Q;
   real_t E; // total energy -- needed to compute the flux
-
+  
   if (SL > 0) {
      // UL Zone, compute FL 
-      Kokkos::deep_copy(Q, qL);
-      E = EL;
-  } else if (SL <= 0 && 0 <= SL_s) {
+    for (int i = 0; i < Nfields; i++) {
+      Q[i] = qL[i];
+    };
+    E = EL;
+  } else if (SL <= 0 && 0 <= SLs) {
     // UL* Zone, compute FL*
       Q[IR] = rLs;
       Q[IU] = SM;
@@ -244,7 +246,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       Q[IBY] = ByL;
       Q[IBZ] = BzL;
       E = ELs;
-  } else if (SL_s <= 0 && 0 <= SM) {
+  } else if (SLs <= 0 && 0 <= SM) {
     // UL** Zone, compute FL**
       Q[IR] = rLs;
       Q[IU] = SM;
@@ -255,7 +257,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       Q[IBY] = Byss;
       Q[IBZ] = Bzss;
       E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * std::copysign(1, BxL);
-  } else if (SM <= 0 && 0 <= SR_s) {
+  } else if (SM <= 0 && 0 <= SRs) {
     // UR** Zone, compute FR**
       Q[IR] = rRs;
       Q[IU] = SM;
@@ -266,7 +268,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       Q[IBY] = Byss;
       Q[IBZ] = Bzss;
       E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * std::copysign(1, BxR);
-  } else if (SR_s <= 0 && 0 <= SR) {
+  } else if (SRs <= 0 && 0 <= SR) {
     // UR* Zone, compute FR*
       Q[IR] = rRs;
       Q[IU] = SM;
@@ -279,7 +281,9 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       E = ERs;
   } else if (SR < 0) {
     // UR Zone, compute FR
-      Kokkos::deep_copy(Q, qR);
+      for (int i = 0; i < Nfields; i++) {
+        Q[i] = qR[i];
+      };
       E = ER; 
   } else {
       throw std::runtime_error("Aucun cas n'a été traité, valeurs d'ondes inattendues");

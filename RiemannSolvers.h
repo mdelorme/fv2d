@@ -124,6 +124,7 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
 }
 
 /** TODO Lucas OK */
+#ifdef MHD
 KOKKOS_INLINE_FUNCTION
 void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &params) {
   auto norm2 = [&] (const real_t x, const real_t y, const real_t z){
@@ -292,5 +293,5 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   flux = computeFlux(Q, E, params);
 
 }
-
+#endif
 }

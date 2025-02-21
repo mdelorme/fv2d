@@ -119,3 +119,4 @@ State computeFlux(State &q, const Params &params) {
 
   return fout;
 }
+}

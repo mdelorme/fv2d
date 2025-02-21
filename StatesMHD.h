@@ -44,7 +44,7 @@ State consToPrim(State &u, const Params &params) {
   res[IV] = u[IV] / u[IR];
 
   real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV]);
-  real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
+  real_t Em = 0.5 * (u[IBX]*u[IBX] + u[IBY]*u[IBY] + u[IBZ]*u[IBZ]);
   res[IP] = (u[IE] - Ek - Em) * (params.gamma0-1.0);
   return res; 
 }
@@ -115,7 +115,7 @@ State swap_component(State &q, IDir dir) {
 
 /** TODO Lucas OK*/
 KOKKOS_INLINE_FUNCTION
-State computeFlux(State &q, const real_t E, Params &params) {
+State computeFlux(State &q, const real_t E, const Params &params) {
   // const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
   const real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
   // const real_t E = (q[IP] / (params.gamma0-1.0) + Ek + Em);
@@ -129,7 +129,6 @@ State computeFlux(State &q, const real_t E, Params &params) {
     q[IBY] * q[IU] - q[IBX] * q[IV],
     q[IBZ] * q[IU] - q[IBX] * q[IW],
     (E + Ptot) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ])
-
   };
 
   return fout;

@@ -133,3 +133,4 @@ State computeFlux(State &q, const real_t E, const Params &params) {
 
   return fout;
 }
+}

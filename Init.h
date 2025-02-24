@@ -47,6 +47,60 @@ namespace {
   }
 
   /**
+   * @brief MHD Sod Shock tube aligned along the X axis
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initMHDSodX(Array Q, int i, int j, const Params &params) {
+    if (getPos(params, i, j)[IX] <= 0.5) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IP) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IBX) = 0.75;
+      Q(j, i, IBY) = 1.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 0.125;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IBX) = 0.75;
+      Q(j, i, IBY) = -1.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+  }
+
+    /**
+   * @brief MHD Sod Shock tube aligned along the Y axis
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initMHDSodY(Array Q, int i, int j, const Params &params) {
+    if (getPos(params, i, j)[IY] <= 0.5) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IP) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IBX) = 0.75;
+      Q(j, i, IBY) = 1.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 0.125;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IBX) = 0.75;
+      Q(j, i, IBY) = -1.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+  }
+
+  /**
    * @brief Sedov blast initial conditions
    */
   KOKKOS_INLINE_FUNCTION
@@ -184,6 +238,8 @@ namespace {
 enum InitType {
   SOD_X,
   SOD_Y,
+  MHD_SOD_X,
+  MHD_SOD_Y,
   BLAST,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
@@ -201,6 +257,8 @@ public:
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
       {"sod_y", SOD_Y},
+      {"mhd_sod_x", MHD_SOD_X},
+      {"mhd_sod_y", MHD_SOD_Y},
       {"blast", BLAST},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
@@ -228,6 +286,8 @@ public:
                             switch(init_type) {
                               case SOD_X:           initSodX(Q, i, j, params); break;
                               case SOD_Y:           initSodY(Q, i, j, params); break;
+                              case MHD_SOD_X:       initMHDSodX(Q, i, j, params); break;
+                              case MHD_SOD_Y:       initMHDSodX(Q, i, j, params); break;
                               case BLAST:           initBlast(Q, i, j, params); break;
                               case DIFFUSION:       initDiffusion(Q, i, j, params); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;

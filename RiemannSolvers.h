@@ -136,7 +136,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   };
 
   auto FastMagnetocousticSpeed = [&](State &q, const Params &params) {
-    const real_t B2 = q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];
+    const real_t B2 = norm2(q[IBX], q[IBY], q[IBZ]);
     const real_t lhs = params.gamma0 * q[IP] + B2;
     const real_t rhs = lhs*lhs - 4.0 * params.gamma0 * q[IP] * q[IBX]*q[IBX];
     const real_t frac = (lhs + std::sqrt(rhs)) / (2.0 * q[IR]);
@@ -201,13 +201,14 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   const real_t ERs = ((SR-uR)*ER - pTotR*uR + pTots*SM + BxR*(dot(uR, vR, wR, BxR, ByR, BzR) - dot(SM, vRs, wRs, BxR, ByRs, BzRs)))/(SR - SM);
 
   // ----- Common values in ** zones -----
-  const real_t dnmtss = std::sqrt(rL) + std::sqrt(rR);
+  const real_t dnmtss = std::sqrt(rLs) + std::sqrt(rRs);
   const real_t signBx = std::copysign(BxL, 1);
   const real_t vss = (std::sqrt(rLs)*vLs + std::sqrt(rRs)*vRs + (ByRs-ByLs) * signBx)/dnmtss;
   const real_t wss = (std::sqrt(rLs)*wLs + std::sqrt(rRs)*wRs + (BzRs-BzLs) * signBx)/dnmtss;
-  const real_t Byss = (std::sqrt(rLs)*ByRs + std::sqrt(rRs)*ByLs + std::sqrt(rLs*rRs)*(vRs-vLs)*signBx)/(dnmtss);
-  const real_t Bzss = (std::sqrt(rLs)*BzRs + std::sqrt(rRs)*BzLs + std::sqrt(rLs*rRs)*(wRs-wLs)*signBx)/(dnmtss);
+  const real_t Byss = (std::sqrt(rLs)*ByRs + std::sqrt(rRs)*ByLs + std::sqrt(rLs*rRs)*(vRs-vLs)*signBx)/dnmtss;
+  const real_t Bzss = (std::sqrt(rLs)*BzRs + std::sqrt(rRs)*BzLs + std::sqrt(rLs*rRs)*(wRs-wLs)*signBx)/dnmtss;
 
+  // TODO: Avancer cette vérif pour éviter les calculs inutiles
   const bool is_zerodiv_L = (SM == uL) && (SL==(uL+cfL) || SL==(uL-cfL)) && (ByL==0) && (BzL==0) && (BxL*BxL >= (params.gamma0*pL));
   const bool is_zerodiv_R = (SM == uR) && (SR==(uR+cfR) || SR==(uR-cfR)) && (ByR==0) && (BzR==0) && (BxR*BxR >= (params.gamma0*pR));
 
@@ -257,7 +258,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       Q[IBX] = BxL;
       Q[IBY] = Byss;
       Q[IBZ] = Bzss;
-      E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * std::copysign(1, BxL);
+      E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * std::copysign(BxL, 1);
   } else if (SM <= 0 && 0 <= SRs) {
     // UR** Zone, compute FR**
       Q[IR] = rRs;
@@ -268,7 +269,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       Q[IBX] = BxR;
       Q[IBY] = Byss;
       Q[IBZ] = Bzss;
-      E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * std::copysign(1, BxR);
+      E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * std::copysign(BxR, 1);
   } else if (SRs <= 0 && 0 <= SR) {
     // UR* Zone, compute FR*
       Q[IR] = rRs;
@@ -285,9 +286,10 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       for (int i = 0; i < Nfields; i++) {
         Q[i] = qR[i];
       };
-      E = ER; 
+      E = ER;
   } else {
-      throw std::runtime_error("Aucun cas n'a été traité, valeurs d'ondes inattendues");
+      Q = {0, 0, 0, 0, 0, 0, 0, 0};
+      E = 0;
   }
 
   flux = computeFlux(Q, E, params);

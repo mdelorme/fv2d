@@ -128,11 +128,11 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
 KOKKOS_INLINE_FUNCTION
 void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &params) {
   auto norm2 = [&] (const real_t x, const real_t y, const real_t z){
-    return x*x + y*y * z*z;
+    return x*x + y*y + z*z;
   };
 
   auto dot = [&] (const real_t x1, const real_t y1, const real_t z1, const real_t x2, const real_t y2, const real_t z2){
-    return x1*x2 + y1*y2 * z1*z2;
+    return x1*x2 + y1*y2 + z1*z2;
   };
 
   auto FastMagnetocousticSpeed = [&](State &q, const Params &params) {

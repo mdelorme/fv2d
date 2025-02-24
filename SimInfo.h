@@ -238,7 +238,8 @@ Params readInifile(std::string filename) {
   tmp = reader.Get("solvers", "riemann_solver", "hllc");
   std::map<std::string, RiemannSolver> riemann_map{
     {"hll", HLL},
-    {"hllc", HLLC}
+    {"hllc", HLLC},
+    {"hlld", HLLD}
   };
   res.riemann_solver = riemann_map[tmp];
 

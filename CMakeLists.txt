@@ -11,6 +11,14 @@ include_directories(external/inih)
 
 
 add_executable(fv2d
-  main.cpp)
+main.cpp)
+
+target_compile_definitions(fv2d PRIVATE MHD)
+
+if (MHD)
+  message(STATUS "Compiling for MHD")
+else()
+  message(STATUS "Compiling for hydro solvers")
+endif()
 
 target_link_libraries(fv2d PRIVATE HighFive Kokkos::kokkos)

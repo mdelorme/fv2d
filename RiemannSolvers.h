@@ -202,7 +202,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
 
   // ----- Common values in ** zones -----
   const real_t dnmtss = std::sqrt(rLs) + std::sqrt(rRs);
-  const real_t signBx = std::copysign(BxL, 1);
+  const real_t signBx = (BxL < 0.0 ? -1.0 : 1.0);
   const real_t vss = (std::sqrt(rLs)*vLs + std::sqrt(rRs)*vRs + (ByRs-ByLs) * signBx)/dnmtss;
   const real_t wss = (std::sqrt(rLs)*wLs + std::sqrt(rRs)*wRs + (BzRs-BzLs) * signBx)/dnmtss;
   const real_t Byss = (std::sqrt(rLs)*ByRs + std::sqrt(rRs)*ByLs + std::sqrt(rLs*rRs)*(vRs-vLs)*signBx)/dnmtss;
@@ -260,7 +260,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     Q[IBX] = BxL;
     Q[IBY] = Byss;
     Q[IBZ] = Bzss;
-    E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * std::copysign(BxL, 1);
+    E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * signBx;
   } 
   else if (SM <= 0 && 0 <= SRs) {
     // UR** Zone, compute FR**
@@ -272,7 +272,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     Q[IBX] = BxR;
     Q[IBY] = Byss;
     Q[IBZ] = Bzss;
-    E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * std::copysign(BxR, 1);
+    E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * signBx;
   } 
   else if (SRs <= 0 && 0 <= SR) {
     // UR* Zone, compute FR*

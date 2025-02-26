@@ -117,18 +117,18 @@ State swap_component(State &q, IDir dir) {
 KOKKOS_INLINE_FUNCTION
 State computeFlux(State &q, const real_t E, const Params &params) {
   // const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
-  const real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
+  // const real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
   // const real_t E = (q[IP] / (params.gamma0-1.0) + Ek + Em);
-  const real_t Ptot = q[IP] + Em;
+  // const real_t Ptot = q[IP] + Em;
 
   State fout {
     q[IR] * q[IU],
-    q[IR] * q[IU] * q[IU] + Ptot - q[IBX] * q[IBX],
+    q[IR] * q[IU] * q[IU] + q[IP] - q[IBX] * q[IBX],
     q[IR] * q[IV] * q[IU] - q[IBY] * q[IBX],
     q[IR] * q[IW] * q[IU] - q[IBZ] * q[IBX],
     q[IBY] * q[IU] - q[IBX] * q[IV],
     q[IBZ] * q[IU] - q[IBX] * q[IW],
-    (E + Ptot) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ])
+    (E + q[IP]) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ])
   };
 
   return fout;

@@ -237,60 +237,66 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
       Q[i] = qL[i];
     };
     E = EL;
-  } else if (SL <= 0 && 0 <= SLs) {
+  } 
+  else if (SL <= 0 && 0 <= SLs) {
     // UL* Zone, compute FL*
-      Q[IR] = rLs;
-      Q[IU] = SM;
-      Q[IV] = vLs;
-      Q[IW] = wLs;
-      Q[IP] = pTotL - 0.5 * norm2(BxL, ByLs, BzLs);
-      Q[IBX] = BxL;
-      Q[IBY] = ByL;
-      Q[IBZ] = BzL;
-      E = ELs;
-  } else if (SLs <= 0 && 0 <= SM) {
+    Q[IR] = rLs;
+    Q[IU] = SM;
+    Q[IV] = vLs;
+    Q[IW] = wLs;
+    Q[IP] = pTotL; //- 0.5 * norm2(BxL, ByLs, BzLs);
+    Q[IBX] = BxL;
+    Q[IBY] = ByL;
+    Q[IBZ] = BzL;
+    E = ELs;
+  } 
+  else if (SLs <= 0 && 0 <= SM) {
     // UL** Zone, compute FL**
-      Q[IR] = rLs;
-      Q[IU] = SM;
-      Q[IV] = vss;
-      Q[IW] = wss;
-      Q[IP] = pTotL - 0.5 * norm2(BxL, Byss, Bzss);
-      Q[IBX] = BxL;
-      Q[IBY] = Byss;
-      Q[IBZ] = Bzss;
-      E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * std::copysign(BxL, 1);
-  } else if (SM <= 0 && 0 <= SRs) {
+    Q[IR] = rLs;
+    Q[IU] = SM;
+    Q[IV] = vss;
+    Q[IW] = wss;
+    Q[IP] = pTotL; //- 0.5 * norm2(BxL, Byss, Bzss);
+    Q[IBX] = BxL;
+    Q[IBY] = Byss;
+    Q[IBZ] = Bzss;
+    E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * std::copysign(BxL, 1);
+  } 
+  else if (SM <= 0 && 0 <= SRs) {
     // UR** Zone, compute FR**
-      Q[IR] = rRs;
-      Q[IU] = SM;
-      Q[IV] = vss;
-      Q[IW] = wss;
-      Q[IP] = pTotR - 0.5 * norm2(BxR, Byss, Bzss);
-      Q[IBX] = BxR;
-      Q[IBY] = Byss;
-      Q[IBZ] = Bzss;
-      E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * std::copysign(BxR, 1);
-  } else if (SRs <= 0 && 0 <= SR) {
+    Q[IR] = rRs;
+    Q[IU] = SM;
+    Q[IV] = vss;
+    Q[IW] = wss;
+    Q[IP] = pTotR; //- 0.5 * norm2(BxR, Byss, Bzss);
+    Q[IBX] = BxR;
+    Q[IBY] = Byss;
+    Q[IBZ] = Bzss;
+    E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * std::copysign(BxR, 1);
+  } 
+  else if (SRs <= 0 && 0 <= SR) {
     // UR* Zone, compute FR*
-      Q[IR] = rRs;
-      Q[IU] = SM;
-      Q[IV] = vRs;
-      Q[IW] = wRs;
-      Q[IP] = pTotR - 0.5 * norm2(BxL, ByRs, BzRs);
-      Q[IBX] = BxR;
-      Q[IBY] = ByR;
-      Q[IBZ] = BzR;
-      E = ERs;
-  } else if (SR < 0) {
+    Q[IR] = rRs;
+    Q[IU] = SM;
+    Q[IV] = vRs;
+    Q[IW] = wRs;
+    Q[IP] = pTotR; //- 0.5 * norm2(BxL, ByRs, BzRs);
+    Q[IBX] = BxR;
+    Q[IBY] = ByR;
+    Q[IBZ] = BzR;
+    E = ERs;
+  } 
+  else { // (SR < 0)
     // UR Zone, compute FR
-      for (int i = 0; i < Nfields; i++) {
-        Q[i] = qR[i];
-      };
-      E = ER;
-  } else {
-      Q = {0, 0, 0, 0, 0, 0, 0, 0};
-      E = 0;
-  }
+    for (int i = 0; i < Nfields; i++) {
+      Q[i] = qR[i];
+    };
+    E = ER;
+  } 
+  //else {
+  //     Q = {0, 0, 0, 0, 0, 0, 0, 0};
+  //     E = 0;
+  // }
 
   flux = computeFlux(Q, E, params);
 

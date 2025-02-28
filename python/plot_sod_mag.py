@@ -1,7 +1,7 @@
 import h5py
 import matplotlib.pyplot as plt
 
-Nx = 64
+Nx = 800
 Ny = 1
 with h5py.File('build/run.h5', 'r') as fichier:
     print("Clés disponibles :", list(fichier.keys()))
@@ -31,7 +31,7 @@ with h5py.File('build/run.h5', 'r') as fichier:
             ax[2,0].set_title('$B_y$')
             ax[2,1].set_title('$B_z$')
             plt.tight_layout()
-            plt.savefig(f"ite__{num}.png")
+            plt.savefig(f"ite__{num:04d}.png")
             plt.close()
     else:
         fig, ax = plt.subplots(3, 2, figsize=(10, 15))

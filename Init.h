@@ -287,7 +287,7 @@ public:
                               case SOD_X:           initSodX(Q, i, j, params); break;
                               case SOD_Y:           initSodY(Q, i, j, params); break;
                               case MHD_SOD_X:       initMHDSodX(Q, i, j, params); break;
-                              case MHD_SOD_Y:       initMHDSodX(Q, i, j, params); break;
+                              case MHD_SOD_Y:       initMHDSodY(Q, i, j, params); break;
                               case BLAST:           initBlast(Q, i, j, params); break;
                               case DIFFUSION:       initDiffusion(Q, i, j, params); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
@@ -295,7 +295,7 @@ public:
                               case C91:             initC91(Q, i, j, params, random_pool); break;
                             }
                           });
-  
+                          
     // ... and boundaries
     BoundaryManager bc(params);
     bc.fillBoundaries(Q);

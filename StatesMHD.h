@@ -7,6 +7,7 @@ State getStateFromArray(Array arr, int i, int j) {
   return {arr(j, i, IR),
           arr(j, i, IU),
           arr(j, i, IV),
+          arr(j, i, IW),
           arr(j, i, IP),
           arr(j, i, IBX),
           arr(j, i, IBY),
@@ -25,10 +26,11 @@ State primToCons(State &q, const Params &params) {
   res[IR] = q[IR];
   res[IU] = q[IR]*q[IU];
   res[IV] = q[IR]*q[IV];
+  res[IW] = q[IR]*q[IW];
 
-  real_t Ek = 0.5 * (res[IU]*res[IU] + res[IV]*res[IV]) / q[IR];
+  real_t Ek = 0.5 * (res[IU]*res[IU] + res[IV]*res[IV] + res[IW]*res[IW]) * q[IR];
   real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
-  res[IE] = (Ek + Em + q[IP] / (params.gamma0-1.0));
+  res[IE] = Ek + Em + q[IP] / (params.gamma0-1.0);
   res[IBX] = q[IBX];
   res[IBY] = q[IBY];
   res[IBZ] = q[IBZ];
@@ -42,10 +44,14 @@ State consToPrim(State &u, const Params &params) {
   res[IR] = u[IR];
   res[IU] = u[IU] / u[IR];
   res[IV] = u[IV] / u[IR];
+  res[IW] = u[IW] / u[IR];
 
-  real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV]);
+  real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV] + res[IW]*res[IW]);
   real_t Em = 0.5 * (u[IBX]*u[IBX] + u[IBY]*u[IBY] + u[IBZ]*u[IBZ]);
   res[IP] = (u[IE] - Ek - Em) * (params.gamma0-1.0);
+  res[IBX] = u[IBX];
+  res[IBY] = u[IBY];
+  res[IBZ] = u[IBZ];
   return res; 
 }
 
@@ -110,27 +116,28 @@ State swap_component(State &q, IDir dir) {
   if (dir == IX)
     return q;
   else
-    return {q[IR], q[IV], q[IU], q[IP], q[IBY], q[IBX], q[IBZ]};
+    return {q[IR], q[IV], q[IU], q[IW], q[IP], q[IBY], q[IBX], q[IBZ]};
 }
 
 /** TODO Lucas OK*/
-KOKKOS_INLINE_FUNCTION
-State computeFlux(State &q, const real_t E, const Params &params) {
-  // const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
-  // const real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
-  // const real_t E = (q[IP] / (params.gamma0-1.0) + Ek + Em);
-  // const real_t Ptot = q[IP] + Em;
+// KOKKOS_INLINE_FUNCTION
+// State computeFlux(State &q, const real_t E, const Params &params) {
+//   // const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
+//   // const real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
+//   // const real_t E = (q[IP] / (params.gamma0-1.0) + Ek + Em);
+//   // const real_t Ptot = q[IP] + Em;
 
-  State fout {
-    q[IR] * q[IU],
-    q[IR] * q[IU] * q[IU] + q[IP] - q[IBX] * q[IBX],
-    q[IR] * q[IV] * q[IU] - q[IBY] * q[IBX],
-    q[IR] * q[IW] * q[IU] - q[IBZ] * q[IBX],
-    q[IBY] * q[IU] - q[IBX] * q[IV],
-    q[IBZ] * q[IU] - q[IBX] * q[IW],
-    (E + q[IP]) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ])
-  };
+//   State fout {
+//     q[IR] * q[IU],
+//     q[IR] * q[IU] * q[IU] + q[IP] - q[IBX] * q[IBX],
+//     q[IR] * q[IV] * q[IU] - q[IBY] * q[IBX],
+//     q[IR] * q[IW] * q[IU] - q[IBZ] * q[IBX],
+//     (E + q[IP]) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ]),
+//     0.0, 
+//     q[IBY] * q[IU] - q[IBX] * q[IV],
+//     q[IBZ] * q[IU] - q[IBX] * q[IW]
+//   };
 
-  return fout;
-}
+//   return fout;
+// }
 }

@@ -142,28 +142,29 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     const real_t frac = (lhs + std::sqrt(rhs)) / (2.0 * q[IR]);
     return std::sqrt(frac);
   };
+  
+  const real_t Bx = qL[IBX];
+  const real_t Bx2 = Bx*Bx;
 
   const real_t rL = qL[IR];
   const real_t uL = qL[IU];
   const real_t vL = qL[IV];
   const real_t wL = qL[IW];
   const real_t pL = qL[IP];
-  const real_t BxL = qL[IBX];
   const real_t ByL = qL[IBY];
   const real_t BzL = qL[IBZ];
-  const real_t EL = qL[IP]/(params.gamma0-1.0) + 0.5*rL*norm2(uL, vL, wL) + 0.5*norm2(BxL, ByL, BzL);
-  const real_t pTotL = qL[IP] + 0.5 * norm2(BxL, ByL, BzL);
+  const real_t EL = qL[IP]/(params.gamma0-1.0) + 0.5*rL*norm2(uL, vL, wL) + 0.5*norm2(Bx, ByL, BzL);
+  const real_t pTotL = qL[IP] + 0.5 * norm2(Bx, ByL, BzL);
 
   const real_t rR = qR[IR];
   const real_t uR = qR[IU];
   const real_t vR = qR[IV];
   const real_t wR = qR[IW];
   const real_t pR = qR[IP];
-  const real_t BxR = qR[IBX]; 
   const real_t ByR = qR[IBY];
   const real_t BzR = qR[IBZ];
-  const real_t ER = qR[IP]/(params.gamma0-1.0) + 0.5*rR*norm2(uR, vR, wR) + 0.5*norm2(BxR, ByR, BzR);
-  const real_t pTotR = qR[IP] + 0.5 * norm2(BxR, ByR, BzR);
+  const real_t ER = qR[IP]/(params.gamma0-1.0) + 0.5*rR*norm2(uR, vR, wR) + 0.5*norm2(Bx, ByR, BzR);
+  const real_t pTotR = qR[IP] + 0.5 * norm2(Bx, ByR, BzR);
 
   // ----- Compute waves --------
   const real_t cfL = FastMagnetocousticSpeed(qL, params);
@@ -179,38 +180,38 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   const real_t pTots = ((SR-uR)*rR*pTotL - (SL-uL)*rL*pTotR + rL*rR*(SR-uR)*(SL-uL)*(uR-uL))/((SR-uR)*rR - (SL-uL)*rL);
 
   // ----- Alfvén Waves -----
-  const real_t SLs = SM - std::abs(BxL)/std::sqrt(rLs);
-  const real_t SRs = SM + std::abs(BxR)/std::sqrt(rRs);
+  const real_t SLs = SM - std::abs(Bx)/std::sqrt(rLs);
+  const real_t SRs = SM + std::abs(Bx)/std::sqrt(rRs);
 
   // ------ Values in *L zone ---------
-  const real_t dnmtLs = rL * (SL - uL) * (SL - SM) - BxL*BxL;
-  const real_t numMagLs = rL * (SL - uL)*(SL - uL) - BxL*BxL;
-  real_t vLs = vL - BxL*ByL * (SM - uL)/dnmtLs; // Cannot be const because reaffected if 0/0
-  real_t wLs = wL - BxL*BzL * (SM - uL)/dnmtLs; 
+  const real_t dnmtLs = rL * (SL - uL) * (SL - SM) - Bx2;
+  const real_t numMagLs = rL * (SL - uL)*(SL - uL) - Bx2;
+  real_t vLs = vL - Bx*ByL * (SM - uL)/dnmtLs; // Cannot be const because reaffected if 0/0
+  real_t wLs = wL - Bx*BzL * (SM - uL)/dnmtLs; 
   real_t ByLs = ByL * numMagLs/dnmtLs;
   real_t BzLs = BzL * numMagLs/dnmtLs;
-  const real_t ELs = ((SL-uL)*EL - pTotL*uL + pTots*SM + BxL*(dot(uL, vL, wL, BxL, ByL, BzL) - dot(SM, vLs, wLs, BxL, ByLs, BzLs)))/(SL - SM);
+  const real_t ELs = ((SL-uL)*EL - pTotL*uL + pTots*SM + Bx*(dot(uL, vL, wL, Bx, ByL, BzL) - dot(SM, vLs, wLs, Bx, ByLs, BzLs)))/(SL - SM);
 
   // ------ Values in *R zone ---------
-  const real_t dnmtRs = rR * (SR - uR) * (SR - SM) - BxR*BxR;
-  const real_t numMagRs = rR * (SR - uR)*(SR - uR) - BxR*BxR;
-  real_t vRs = vR - BxR*ByR * (SM - uR)/dnmtRs; 
-  real_t wRs = wR - BxR*BzR * (SM - uR)/dnmtRs; 
+  const real_t dnmtRs = rR * (SR - uR) * (SR - SM) - Bx2;
+  const real_t numMagRs = rR * (SR - uR)*(SR - uR) - Bx2;
+  real_t vRs = vR - Bx*ByR * (SM - uR)/dnmtRs; 
+  real_t wRs = wR - Bx*BzR * (SM - uR)/dnmtRs; 
   real_t ByRs = ByR * numMagRs/dnmtRs;
   real_t BzRs = BzR * numMagRs/dnmtRs;
-  const real_t ERs = ((SR-uR)*ER - pTotR*uR + pTots*SM + BxR*(dot(uR, vR, wR, BxR, ByR, BzR) - dot(SM, vRs, wRs, BxR, ByRs, BzRs)))/(SR - SM);
+  const real_t ERs = ((SR-uR)*ER - pTotR*uR + pTots*SM + Bx*(dot(uR, vR, wR, Bx, ByR, BzR) - dot(SM, vRs, wRs, Bx, ByRs, BzRs)))/(SR - SM);
 
   // ----- Common values in ** zones -----
   const real_t dnmtss = std::sqrt(rLs) + std::sqrt(rRs);
-  const real_t signBx = (BxL < 0.0 ? -1.0 : 1.0);
+  const real_t signBx = (Bx < 0.0 ? -1.0 : 1.0);
   const real_t vss = (std::sqrt(rLs)*vLs + std::sqrt(rRs)*vRs + (ByRs-ByLs) * signBx)/dnmtss;
   const real_t wss = (std::sqrt(rLs)*wLs + std::sqrt(rRs)*wRs + (BzRs-BzLs) * signBx)/dnmtss;
   const real_t Byss = (std::sqrt(rLs)*ByRs + std::sqrt(rRs)*ByLs + std::sqrt(rLs*rRs)*(vRs-vLs)*signBx)/dnmtss;
   const real_t Bzss = (std::sqrt(rLs)*BzRs + std::sqrt(rRs)*BzLs + std::sqrt(rLs*rRs)*(wRs-wLs)*signBx)/dnmtss;
 
   // TODO: Avancer cette vérif pour éviter les calculs inutiles
-  const bool is_zerodiv_L = (SM == uL) && (SL==(uL+cfL) || SL==(uL-cfL)) && (ByL==0) && (BzL==0) && (BxL*BxL >= (params.gamma0*pL));
-  const bool is_zerodiv_R = (SM == uR) && (SR==(uR+cfR) || SR==(uR-cfR)) && (ByR==0) && (BzR==0) && (BxR*BxR >= (params.gamma0*pR));
+  const bool is_zerodiv_L = (SM == uL) && (SL==(uL+cfL) || SL==(uL-cfL)) && (ByL==0) && (BzL==0) && (Bx2 >= (params.gamma0*pL));
+  const bool is_zerodiv_R = (SM == uR) && (SR==(uR+cfR) || SR==(uR-cfR)) && (ByR==0) && (BzR==0) && (Bx2 >= (params.gamma0*pR));
 
   if (is_zerodiv_L){
     vLs = vL;
@@ -226,6 +227,17 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     BzRs = 0;
   };
 
+  auto computeFlux = [&](State &q, const real_t E, State &flux){
+    flux[IR] = q[IR] * q[IU];
+    flux[IU] = q[IR] * q[IU] * q[IU] + q[IP] - q[IBX] * q[IBX];
+    flux[IV] = q[IR] * q[IV] * q[IU] - q[IBY] * q[IBX];
+    flux[IW] = q[IR] * q[IW] * q[IU] - q[IBZ] * q[IBX];
+    flux[IE] = (E + q[IP]) * q[IU] - q[IBX] * (q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ]);
+    flux[IBX] = 0.0; 
+    flux[IBY] = q[IBY] * q[IU] - q[IBX] * q[IV];
+    flux[IBZ] = q[IBZ] * q[IU] - q[IBX] * q[IW];
+  };
+
   // -------- Choice of the flux to compute depending on the zone ------
  
   State Q;
@@ -233,34 +245,38 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   
   if (SL > 0) {
      // UL Zone, compute FL 
-    for (int i = 0; i < Nfields; i++) {
+    for (int i = 0; i < Nfields; ++i) {
       Q[i] = qL[i];
     };
+    Q[IP] = pTotL;
     E = EL;
+    p_gas_out = qL[IP];
   } 
-  else if (SL <= 0 && 0 <= SLs) {
+  else if (SL <= 0 && 0 < SLs) {
     // UL* Zone, compute FL*
     Q[IR] = rLs;
     Q[IU] = SM;
     Q[IV] = vLs;
     Q[IW] = wLs;
-    Q[IP] = pTotL; //- 0.5 * norm2(BxL, ByLs, BzLs);
-    Q[IBX] = BxL;
-    Q[IBY] = ByL;
-    Q[IBZ] = BzL;
+    Q[IP] = pTots; //- 0.5 * norm2(BxL, ByLs, BzLs);
+    Q[IBX] = Bx;
+    Q[IBY] = ByLs;
+    Q[IBZ] = BzLs;
     E = ELs;
+    p_gas_out = pTots;
   } 
-  else if (SLs <= 0 && 0 <= SM) {
+  else if (SLs <= 0 && 0 < SM) {
     // UL** Zone, compute FL**
     Q[IR] = rLs;
     Q[IU] = SM;
     Q[IV] = vss;
     Q[IW] = wss;
-    Q[IP] = pTotL; //- 0.5 * norm2(BxL, Byss, Bzss);
-    Q[IBX] = BxL;
+    Q[IP] = pTots; //- 0.5 * norm2(BxL, Byss, Bzss);
+    Q[IBX] = Bx;
     Q[IBY] = Byss;
     Q[IBZ] = Bzss;
-    E = ELs - std::sqrtl(rLs) * (dot(SM, vLs, wLs, BxL, ByLs, BzLs) - dot(SM, vss, wss, BxL, Byss, Bzss)) * signBx;
+    E = ELs - std::sqrt(rLs) * (dot(SM, vLs, wLs, Bx, ByLs, BzLs) - dot(SM, vss, wss, Bx, Byss, Bzss)) * signBx;
+    p_gas_out = pTots;
   } 
   else if (SM <= 0 && 0 <= SRs) {
     // UR** Zone, compute FR**
@@ -268,11 +284,12 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     Q[IU] = SM;
     Q[IV] = vss;
     Q[IW] = wss;
-    Q[IP] = pTotR; //- 0.5 * norm2(BxR, Byss, Bzss);
-    Q[IBX] = BxR;
+    Q[IP] = pTots; //- 0.5 * norm2(BxR, Byss, Bzss);
+    Q[IBX] = Bx;
     Q[IBY] = Byss;
     Q[IBZ] = Bzss;
-    E = ERs + std::sqrtl(rRs) * (dot(SM, vRs, wRs, BxR, ByRs, BzRs) - dot(SM, vss, wss, BxR, Byss, Bzss)) * signBx;
+    E = ERs + std::sqrt(rRs) * (dot(SM, vRs, wRs, Bx, ByRs, BzRs) - dot(SM, vss, wss, Bx, Byss, Bzss)) * signBx;
+    p_gas_out = pTots;
   } 
   else if (SRs <= 0 && 0 <= SR) {
     // UR* Zone, compute FR*
@@ -280,25 +297,24 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     Q[IU] = SM;
     Q[IV] = vRs;
     Q[IW] = wRs;
-    Q[IP] = pTotR; //- 0.5 * norm2(BxL, ByRs, BzRs);
-    Q[IBX] = BxR;
-    Q[IBY] = ByR;
-    Q[IBZ] = BzR;
+    Q[IP] = pTots; //- 0.5 * norm2(BxL, ByRs, BzRs);
+    Q[IBX] = Bx;
+    Q[IBY] = ByRs;
+    Q[IBZ] = BzRs;
     E = ERs;
+    p_gas_out = qR[IP];
   } 
-  else { // (SR < 0)
+  else if (SR < 0){
     // UR Zone, compute FR
-    for (int i = 0; i < Nfields; i++) {
+    for (int i = 0; i < Nfields; ++i) {
       Q[i] = qR[i];
     };
+    Q[IP] = pTotR;
     E = ER;
-  } 
-  //else {
-  //     Q = {0, 0, 0, 0, 0, 0, 0, 0};
-  //     E = 0;
-  // }
+    p_gas_out = qR[IP];
+  }
 
-  flux = computeFlux(Q, E, params);
+  computeFlux(Q, E, flux);
 
 }
 #endif

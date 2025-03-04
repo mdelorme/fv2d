@@ -84,8 +84,8 @@ namespace {
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
       Q(j, i, IW) = 0.0;
-      Q(j, i, IBX) = 0.75;
-      Q(j, i, IBY) = 1.0;
+      Q(j, i, IBX) = 1.0;
+      Q(j, i, IBY) = 0.75;
       Q(j, i, IBZ) = 0.0;
     }
     else {
@@ -94,8 +94,8 @@ namespace {
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
       Q(j, i, IW) = 0.0;
-      Q(j, i, IBX) = 0.75;
-      Q(j, i, IBY) = -1.0;
+      Q(j, i, IBX) = -1.0;
+      Q(j, i, IBY) = 0.75;
       Q(j, i, IBZ) = 0.0;
     }
   }

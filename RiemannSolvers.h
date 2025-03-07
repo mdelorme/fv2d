@@ -266,7 +266,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
     res[IBY] = q[IBY]*q[IU] - q[IBX]*q[IV];
     res[IBZ] = q[IBZ]*q[IU] - q[IBX]*q[IW];
     res[IE]  = (e_tot + q[IP]) * q[IU] - q[IBX]*(q[IBX]*q[IU]+q[IBY]*q[IV]+q[IBZ]*q[IW]);
-    
+    res[IPHI] = 0.0;
     return res;
   };
 
@@ -346,6 +346,17 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   }
 
   flux = computeFlux(q, e_tot);
+  // TODO: Ajouter le flux Bx et Phi, i.e. :
+  // 1. Calculer ou fixer ch et cp
+  // 2. Calculer le terme parabolic
+  // 3. Calculer \psi_l et \psi_r
+  // 4. Calculer Bx_m et psi_m
+  // 5. Calculer les flux Bx et \psi
+  const real_t ch = 0.0;
+  const real_t psi_m = 0.0;
+  const real_t Bx_m = 0.0;
+  flux[IBX] = psi_m;
+  flux[IPHI] = ch*ch*Bx_m; 
 }
 #endif
 }

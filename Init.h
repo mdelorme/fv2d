@@ -232,20 +232,52 @@ namespace {
   
   KOKKOS_INLINE_FUNCTION
   void initOrszagTang(Array Q, int i, int j, const Params &params){
-    const real_t pi = 3.14159265358979323846;
-    const real_t B0 = 1/std::sqrt(4*pi);
+    const real_t B0 = 1/std::sqrt(4*M_PI);
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
   
-    Q(j, i, IR) = 25.0/(36.0*pi);
-    Q(j, i, IU) = -sin(2.0*pi*y);
-    Q(j, i, IV) = sin(2.0*pi*x);
+    Q(j, i, IR) = params.gamma0*params.gamma0*B0*B0;
+    Q(j, i, IU) = -sin(2.0*M_PI*y);
+    Q(j, i, IV) = sin(2.0*M_PI*x);
     Q(j, i, IW) = 0.0;
-    Q(j, i, IP) = 5.0/(12.0*pi);
-    Q(j, i, IBX) = -B0*sin(2.0*pi*y);
-    Q(j, i, IBY) = B0*sin(4.0*pi*x);
+    Q(j, i, IP) = params.gamma0*B0*B0;
+    Q(j, i, IBX) = -B0*sin(2.0*M_PI*y);
+    Q(j, i, IBY) = B0*sin(4.0*M_PI*x);
     Q(j, i, IBZ) = 0.0;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void initKelvinHelmoltz(Array Q, int i, int j, const Params &params, const RandomPool &random_pool){
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+    
+    if (std::abs(y) <= 0.25){
+      Q(j, i, IR) = 2.0;
+      Q(j, i, IU) = 0.5;
+    }
+    else{
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = -0.5;
+    }
+
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IP) = 2.5;
+    Q(j, i, IBX) = 0.5 * std::sqrt(4*M_PI);
+    Q(j, i, IBY) = 0.0;
+    Q(j, i, IBZ) = 0.0;
+
+    // Add some perturbation on both the x and y components of the velocity
+    // We take a 0.01 peak-to-peak amplitude
+    auto generator = random_pool.get_state();
+    real_t pert_vx = generator.drand(-0.05, 0.05);
+    real_t pert_vy = generator.drand(-0.05, 0.05);
+    random_pool.free_state(generator);
+
+    Q(j, i, IU) += pert_vx;
+    Q(j, i, IV) += pert_vy;
   }
 }
 
@@ -265,7 +297,8 @@ enum InitType {
   DIFFUSION,
   H84,
   C91,
-  ORSZAG_TANG
+  ORSZAG_TANG,
+  KELVIN_HELMOLTZ
 };
 
 struct InitFunctor {
@@ -285,7 +318,8 @@ public:
       {"diffusion", DIFFUSION},
       {"H84", H84},
       {"C91", C91},
-      {"orszag-tang", ORSZAG_TANG}
+      {"orszag-tang", ORSZAG_TANG},
+      {"kelvin-helmoltz", KELVIN_HELMOLTZ}
     };
 
     if (init_map.count(params.problem) == 0)
@@ -316,6 +350,7 @@ public:
                               case H84:             initH84(Q, i, j, params, random_pool); break;
                               case C91:             initC91(Q, i, j, params, random_pool); break;
                               case ORSZAG_TANG:     initOrszagTang(Q, i, j, params); break;
+                              case KELVIN_HELMOLTZ: initKelvinHelmoltz(Q, i, j, params, random_pool); break;
                             }
                           });
                           

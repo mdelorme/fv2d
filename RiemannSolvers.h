@@ -127,8 +127,7 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
 #ifdef MHD
 
 KOKKOS_INLINE_FUNCTION
-void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &params) {  
-  const real_t Bx = qL[IBX];
+void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx, const Params &params) {
   const real_t Bsgn = (Bx < 0.0 ? -1.0 : 1.0);
   const real_t smalle = std::pow(10.0, -5.0);
   // Deref of states
@@ -154,12 +153,6 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   const real_t pTR = pR + 0.5 * B2R;
   const real_t ER  = pR / (params.gamma0-1.0) + 0.5*rR*(uR*uR+vR*vR+wR*wR) + 0.5*B2R;
 
-
-  // Calculating left and right fast-magnetosonic waves
-  //
-  /* TODO : Check that this is actually the same as in five_waves and maybe extract this to 
-     State_MHD.h ?
-  */
   auto computeFastMagnetoAcousticSpeed = [&](const State &q, const Params &params) {
     const real_t gp = params.gamma0 * q[IP];
     const real_t B2 = Bx*Bx + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];
@@ -346,17 +339,6 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const Params &pa
   }
 
   flux = computeFlux(q, e_tot);
-  // TODO: Ajouter le flux Bx et Phi, i.e. :
-  // 1. Calculer ou fixer ch et cp
-  // 2. Calculer le terme parabolic
-  // 3. Calculer \psi_l et \psi_r
-  // 4. Calculer Bx_m et psi_m
-  // 5. Calculer les flux Bx et \psi
-  const real_t ch = 0.0;
-  const real_t psi_m = 0.0;
-  const real_t Bx_m = 0.0;
-  flux[IBX] = psi_m;
-  flux[IPHI] = ch*ch*Bx_m; 
 }
 #endif
 }

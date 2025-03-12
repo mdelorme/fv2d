@@ -96,6 +96,11 @@ public:
       params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
+        const real_t ch = 0.5 * params.CFL * std::min(params.dx, params.dy)/dt;
+        const real_t cr = 0.1; // TODO: à mettre dans les paramètres
+        const real_t cp = std::sqrt(cr*ch);
+        const real_t parabolic = std::exp(-0.5*dt*ch*ch/(cp*cp));
+
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
@@ -113,7 +118,15 @@ public:
             #ifdef MHD
             switch (params.riemann_solver) {
               case HLL: hll(qL, qR, flux, pout, params);   break;
-              case HLLD: hlld(qL, qR, flux, pout, params); break;
+              case HLLD: {
+                // We first compute Bx_m and phi_m for the GLMMHD solver
+                const real_t Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPHI] - qL[IPHI]);
+                hlld(qL, qR, flux, pout, Bx_m, params);
+                const real_t psi_m = qL[IPHI] + 0.5 * (qR[IPHI] - qL[IPHI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+                flux[IBX] = psi_m;
+                flux[IPHI] = ch*ch*Bx_m;
+                break;
+              }
               default: hllc(qL, qR, flux, pout, params);   break;
             }
             #else
@@ -148,15 +161,16 @@ public:
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-          }
-
+          }          
           setStateInArray(Unew, i, j, un_loc);
         };
-
+        Q(j, i, IPHI) *= parabolic;
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
+        Unew(j, i, IPHI) *= parabolic;
+  
       });
   }
 

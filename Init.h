@@ -265,7 +265,7 @@ namespace {
     Q(j, i, IV) = 0.0;
     Q(j, i, IW) = 0.0;
     Q(j, i, IP) = 2.5;
-    Q(j, i, IBX) = 0.5 * std::sqrt(4*M_PI);
+    Q(j, i, IBX) = 0.5 / std::sqrt(4*M_PI);
     Q(j, i, IBY) = 0.0;
     Q(j, i, IBZ) = 0.0;
 

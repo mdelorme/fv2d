@@ -13,9 +13,9 @@ include_directories(external/inih)
 add_executable(fv2d
 main.cpp)
 
-target_compile_definitions(fv2d PRIVATE MHD)
-
+option(MHD "Compile for MHD" OFF)
 if (MHD)
+  add_compile_definitions(MHD)
   message(STATUS "Compiling for MHD")
 else()
   message(STATUS "Compiling for hydro solvers")

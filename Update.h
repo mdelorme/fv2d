@@ -96,10 +96,12 @@ public:
       params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
+        #ifdef MHD
         const real_t ch = 0.5 * params.CFL * std::min(params.dx, params.dy)/dt;
         const real_t cr = 0.1; // TODO: à mettre dans les paramètres
         const real_t cp = std::sqrt(cr*ch);
         const real_t parabolic = std::exp(-0.5*dt*ch*ch/(cp*cp));
+        #endif
 
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
@@ -150,9 +152,17 @@ public:
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
+              #ifdef MHD
               fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-            else 
+              #else
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
+              #endif
+            else
+              #ifdef MHD
               fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              #else
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+              #endif
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
@@ -164,13 +174,16 @@ public:
           }          
           setStateInArray(Unew, i, j, un_loc);
         };
+        #ifdef MHD
         Q(j, i, IPHI) *= parabolic;
+        #endif
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
+        #ifdef MHD
         Unew(j, i, IPHI) *= parabolic;
-  
+        #endif
       });
   }
 

@@ -142,7 +142,9 @@ public:
     Kokkos::deep_copy(Qhost, Q);
 
     Table trho, tu, tv, tprs;
+    #ifdef MHD
     Table tw, tbx, tby, tbz; // TODO: Ajouter un condition sur régime MHD
+    #endif
     std::vector<Table> divB(params.Ntx, Table(params.Nty, 0.0));
     for (int j=params.jbeg; j<params.jend; ++j) {
 
@@ -157,7 +159,7 @@ public:
         tv.push_back(v);
         tprs.push_back(p);
 
-        if (mhd_run){
+        #ifdef MHD
           real_t w  = Qhost(j, i, IW);
           real_t bx = Qhost(j, i, IBX);
           real_t by = Qhost(j, i, IBY);
@@ -170,7 +172,7 @@ public:
           real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
           real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
           divB[i][j] = dBx_dx + dBy_dy;
-        }
+        #endif //MHD
         }
       }
 
@@ -178,13 +180,13 @@ public:
     file.createDataSet("u", tu);
     file.createDataSet("v", tv);
     file.createDataSet("prs", tprs);
-    if (mhd_run) {
+    #ifdef MHD
       file.createDataSet("w", tw);
       file.createDataSet("bx", tbx);
       file.createDataSet("by", tby);
       file.createDataSet("bz", tbz);
       file.createDataSet("divB", divB);
-    }
+    #endif //MHD
     file.createAttribute("time", t);
 
     std::string empty_string = "";
@@ -248,7 +250,9 @@ public:
     Kokkos::deep_copy(Qhost, Q);
 
     Table trho, tu, tv, tprs;
+    #ifdef MHD
     Table tw, tbx, tby, tbz; // TODO: Ajouter un condition sur régime MHD
+    #endif
     Table divB(params.Ntx, std::vector<real_t>(params.Nty, 0.0));
     for (int j=params.jbeg; j<params.jend; ++j) {
       std::vector<real_t> rrho, ru, rv, rprs;
@@ -264,7 +268,7 @@ public:
         rv.push_back(v);
         rprs.push_back(p);
 
-        if (mhd_run){
+        #ifdef MHD
         real_t w  = Qhost(j, i, IW);
         real_t bx = Qhost(j, i, IBX);
         real_t by = Qhost(j, i, IBY);
@@ -277,19 +281,19 @@ public:
         real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
         real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
         divB[i][j] = dBx_dx + dBy_dy;
-        }
+        #endif //MHD
       }
       trho.push_back(rrho);
       tu.push_back(ru);
       tv.push_back(rv);
       tprs.push_back(rprs);
 
-      if (mhd_run){
+      #ifdef MHD
       tw.push_back(rw);
       tbx.push_back(rbx);
       tby.push_back(rby);
       tbz.push_back(rbz);
-      }
+      #endif //MHD
   } // loop j
 
     auto group = file.createGroup(path);
@@ -297,13 +301,13 @@ public:
     group.createDataSet("u", tu);
     group.createDataSet("v", tv);
     group.createDataSet("prs", tprs);
-    if (mhd_run){
+    #ifdef MHD
       group.createDataSet("w", tw); // TODO: Ajouter un condition sur régime MHD
       group.createDataSet("bx", tbx);
       group.createDataSet("by", tby);
       group.createDataSet("bz", tbz);
       group.createDataSet("divB", divB);
-    }
+    #endif //MHD
     group.createAttribute("time", t);
 
     fseek(xdmf_fd, -sizeof(str_xdmf_footer), SEEK_END);
@@ -352,12 +356,12 @@ public:
     load_and_copy("u", IU);
     load_and_copy("v", IV);
     load_and_copy("prs", IP);
-    if (mhd_run){
+    #ifdef MHD
       load_and_copy("w", IW);
       load_and_copy("bx", IBX);
       load_and_copy("by", IBY);
       load_and_copy("bz", IBZ);
-    }
+    #endif //MHD
     Kokkos::deep_copy(Q, Qhost);
 
     std::cout << "Restart finished !" << std::endl;

@@ -36,11 +36,15 @@ namespace fv2d {
   
     if (dir == IX){
       q[IU] *= -1.0;
+      #ifdef MHD
       q[IBX] *= -1.0;
+      #endif
     }
     else {
       q[IV] *= -1.0;
+      #ifdef MHD
       q[IBY] *= -1.0;
+      #endif
     }
     return q;
   }

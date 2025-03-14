@@ -30,8 +30,7 @@ public:
                               // Hydro time-step
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
-
-                              real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dx;
+                              real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dy;
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active)
@@ -42,6 +41,28 @@ public:
                               if (params.viscosity_active)
                                 inv_dt_par_visc_loc = fmax(2.0*computeMu(i, j, params) / (params.dx*params.dx),
                                                            2.0*computeMu(i, j, params) / (params.dy*params.dy));
+                              #ifdef MHD
+                              const real_t Bx = q[IBX];
+                              const real_t By = q[IBY];
+                              const real_t Bz = q[IBZ];
+                              const real_t gr = cs*cs*q[IR];
+                              const real_t Bt2 [] = {By*By+Bz*Bz,
+                                                     Bx*Bx+Bz*Bz,
+                                                     Bx*Bx+By*By};
+                              const real_t B2 = Bx*Bx + By*By + Bz*Bz;
+                              const real_t cf1 = gr-B2;
+                              const real_t V [] = {q[IU], q[IV], q[IW]};
+                              const real_t D [] = {params.dx, params.dy};
+                              
+                              const int ndim = 2;
+                              for (int i=0; i < ndim; ++i) {
+                                const real_t cf2 = gr + B2 + sqrt(cf1*cf1 + 4.0*gr*Bt2[i]);
+                                const real_t cf = sqrt(0.5 * cf2 / q[IR]);
+                      
+                                const real_t cmax = std::max(std::abs(V[i] - cf), std::abs(V[i] + cf));
+                                inv_dt_hyp_loc = std::max(inv_dt_hyp_loc, cmax/D[i]);
+                              }
+                              #endif
 
                               inv_dt_hyp      = fmax(inv_dt_hyp, inv_dt_hyp_loc);
                               inv_dt_par_tc   = fmax(inv_dt_par_tc, inv_dt_par_tc_loc);

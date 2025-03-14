@@ -145,7 +145,7 @@ public:
     #ifdef MHD
     Table tw, tbx, tby, tbz; // TODO: Ajouter un condition sur régime MHD
     #endif
-    std::vector<Table> divB(params.Ntx, Table(params.Nty, 0.0));
+    // std::vector<Table> divB(params.Ntx, Table(params.Nty, 0.0));
     for (int j=params.jbeg; j<params.jend; ++j) {
 
       for (int i=params.ibeg; i<params.iend; ++i) {
@@ -169,9 +169,9 @@ public:
           tbx.push_back(bx);
           tby.push_back(by);
           tbz.push_back(bz);
-          real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
-          real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
-          divB[i][j] = dBx_dx + dBy_dy;
+          // real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
+          // real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
+          // divB[i][j] = dBx_dx + dBy_dy;
         #endif //MHD
         }
       }
@@ -185,7 +185,7 @@ public:
       file.createDataSet("bx", tbx);
       file.createDataSet("by", tby);
       file.createDataSet("bz", tbz);
-      file.createDataSet("divB", divB);
+      // file.createDataSet("divB", divB);
     #endif //MHD
     file.createAttribute("time", t);
 
@@ -197,7 +197,7 @@ public:
     #ifdef MHD
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "velocity", "u", "v", "w"));
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "magnetic_field", "bx", "by", "bz"));    
-      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "divB"));
+      // fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "divB"));
     #else
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "velocity", "u", "v"));
     #endif
@@ -253,7 +253,7 @@ public:
     #ifdef MHD
     Table tw, tbx, tby, tbz; // TODO: Ajouter un condition sur régime MHD
     #endif
-    Table divB(params.Ntx, std::vector<real_t>(params.Nty, 0.0));
+    // Table divB(params.Ntx, std::vector<real_t>(params.Nty, 0.0));
     for (int j=params.jbeg; j<params.jend; ++j) {
       std::vector<real_t> rrho, ru, rv, rprs;
       std::vector<real_t> rw, rbx, rby, rbz; // TODO: Ajouter un condition sur régime MHD
@@ -278,9 +278,9 @@ public:
         rbx.push_back(bx);
         rby.push_back(by);
         rbz.push_back(bz);
-        real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
-        real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
-        divB[i][j] = dBx_dx + dBy_dy;
+        // real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
+        // real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
+        // divB[i][j] = dBx_dx + dBy_dy;
         #endif //MHD
       }
       trho.push_back(rrho);
@@ -306,7 +306,7 @@ public:
       group.createDataSet("bx", tbx);
       group.createDataSet("by", tby);
       group.createDataSet("bz", tbz);
-      group.createDataSet("divB", divB);
+      // group.createDataSet("divB", divB);
     #endif //MHD
     group.createAttribute("time", t);
 
@@ -316,7 +316,7 @@ public:
     #ifdef MHD
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, params.filename_out, path, "velocity", "u", "v", "w"));
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, params.filename_out, path, "magnetic_field", "bx", "by", "bz"));
-      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, params.filename_out, path, "divB"));
+      // fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, params.filename_out, path, "divB"));
     #else
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, params.filename_out, path, "velocity", "u", "v"));
     #endif

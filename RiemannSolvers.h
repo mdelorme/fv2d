@@ -16,6 +16,21 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) 
   const real_t SL = fmin(sminL, sminR);
   const real_t SR = fmax(smaxL, smaxR);
 
+
+  auto computeFlux = [&](State &q, const Params &params) {
+    const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
+    const real_t E = (q[IP] / (params.gamma0-1.0) + Ek);
+
+    State fout {
+      q[IR]*q[IU],
+      q[IR]*q[IU]*q[IU] + q[IP],
+      q[IR]*q[IU]*q[IV],
+      (q[IP] + E) * q[IU]
+    };
+
+    return fout;
+  };
+
   State FL = computeFlux(qL, params);
   State FR = computeFlux(qR, params);
 

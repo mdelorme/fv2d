@@ -95,8 +95,8 @@ public:
     
     oss << params.filename_out << "_" << std::setw(4) << std::setfill('0') << iteration;
     std::string path = oss.str();
-    std::string h5_filename  = oss.str() + ".h5";
-    std::string xmf_filename = oss.str() + ".xmf";
+    std::string h5_filename  = params.path_out + "/" + oss.str() + ".h5";
+    std::string xmf_filename = params.path_out + "/" + oss.str() + ".xmf";
 
     File file(h5_filename, File::Truncate);
     FILE* xdmf_fd = fopen(xmf_filename.c_str(), "w+");
@@ -168,11 +168,12 @@ public:
     
     oss << "ite_" << std::setw(4) << std::setfill('0') << iteration;
     std::string path = oss.str();
+    std::string filepath = params.path_out + "/" + params.filename_out;
 
     auto flag_h5 = (iteration == 0 ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (iteration == 0 ? "w+" : "r+");
-    File file(params.filename_out + ".h5", flag_h5);
-    FILE* xdmf_fd = fopen((params.filename_out + ".xdmf").c_str(), flag_xdmf);
+    File file(filepath + ".h5", flag_h5);
+    FILE* xdmf_fd = fopen((filepath + ".xdmf").c_str(), flag_xdmf);
 
     if (iteration == 0) {
       file.createAttribute("Ntx", params.Ntx);

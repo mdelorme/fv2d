@@ -37,6 +37,11 @@ enum RiemannSolver {
   HLLC
 };
 
+enum TimeSteppingSolver {
+  SOLVER_CTU,
+  SOLVER_GOD
+};
+
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
@@ -51,7 +56,8 @@ enum TimeStepping {
 enum ReconstructionType {
   PCM,
   PCM_WB,
-  PLM
+  PLM,
+  HANCOCK
 };
 
 enum ThermalConductivityMode {
@@ -74,6 +80,7 @@ enum ViscosityMode {
 struct Params {
   real_t save_freq;
   real_t tend;
+  std::string path_out = ".";
   std::string filename_out = "run";
   std::string restart_file = "";
   BoundaryType boundary_x = BC_REFLECTING;
@@ -81,6 +88,7 @@ struct Params {
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
   TimeStepping time_stepping = TS_EULER;
+  TimeSteppingSolver timestepping_solver = SOLVER_GOD;
   real_t CFL = 0.1;
 
   bool multiple_outputs = false;
@@ -91,6 +99,7 @@ struct Params {
   ParallelRange range_xbound;
   ParallelRange range_ybound;
   ParallelRange range_slopes;
+  ParallelRange range_fluxes;
 
   // Mesh
   int Nx;      // Number of domain cells
@@ -194,7 +203,8 @@ Params readInifile(std::string filename) {
     
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
-
+  res.path_out = reader.Get("run", "output_path", ".");
+  
   std::string tmp;
   tmp = reader.Get("run", "boundaries_x", "reflecting");
   std::map<std::string, BoundaryType> bc_map{
@@ -208,9 +218,10 @@ Params readInifile(std::string filename) {
 
   tmp = reader.Get("solvers", "reconstruction", "pcm");
   std::map<std::string, ReconstructionType> recons_map{
-    {"pcm",    PCM},
-    {"pcm_wb", PCM_WB},
-    {"plm",    PLM}
+    {"pcm",     PCM},
+    {"pcm_wb",  PCM_WB},
+    {"plm",     PLM},
+    {"hancock", HANCOCK}
   };
   res.reconstruction = recons_map[tmp];
 
@@ -227,6 +238,14 @@ Params readInifile(std::string filename) {
     {"RK2",   TS_RK2}
   };
   res.time_stepping = ts_map[tmp];
+
+  tmp = reader.Get("solvers", "time_stepping_solver", "godounov");
+  std::map<std::string, TimeSteppingSolver> ts_solver_map{
+    {"ctu",      SOLVER_CTU},
+    {"godounov", SOLVER_GOD}
+  };
+  res.timestepping_solver = ts_solver_map[tmp];
+  
 
   res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
 
@@ -290,6 +309,7 @@ Params readInifile(std::string filename) {
   res.range_xbound = ParallelRange({0, res.jbeg}, {res.Ng, res.jend});
   res.range_ybound = ParallelRange({0, 0}, {res.Ntx, res.Ng});
   res.range_slopes = ParallelRange({res.ibeg-1, res.jbeg-1}, {res.iend+1, res.jend+1});
+  res.range_fluxes = ParallelRange({res.ibeg-1, res.jbeg-1}, {res.iend+1, res.jend+1});
 
   return res;
 } 

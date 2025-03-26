@@ -93,18 +93,15 @@ public:
       "MUSCL-Hancock",
       params.range_slopes,
       KOKKOS_LAMBDA(const int i, const int j) {
-        for (int ivar=0; ivar < Nfields; ++ivar) {
-          auto [ r,   u,   v,   p ] = getStateFromArray(Q, i, j);
-          auto [drx, dux, dvx, dpx] = getStateFromArray(slopesX, i, j);
-          auto [dry, duy, dvy, dpy] = getStateFromArray(slopesY, i, j);
-          
-          Q(j, i, IR) = r - (u * drx + r * dux)         * dtdx - (v * dry + r * dvy)         * dtdy;
-          Q(j, i, IU) = u - (u * dux + dpx / r)         * dtdx - (v * duy)                   * dtdy;
-          Q(j, i, IV) = v - (u * dvx)                   * dtdx - (v * dvy + dpy / r)         * dtdy;
-          Q(j, i, IP) = p - (gamma * p * dux + u * dpx) * dtdx - (gamma * p * dvy + v * dpy) * dtdy;
-        }
+        auto [ r,   u,   v,   p ] = getStateFromArray(Q, i, j);
+        auto [drx, dux, dvx, dpx] = getStateFromArray(slopesX, i, j);
+        auto [dry, duy, dvy, dpy] = getStateFromArray(slopesY, i, j);
+        
+        Q(j, i, IR) = r - (u * drx + r * dux)         * dtdx - (v * dry + r * dvy)         * dtdy;
+        Q(j, i, IU) = u - (u * dux + dpx / r)         * dtdx - (v * duy)                   * dtdy;
+        Q(j, i, IV) = v - (u * dvx)                   * dtdx - (v * dvy + dpy / r)         * dtdy;
+        Q(j, i, IP) = p - (gamma * p * dux + u * dpx) * dtdx - (gamma * p * dvy + v * dpy) * dtdy;
       });
-
   }
 
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {

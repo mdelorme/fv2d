@@ -94,7 +94,7 @@ public:
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
         #ifdef MHD
-        const real_t ch = 0.5 * params.CFL * std::min(params.dx, params.dy)/dt;
+        const real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         const real_t cr = 0.1; // TODO: à mettre dans les paramètres
         const real_t cp = std::sqrt(cr*ch);
         const real_t parabolic = std::exp(-dt*ch*ch/(cp*cp));

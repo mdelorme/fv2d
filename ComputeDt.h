@@ -59,8 +59,8 @@ public:
                                 const real_t cf2 = gr + B2 + sqrt(cf1*cf1 + 4.0*gr*Bt2[i]);
                                 const real_t cf = sqrt(0.5 * cf2 / q[IR]);
                       
-                                const real_t cmax = std::max(std::abs(V[i] - cf), std::abs(V[i] + cf));
-                                inv_dt_hyp_loc = std::max(inv_dt_hyp_loc, cmax/D[i]);
+                                const real_t cmax = fmax(std::abs(V[i] - cf), std::abs(V[i] + cf));
+                                inv_dt_hyp_loc = fmax(inv_dt_hyp_loc, cmax/D[i]);
                               }
                               #endif
 

@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include "SimInfo.h"
 #include "RiemannSolvers.h"
@@ -13,7 +13,6 @@ namespace {
   State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const Params &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
-    
     State res;
     switch (params.reconstruction) {
       case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
@@ -43,7 +42,6 @@ public:
   UpdateFunctor(const Params &params)
     : params(params), bc_manager(params),
       tc_functor(params), visc_functor(params) {
-      
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
       slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
 
@@ -84,7 +82,7 @@ public:
       });
 
   }
-
+  KOKKOS_INLINE_FUNCTION
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
     auto params = this->params;
     auto slopesX = this->slopesX;
@@ -99,7 +97,7 @@ public:
         const real_t ch = 0.5 * params.CFL * std::min(params.dx, params.dy)/dt;
         const real_t cr = 0.1; // TODO: à mettre dans les paramètres
         const real_t cp = std::sqrt(cr*ch);
-        const real_t parabolic = std::exp(-0.5*dt*ch*ch/(cp*cp));
+        const real_t parabolic = std::exp(-dt*ch*ch/(cp*cp));
         #endif
 
         auto updateAlongDir = [&](int i, int j, IDir dir) {
@@ -166,16 +164,15 @@ public:
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
-        
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-          }          
+          }
           setStateInArray(Unew, i, j, un_loc);
         };
-        #ifdef MHD
-        Q(j, i, IPHI) *= parabolic;
-        #endif
+        // #ifdef MHD
+        // Q(j, i, IPHI) *= parabolic;
+        // #endif
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 

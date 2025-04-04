@@ -202,6 +202,7 @@ namespace {
       Q(j, i, IBY) = -1.0;
       Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IPHI) = 0.0;
   }
 
     /**
@@ -229,7 +230,12 @@ namespace {
       Q(j, i, IBY) = 0.75;
       Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IPHI) = 0.0;
   }
+
+  /**
+   * @brief Orszag-Tang vortex
+   */
   KOKKOS_INLINE_FUNCTION
   void initOrszagTang(Array Q, int i, int j, const Params &params){
     const real_t B0 = 1/std::sqrt(4*M_PI);
@@ -245,8 +251,12 @@ namespace {
     Q(j, i, IBX) = -B0*sin(2.0*M_PI*y);
     Q(j, i, IBY) = B0*sin(4.0*M_PI*x);
     Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPHI) = 0.0;
   }
 
+  /**
+   * @brief Kelvin-Helmholtz instability
+   */
   KOKKOS_INLINE_FUNCTION
   void initKelvinHelmoltz(Array Q, int i, int j, const Params &params, const RandomPool &random_pool){
     Pos pos = getPos(params, i, j);
@@ -278,6 +288,7 @@ namespace {
 
     Q(j, i, IU) += pert_vx;
     Q(j, i, IV) += pert_vy;
+    Q(j, i, IPHI) = 0.0;
   }
   #endif //MHD 
 }

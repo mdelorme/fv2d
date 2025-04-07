@@ -259,7 +259,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     res[IBY] = q[IBY]*q[IU] - q[IBX]*q[IV];
     res[IBZ] = q[IBZ]*q[IU] - q[IBX]*q[IW];
     res[IE]  = (e_tot + q[IP]) * q[IU] - q[IBX]*(q[IBX]*q[IU]+q[IBY]*q[IV]+q[IBZ]*q[IW]);
-    res[IPHI] = 0.0;
+    res[IPSI] = 0.0;
     return res;
   };
 

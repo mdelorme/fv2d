@@ -119,11 +119,11 @@ public:
               case HLL: hll(qL, qR, flux, pout, params);   break;
               case HLLD: {
                 // We first compute Bx_m and phi_m for the GLMMHD solver
-                const real_t Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPHI] - qL[IPHI]);
+                const real_t Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
                 hlld(qL, qR, flux, pout, Bx_m, params);
-                const real_t psi_m = qL[IPHI] + 0.5 * (qR[IPHI] - qL[IPHI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+                const real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
                 flux[IBX] = psi_m;
-                flux[IPHI] = ch*ch*Bx_m;
+                flux[IPSI] = ch*ch*Bx_m;
                 break;
               }
               default: hllc(qL, qR, flux, pout, params);   break;
@@ -171,14 +171,14 @@ public:
           setStateInArray(Unew, i, j, un_loc);
         };
         // #ifdef MHD
-        // Q(j, i, IPHI) *= parabolic;
+        // Q(j, i, IPSI) *= parabolic;
         // #endif
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
         #ifdef MHD
-        Unew(j, i, IPHI) *= parabolic;
+        Unew(j, i, IPSI) *= parabolic;
         #endif
       });
   }

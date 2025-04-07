@@ -41,7 +41,7 @@ enum IVar : uint8_t {
   IBX = 5,
   IBY = 6,
   IBZ = 7,
-  IPHI = 8
+  IPSI = 8
 };
 #else
 enum IVar : uint8_t {

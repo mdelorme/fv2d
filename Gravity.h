@@ -35,8 +35,6 @@ public:
 
   void applyGravity(Array Q, Array Unew, real_t dt) {
     auto params = this->params;
-    const real_t dx = params.dx;
-    const real_t dy = params.dy;
     auto geo = this->geometry;
 
     Kokkos::parallel_for(

@@ -16,6 +16,11 @@ using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 
+struct RestartInfo {
+  real_t time;
+  int iteration;
+};
+
 enum IDir : uint8_t {
   IX = 0,
   IY = 1
@@ -39,6 +44,11 @@ enum RiemannSolver {
   HLLC
 };
 
+enum FluxSolver {
+  FLUX_CTU,
+  FLUX_GODOUNOV
+};
+
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
@@ -53,9 +63,15 @@ enum TimeStepping {
 };
 
 enum ReconstructionType {
+  // 1d reconstruction
   PCM,
   PCM_WB,
-  PLM
+  PLM,
+
+  // 2d reconstruction (gradient)
+  RECONS_NAIVE,
+  RECONS_BRUNER,
+  RECONS_BJ,
 };
 
 enum ThermalConductivityMode {
@@ -96,6 +112,14 @@ enum GravityType {
   GRAV_READFILE,
 };
 
+enum GradientType { 
+  LEAST_SQUARE,
+  LEAST_SQUARE_WIDE,
+  LEAST_SQUARE_NODE,
+  GREEN_GAUSS,
+  GREEN_GAUSS_WIDE,
+};
+
 // Pos arithmetic
 
 KOKKOS_INLINE_FUNCTION
@@ -132,13 +156,19 @@ const Pos operator/(const Pos &p, real_t f)
 struct Params {
   real_t save_freq;
   real_t tend;
+  std::string path_out = ".";
   std::string filename_out = "run";
+  std::string restart_file = "";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
+  bool hancock_ts = false; 
   RiemannSolver riemann_solver = HLL;
   TimeStepping time_stepping = TS_EULER;
+  FluxSolver flux_solver = FLUX_GODOUNOV;
   real_t CFL = 0.1;
+
+  bool multiple_outputs = false;
 
   // Parallel stuff
   ParallelRange range_tot;
@@ -146,6 +176,7 @@ struct Params {
   ParallelRange range_xbound;
   ParallelRange range_ybound;
   ParallelRange range_slopes;
+  ParallelRange range_fluxes;
 
   // Mesh
   int Nx;      // Number of domain cells
@@ -178,6 +209,10 @@ struct Params {
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
   std::string problem;
+
+  // Gradient
+  GradientType gradient_type;
+  bool use_pressure_gradient; // resolve pressure gradient ouside of the riemann (does not work well)
 
   // Thermal conduction
   bool thermal_conductivity_active;
@@ -281,9 +316,15 @@ Params readInifile(std::string filename) {
 
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
+  res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
+  res.restart_file = reader.Get("run", "restart_file", "");
+  if (res.restart_file != "" && !res.multiple_outputs)
+    throw std::runtime_error("Restart one unique files is not implemented yet !");
+    
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
-
+  res.path_out = reader.Get("run", "output_path", ".");
+  
   std::map<std::string, BoundaryType> bc_map{
     {"reflecting",         BC_REFLECTING},
     {"absorbing",          BC_ABSORBING},
@@ -295,11 +336,17 @@ Params readInifile(std::string filename) {
   res.boundary_y = read_map(bc_map, "run", "boundaries_y", "reflecting");
 
   std::map<std::string, ReconstructionType> recons_map{
-    {"pcm",    PCM},
-    {"pcm_wb", PCM_WB},
-    {"plm",    PLM}
+    {"pcm",          PCM},
+    {"pcm_wb",       PCM_WB},
+    {"plm",          PLM},
+
+    {"grad-naive",   RECONS_NAIVE},
+    {"grad-bruner",  RECONS_BRUNER},
+    {"grad-bj",      RECONS_BJ},
   };
   res.reconstruction = read_map(recons_map, "solvers", "reconstruction", "pcm");
+
+  res.hancock_ts = reader.GetBoolean("solvers", "hancock", false);
 
   std::map<std::string, RiemannSolver> riemann_map{
     {"hll", HLL},
@@ -312,6 +359,12 @@ Params readInifile(std::string filename) {
     {"RK2",   TS_RK2}
   };
   res.time_stepping = read_map(ts_map, "solvers", "time_stepping", "euler");
+
+  std::map<std::string, FluxSolver> flux_solver_map{
+    {"ctu",      FLUX_CTU},
+    {"godounov", FLUX_GODOUNOV}
+  };
+  res.flux_solver = read_map(flux_solver_map, "solvers", "flux_solver", "godounov");
 
   res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
 
@@ -354,6 +407,17 @@ Params readInifile(std::string filename) {
     {"readfile", GRAV_READFILE},
   };
   res.gravity = read_map(gravity_map, "physics", "gravity", "false");
+
+  std::map<std::string, GradientType> gradient_map{
+    {"least-square",       LEAST_SQUARE},
+    {"least-square-wide",  LEAST_SQUARE_WIDE},
+    {"least-square-node",  LEAST_SQUARE_NODE},
+    {"green-gauss",        GREEN_GAUSS},
+    {"green-gauss-wide",   GREEN_GAUSS_WIDE},
+  };
+  res.gradient_type = read_map(gradient_map, "solvers", "gradient", "least-square");
+
+  res.use_pressure_gradient = reader.GetBoolean("solvers", "use_pressure_gradient", false);
 
   // Thermal conductivity
   res.thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -399,6 +463,7 @@ Params readInifile(std::string filename) {
   res.range_xbound = ParallelRange({0, res.jbeg}, {res.Ng, res.jend});
   res.range_ybound = ParallelRange({0, 0}, {res.Ntx, res.Ng});
   res.range_slopes = ParallelRange({res.ibeg-1, res.jbeg-1}, {res.iend+1, res.jend+1});
+  res.range_fluxes = ParallelRange({res.ibeg-1, res.jbeg-1}, {res.iend+1, res.jend+1});
 
   // Spline
   std::string spline_data_path = reader.Get("physics", "spline_data", "spline.data");
@@ -462,11 +527,11 @@ void checkNegatives(Array &Q, const Params &params) {
     KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
       constexpr real_t eps = 1.0e-6;
       if (Q(j, i, IR) < eps) {
-        Q(j, i, IR) = 1.0e-6;
+        Q(j, i, IR) = eps;
         lnegative_density++;
       }
       if (Q(j, i, IP) < eps) {
-        Q(j, i, IP) = 1.0e-6;
+        Q(j, i, IP) = eps;
         lnegative_pressure++;
       }
 
@@ -486,3 +551,6 @@ void checkNegatives(Array &Q, const Params &params) {
 
 
 }
+
+#include "Gradient.h"
+

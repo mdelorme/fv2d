@@ -54,123 +54,93 @@ namespace {
   }
 
   /**
-   * @brief Lax-Liu quadrants
+   * @brief Sod Shock tube aligned along the diagonal.
    */
   KOKKOS_INLINE_FUNCTION
-  void initLaxLiu(Array Q, int i, int j, const Params &params, const Geometry &geo) {
-    Pos pos = geo.mapc2p_center(i,j);
-
-    int qid = (pos[IX] < 0.5) + 2*(pos[IY] < 0.5);
-
-    switch(qid)
-    {
-      case 0: // tr
-        Q(j, i, IR) = 1.5;
-        Q(j, i, IU) = 0.0;
-        Q(j, i, IV) = 0.0;
-        Q(j, i, IP) = 1.5;
-        break;
-      case 1: // tl
-        Q(j, i, IR) = 0.5323;
-        Q(j, i, IU) = 1.206;
-        Q(j, i, IV) = 0.0;
-        Q(j, i, IP) = 0.3;
-        break;
-      case 2: // bl
-        Q(j, i, IR) = 0.5323;
-        Q(j, i, IU) = 0.0;
-        Q(j, i, IV) = 1.206;
-        Q(j, i, IP) = 0.3;
-        break;
-      case 3: // br
-        Q(j, i, IR) = 0.138;
-        Q(j, i, IU) = 1.206;
-        Q(j, i, IV) = 1.206;
-        Q(j, i, IP) = 0.029;
-      default: break;
+  void initSod45(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    auto [x, y] = geo.mapc2p_center(i, j);
+    if (x < y) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IP) = 1.0;
+      Q(j, i, IU) = 0.0;
     }
+    else {
+      Q(j, i, IR) = 0.125;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IU) = 0.0;
+    }
+  }
+  
+  /**
+   * @brief Kelvin-Helmholtz
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initKelvinHelmholtz(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
+    real_t y = geo.mapc2p_center(i, j)[IY] - 0.5;
+    bool inside = abs(y) < 0.25;
+
+    auto generator = random_pool.get_state();
+    real_t pert_u = 0.01 * (generator.drand(-0.5, 0.5));
+    real_t pert_v = 0.01 * (generator.drand(-0.5, 0.5));
+    random_pool.free_state(generator);
+
+    real_t rho = inside ? 2.0 : 1.0;
+    real_t u   = inside ? 0.5 : -0.5;
+
+    State q = {rho, u + pert_u, pert_v, 2.5};
+    setStateInArray(Q, i, j, q);
   }
 
   /**
-   * @brief Sedov blast initial conditions
+   * @brief Kelvin-Helmholtz radial
    */
   KOKKOS_INLINE_FUNCTION
-  void initBlast(Array Q, int i, int j, const Params &params, const Geometry &geo) {
-    real_t xmid = 0.5 * (params.xmin+params.xmax);
-    real_t ymid = 0.5 * (params.ymin+params.ymax);
+  void initKelvinHelmholtzRadial(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
+    auto [x, y] = geo.mapc2p_center(i, j);
+    x-=0.5; y-=0.5;
+    real_t r = sqrt(x*x + y*y);
+    const real_t nx = x/r;
+    const real_t ny = y/r;
 
-    Pos pos = geo.mapc2p_center(i,j);
-
-    real_t x = pos[IX];
-    real_t y = pos[IY];
-
-    real_t xr = xmid - x;
-    real_t yr = ymid - y;
-    real_t r = sqrt(xr*xr+yr*yr);
-
-    // const real_t xsize = (params.xmax - params.xmin);
-    // const real_t ysize = (params.ymax - params.ymin);
-    // const real_t blast_radius = 0.25 * ((xsize < ysize) ? xsize : ysize);
-    const real_t blast_radius = 0.2;
-
-    #if 0
-      if (r < blast_radius) {
-        Q(j, i, IR) = 1.0;
-        Q(j, i, IU) = 0.0;
-        Q(j, i, IV) = 0.0;
-        Q(j, i, IP) = 10.0;
-      }
-      else {
-        Q(j, i, IR) = 1.2;
-        Q(j, i, IU) = 0.0;
-        Q(j, i, IV) = 0.0;
-        Q(j, i, IP) = 0.1;
-      }
-
-    #else // lissage
-      // const real_t thck = 0.02;
-      const real_t thck = 0.005;
-      real_t tr = 0.5 * (tanh((r - blast_radius) / thck) + 1.0);
-      
-      Q(j, i, IR) = 1.0 * tr + 1.0 * (1-tr);
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IP) =  1.0 * tr + 5.0 * (1-tr);
-    #endif
-  }
-
-
-  KOKKOS_INLINE_FUNCTION
-  void initKelvinHelmholtz(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
-    Pos pos = geo.mapc2p_center(i,j);
-    real_t x = pos[IX];
-    real_t y = pos[IY];
-
-    constexpr real_t yl =  0.333;
-    constexpr real_t yh = 0.666;
+    constexpr real_t r0 = 0.25;
+    constexpr real_t uflow = 0.5;
+    constexpr real_t rho_in = 2.0;
+    constexpr real_t rho_out = 1.0;
+    constexpr real_t p0 = 2.5;
+    const real_t velocity = uflow * r;
 
     auto generator = random_pool.get_state();
-    real_t pertx = 0.005 * (generator.drand(-1.0, 1.0));
-    real_t perty = 0.005 * (generator.drand(-1.0, 1.0));
+    real_t pert_u = 0.02 * r * (generator.drand(-0.5, 0.5));
+    real_t pert_v = 0.02 * r * (generator.drand(-0.5, 0.5));
     random_pool.free_state(generator);
 
-    real_t velocity = params.ring_velocity;
-    // fix pressure
-    if(yl < y && y < yh){
-      Q(j, i, IR) = params.ring_rho_in;
-      Q(j, i, IU) = velocity;
-      Q(j, i, IV) = 0;
-      Q(j, i, IP) = params.ring_p_in;
-    }
-    else{
-      Q(j, i, IR) = params.ring_rho_out;
-      Q(j, i, IU) = - velocity;
-      Q(j, i, IV) = 0;
-      Q(j, i, IP) = params.ring_p_out;
-    }
-    Q(j, i, IU) += pertx;
-    Q(j, i, IV) += perty;
+    constexpr real_t thck = 0.0025;
+    real_t tr = 0.5 * (tanh((r - r0) / thck) + 1.0);
+    
+    const State Qin  {rho_in,  (velocity *  ny + pert_u * nx), (velocity * -nx + pert_v * ny), p0 + 0.5 * uflow * uflow * rho_in * r*r};
+    const State Qout {rho_out, (velocity * -ny + pert_u * nx), (velocity *  nx + pert_v * ny), p0 + 0.5 * uflow * uflow * (rho_out * (r*r-r0*r0) + rho_in * r0*r0)};
+
+    State q = (1-tr) * Qin + tr * Qout;
+    setStateInArray(Q, i, j, q);
   }
+
+  /**
+   * @brief Riemann2D
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initRiemann2D(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    auto [x, y] = geo.mapc2p_center(i, j);
+    int qid = (x < 0.5) + 2*(y < 0.5);
+
+    State quadrants[4] = {
+      {1.5,    0.0,   0.0,   1.5},  // tr
+      {0.5323, 1.206, 0.0,   0.3},  // tl
+      {0.5323, 0.0,   1.206, 0.3},  // bl
+      {0.138,  1.206, 1.206, 0.029} // br
+    };
+    setStateInArray(Q, i, j, quadrants[qid]);
+  }
+
 //////////////////////////////////////////////////////////////////////////
 ////////////////////////////      RING       /////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -298,20 +268,76 @@ namespace {
     Q(j, i, IV) = pert * _sin;
   }
 
+//////////////////////////////////////////////////////////////////////////
+// RING END
+//////////////////////////////////////////////////////////////////////////
 
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
+  /**
+   * @brief Sedov blast initial conditions
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initBlast(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    real_t xmid = 0.5 * (params.xmin+params.xmax);
+    real_t ymid = 0.5 * (params.ymin+params.ymax);
+
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    real_t xr = xmid - x;
+    real_t yr = ymid - y;
+    real_t r = sqrt(xr*xr+yr*yr);
+
+    if (r < 0.2) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IP) = 10.0;
+    }
+    else {
+      Q(j, i, IR) = 1.2;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IP) = 0.1;
+    }
+  }
+
+  /**
+   * @brief Sedov blast initial conditions with smoothing
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initSmoothBlast(Array Q, int i, int j, const Params &params, const Geometry &geo) {
+    real_t xmid = 0.5 * (params.xmin+params.xmax);
+    real_t ymid = 0.5 * (params.ymin+params.ymax);
+
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    real_t xr = xmid - x;
+    real_t yr = ymid - y;
+    real_t r = sqrt(xr*xr+yr*yr);
+
+    constexpr real_t thck = 0.02;
+    constexpr real_t rblast = 0.2;
+    real_t tr = 0.5 * (tanh((r - rblast) / thck) + 1.0);
+
+    const State Qin  {1.0, 0.0, 0.0, 10.0};
+    const State Qout {1.2, 0.0, 0.0,  0.1};
+
+    State res = (1-tr) * Qin + tr * Qout;
+    setStateInArray(Q, i, j, res);
+  }
+
   /**
    * @brief Stratified convection based on Hurlburt et al 1984
    */
   KOKKOS_INLINE_FUNCTION
-  void initH84(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initH84(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
 
-    real_t T = y;
+    // real_t T = y;
     real_t rho = pow(y, params.m1);
     real_t prs = pow(y, params.m1+1.0); 
 
@@ -329,7 +355,7 @@ namespace {
    * @brief Stratified convection based on Cattaneo et al. 1991
    */
   KOKKOS_INLINE_FUNCTION
-  void initC91(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initC91(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
@@ -354,7 +380,7 @@ namespace {
    * @brief Simple diffusion test with a structure being advected on the grid
    */
   KOKKOS_INLINE_FUNCTION
-  void initDiffusion(Array Q, int i, int j, const Params &params) {
+  void initDiffusion(Array Q, int i, int j, const Params &params, const Geometry &geo) {
     real_t xmid = 0.5 * (params.xmin+params.xmax);
     real_t ymid = 0.5 * (params.ymin+params.ymax);
 
@@ -465,17 +491,20 @@ namespace {
 enum InitType {
   SOD_X,
   SOD_Y,
-  BLAST,
-  RING_BLAST,
-  RING_KE,
-  RING_RT,
-
+  SOD_45,
   KELVIN_HELM,
-  LAXLIU,
+  KELVIN_HELM_R,
+  RIEMANN2D,
+  BLAST,
+  SMOOTHBLAST,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
   C91,
+  
+  RING_BLAST,
+  RING_KE,
+  RING_RT,
 
   READFILE,
 };
@@ -492,17 +521,20 @@ public:
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
       {"sod_y", SOD_Y},
-      {"blast", BLAST},
-      {"laxliu", LAXLIU},
+      {"sod_45", SOD_45},
       {"kelvin-helmholtz", KELVIN_HELM},
-      {"ring_blast", RING_BLAST},
-      {"ring_kelvin-helmholtz", RING_KE},
-      {"ring_rayleigh-taylor", RING_RT},
-
+      {"kelvin-helmholtz-radial", KELVIN_HELM_R},
+      {"riemann2d", RIEMANN2D},
+      {"blast", BLAST},
+      {"smoothblast", SMOOTHBLAST},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
       {"C91", C91},
+
+      {"ring_blast", RING_BLAST},
+      {"ring_kelvin-helmholtz", RING_KE},
+      {"ring_rayleigh-taylor", RING_RT},
 
       {"readfile", READFILE},
     };
@@ -528,21 +560,27 @@ public:
                             switch(init_type) {
                               case SOD_X:           initSodX(Q, i, j, params, geometry); break;
                               case SOD_Y:           initSodY(Q, i, j, params, geometry); break;
-                              case BLAST:           initBlast(Q, i, j, params, geometry); break;
-                              case LAXLIU:          initLaxLiu(Q, i, j, params, geometry); break;
-                              case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
-                              case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;
+                              case SOD_45:          initSod45(Q, i, j, params, geometry); break;
+
                               case KELVIN_HELM:     initKelvinHelmholtz(Q, i, j, params, geometry, random_pool); break;
-                              case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry, random_pool); break;
-                              
-                              
-                              // case DIFFUSION:       initDiffusion(Q, i, j, params); break;
-                              // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
+                              case KELVIN_HELM_R:   initKelvinHelmholtzRadial(Q, i, j, params, geometry, random_pool); break;
+                              case RIEMANN2D:       initRiemann2D(Q, i, j, params, geometry); break;
+                              case BLAST:           initBlast(Q, i, j, params, geometry); break;
+                              case SMOOTHBLAST:     initSmoothBlast(Q, i, j, params, geometry); break;
+
+                              case DIFFUSION:       initDiffusion(Q, i, j, params, geometry); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params, geometry, random_pool); break;
+                              // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;
                               // case C91:             initC91(Q, i, j, params, random_pool); break;
 
+                              case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
+                              case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;
+                              case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry, random_pool); break;
+
                               case READFILE:        initReadfile(Q, i, j, params, geometry, random_pool); break;
+
+                              default: Kokkos::abort("Unknown initialization");  break;
                             }
                           });
   

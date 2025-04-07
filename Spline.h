@@ -17,7 +17,7 @@ public:
     std::ifstream data_file(filename, std::ios::in|std::ios::binary);
     if (!data_file) {
       std::cout << "cannot open file: " << filename << std::endl;
-      exit(1);
+      Kokkos::abort("");
     }
 
     data_file.read(reinterpret_cast<char*>(&header), sizeof(header));

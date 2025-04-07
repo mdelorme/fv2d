@@ -77,8 +77,24 @@ State operator/(const State &a, real_t q) {
 }
 
 KOKKOS_INLINE_FUNCTION
+State operator/(const State &a, const State &b) {
+  State res;
+  for (int i=0; i < Nfields; ++i)
+    res[i] = a[i]/b[i];
+  return res;
+}
+
+KOKKOS_INLINE_FUNCTION
 State operator*(real_t q, const State &a) {
   return a*q;
+}
+
+KOKKOS_INLINE_FUNCTION
+State operator*(const State &a, const State &b) {
+  State res;
+  for (int i=0; i < Nfields; ++i)
+    res[i] = a[i]*b[i];
+  return res;
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -105,19 +121,5 @@ State swap_component(State &q, IDir dir) {
     return {q[IR], q[IV], q[IU], q[IP]};
 }
 
-KOKKOS_INLINE_FUNCTION
-State computeFlux(State &q, const Params &params) {
-  const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
-  const real_t E = (q[IP] / (params.gamma0-1.0) + Ek);
-
-  State fout {
-    q[IR]*q[IU],
-    q[IR]*q[IU]*q[IU] + q[IP],
-    q[IR]*q[IU]*q[IV],
-    (q[IP] + E) * q[IU]
-  };
-
-  return fout;
-}
 
 }

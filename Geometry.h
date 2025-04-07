@@ -13,7 +13,12 @@ namespace fv2d {
 
     KOKKOS_INLINE_FUNCTION
     real_t norm(const Pos& p) {
-      return sqrt(p[IX]*p[IX] + p[IY]*p[IY]);
+      return sqrt(dot(p, p));
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    real_t dist(const Pos& p, const Pos& q) {
+      return norm(p-q);
     }
 
     KOKKOS_INLINE_FUNCTION
@@ -233,6 +238,15 @@ public:
   }
 
   KOKKOS_INLINE_FUNCTION
+  Pos getOrientedFaceArea(int i, int j, IDir dir, ISide side) const
+  {
+    const int sign = (side == ILEFT) ? -1 : 1;
+    real_t len;
+    Pos n = getRotationMatrix(i, j, dir, side, len);
+    return sign * len * n;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   real_t cellLength(int i, int j, IDir dir) const
   {
     // const real_t di = (dir == IX) ? 1.0 : 0.5;
@@ -382,8 +396,7 @@ public:
     else if (dir == IY && side == IRIGHT)
       return 0.5 * (tl + tr);
     else {
-      std::cout << "strange buggy" << std::endl;
-      exit(1);
+      Kokkos::abort("unknown faceCenter");
     }
   }
 
@@ -399,6 +412,12 @@ public:
     return faceCenter(i,j,dir,IRIGHT) - faceCenter(i,j,dir,ILEFT);
   }
 
+  KOKKOS_INLINE_FUNCTION
+  Pos getNode(int i, int j) const
+  {
+    return getVertex(i, j);
+  }
+
   private:
     // return vertex at the bot-left of the cell (i,j)
     KOKKOS_INLINE_FUNCTION
@@ -406,6 +425,7 @@ public:
       return {params.xmin + (i-params.ibeg) * params.dx,
               params.ymin + (j-params.jbeg) * params.dy};
     }
+    KOKKOS_INLINE_FUNCTION
     Pos getCenter(int i, int j) const{ 
       return {params.xmin + (i-params.ibeg+0.5) * params.dx,
               params.ymin + (j-params.jbeg+0.5) * params.dy};

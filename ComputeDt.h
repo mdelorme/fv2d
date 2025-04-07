@@ -9,17 +9,18 @@ namespace fv2d {
 class ComputeDtFunctor {
 public:
   Params params;
+  Geometry geometry;
 
   ComputeDtFunctor(const Params &params)
-    : params(params) {};
+    : params(params), geometry(params) {};
   ~ComputeDtFunctor() = default;
 
   real_t computeDt(Array Q, real_t max_dt, real_t t, bool diag) const {
-    using DtArray = Kokkos::Array<real_t, 3>;
-    DtArray inv_dts {0,0,0};
+    // using DtArray = Kokkos::Array<real_t, 3>;
+    // DtArray inv_dts {0,0,0};
 
     auto params = this->params;
-    Geometry geometry(params);
+    auto &geometry = this->geometry;
 
     real_t inv_dt_hyp = 0.0;
     real_t inv_dt_par_tc = 0.0;
@@ -31,14 +32,16 @@ public:
                               real_t dx = geometry.cellLength(i,j,IX);
                               real_t dy = geometry.cellLength(i,j,IY);
                               real_t dl = fmin(dx, dy);
-                              // TODO: rotate speed according to cell shape
                               
                               // Hydro time-step
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
-
-                              // real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/dl + (cs + fabs(q[IV]))/dl;
-                              real_t inv_dt_hyp_loc = (cs + sqrt(q[IU]*q[IU] + q[IV]*q[IV]))/dl;
+                              
+                              real_t inv_dt_hyp_loc;
+                              if (params.geometry_type == GEO_CARTESIAN)
+                                inv_dt_hyp_loc = (cs + fabs(q[IU]))/dx + (cs + fabs(q[IV]))/dy;
+                              else
+                                inv_dt_hyp_loc = (cs + sqrt(q[IU]*q[IU] + q[IV]*q[IV]))/dl;
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active)

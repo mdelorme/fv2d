@@ -202,7 +202,7 @@ namespace {
       Q(j, i, IBY) = -1.0;
       Q(j, i, IBZ) = 0.0;
     }
-    Q(j, i, IPHI) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
     /**
@@ -230,7 +230,7 @@ namespace {
       Q(j, i, IBY) = 0.75;
       Q(j, i, IBZ) = 0.0;
     }
-    Q(j, i, IPHI) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
   /**
@@ -251,7 +251,7 @@ namespace {
     Q(j, i, IBX) = -B0*sin(2.0*M_PI*y);
     Q(j, i, IBY) = B0*sin(4.0*M_PI*x);
     Q(j, i, IBZ) = 0.0;
-    Q(j, i, IPHI) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
   /**
@@ -288,7 +288,7 @@ namespace {
 
     Q(j, i, IU) += pert_vx;
     Q(j, i, IV) += pert_vy;
-    Q(j, i, IPHI) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
   #endif //MHD 
 }

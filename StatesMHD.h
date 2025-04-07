@@ -12,7 +12,7 @@ State getStateFromArray(Array arr, int i, int j) {
           arr(j, i, IBX),
           arr(j, i, IBY),
           arr(j, i, IBZ),
-          arr(j, i, IPHI)};
+          arr(j, i, IPSI)};
 } 
 
 KOKKOS_INLINE_FUNCTION
@@ -35,7 +35,7 @@ State primToCons(State &q, const Params &params) {
   res[IBX] = q[IBX];
   res[IBY] = q[IBY];
   res[IBZ] = q[IBZ];
-  res[IPHI] = q[IPHI];
+  res[IPSI] = q[IPSI];
   return res;
 }
 
@@ -55,7 +55,7 @@ State consToPrim(State &u, const Params &params) {
   res[IBX] = u[IBX];
   res[IBY] = u[IBY];
   res[IBZ] = u[IBZ];
-  res[IPHI] = u[IPHI];
+  res[IPSI] = u[IPSI];
   return res; 
 }
 
@@ -120,6 +120,6 @@ State swap_component(State &q, IDir dir) {
   if (dir == IX)
     return q;
   else
-    return {q[IR], q[IV], q[IU], q[IW], q[IP], q[IBY], q[IBX], q[IBZ], q[IPHI]};
+    return {q[IR], q[IV], q[IU], q[IW], q[IP], q[IBY], q[IBX], q[IBZ], q[IPSI]};
 }
 }

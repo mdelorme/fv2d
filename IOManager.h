@@ -9,6 +9,8 @@
 #include "SimInfo.h"
 #include "Gradient.h"
 
+#define SAVE_PRESSURE_GRADIENT
+
 using namespace H5Easy;
 
 namespace fv2d {
@@ -150,6 +152,28 @@ public:
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 
+    #ifdef SAVE_PRESSURE_GRADIENT
+    // Pressure gradient
+    Array gradP_dev = Array("gradP", params.Nty, params.Ntx, 2);
+    {
+      auto geometry = this->geo; 
+      auto gradient_type = params.gradient_type;
+      Kokkos::parallel_for(
+        "PressureGradient", 
+        params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          auto getState = [](const Array& Q, int i, int j) -> real_t {return Q(j,i,IP);};
+          Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
+          gradP_dev(j,i,IX) = grad[IX];
+          gradP_dev(j,i,IY) = grad[IY];
+        });
+    }
+
+    auto gradP = Kokkos::create_mirror(gradP_dev);
+    Kokkos::deep_copy(gradP, gradP_dev);
+    Table tgradP[2];
+    #endif
+
     Table trho, tu, tv, tprs;
     for (int j=params.jbeg; j<params.jend; ++j) {
       for (int i=params.ibeg; i<params.iend; ++i) {
@@ -162,6 +186,11 @@ public:
         tu.push_back(u);
         tv.push_back(v);
         tprs.push_back(p);
+        
+        #ifdef SAVE_PRESSURE_GRADIENT
+        tgradP[IX].push_back(gradP(j, i, IX));
+        tgradP[IY].push_back(gradP(j, i, IY));
+        #endif
       }
     }
 
@@ -171,6 +200,11 @@ public:
     file.createDataSet("prs", tprs);
     file.createAttribute("time", t);
 
+    #ifdef SAVE_PRESSURE_GRADIENT
+    file.createDataSet("dp_x", tgradP[IX]);
+    file.createDataSet("dp_y", tgradP[IY]);
+    #endif
+
     std::string empty_string = "";
 
     fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(params, path));
@@ -178,6 +212,9 @@ public:
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "rho"));
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "velocity", "u", "v"));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "prs"));
+    #ifdef SAVE_PRESSURE_GRADIENT
+    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "dp", "dp_x", "dp_y"));
+    #endif
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);
@@ -242,7 +279,6 @@ public:
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 
-    #define SAVE_PRESSURE_GRADIENT
     #ifdef SAVE_PRESSURE_GRADIENT
     // Pressure gradient
     Array gradP_dev = Array("gradP", params.Nty, params.Ntx, 2);

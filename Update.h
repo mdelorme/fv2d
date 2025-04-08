@@ -126,7 +126,7 @@ namespace {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State rotate(State &q, Pos &normale) {
+  State rotate(const State &q, const Pos &normale) {
     State res = q;
     const real_t u = q[IU];
     const real_t v = q[IV];
@@ -139,7 +139,7 @@ namespace {
   }
   
   KOKKOS_INLINE_FUNCTION
-  State rotate_back(State &q, Pos &normale) {
+  State rotate_back(const State &q, const Pos &normale) {
     State res = q;
     const real_t u = q[IU];
     const real_t v = q[IV];
@@ -365,6 +365,49 @@ public:
 
           riemann(qL, qCL, fluxL, rotL, poutL);
           riemann(qCR, qR, fluxR, rotR, poutR);
+
+		  auto get_dP_wb = [&](ISide side) {
+            const Pos center = geometry.mapc2p_center(i,j);
+            const real_t r = norm(center);
+            // const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
+            const Pos face_to_face = geometry.faceToFace(i,j,dir);
+            // return 0;
+            // std::string sideinfo; sideinfo += (dir==IX?'X':'Y');sideinfo += (side==ILEFT?'L':'R');
+            // sideinfo += "  ";
+            // if (dir == IY && side == IRIGHT)
+            // std::cout << sideinfo << '('<< i << ',' << j << ")\t"
+            // << dot(center, center_to_face) / r << "\t"
+            // << norm(geometry.faceCenter(i,j,dir,side)) << std::endl;
+            // const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
+            const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r;
+            // std::cout << (dir==IX?'X':'Y') << (side==ILEFT?'L':'R') << ": " << dP << std::endl;
+            // return params.spl_grav.GetValue(r) * qC[IR] * dot(center, center_to_face) / r;
+            // return dP;
+            return dP * (side==IRIGHT?-1.0:1.0);
+          };
+
+		  if (params.reflective_flux) {
+		    if (dir == IX) {
+              if (i==params.ibeg) {
+				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
+                fluxL = rotate_back(State{0.0, poutL - dP, 0.0, 0.0}, rotL);
+			  }
+              else if (i==params.iend-1) {
+				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
+                fluxR = rotate_back(State{0.0, poutR - dP, 0.0, 0.0}, rotR);
+              }
+			}
+            else {
+              if (j==params.jbeg) {
+				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
+                fluxL = rotate_back(State{0.0, poutL - dP, 0.0, 0.0}, rotL);
+			  }
+              else if (j==params.jend-1) {
+				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
+                fluxR = rotate_back(State{0.0, poutR - dP, 0.0, 0.0}, rotR);
+			  }
+            }
+          }
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;

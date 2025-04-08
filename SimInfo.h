@@ -161,6 +161,8 @@ struct Params {
   std::string restart_file = "";
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
+  bool reflective_flux=false;
+  bool reflective_flux_wb=false;
   ReconstructionType reconstruction = PCM; 
   bool hancock_ts = false; 
   RiemannSolver riemann_solver = HLL;
@@ -334,6 +336,9 @@ Params readInifile(std::string filename) {
   };
   res.boundary_x = read_map(bc_map, "run", "boundaries_x", "reflecting");
   res.boundary_y = read_map(bc_map, "run", "boundaries_y", "reflecting");
+
+  res.reflective_flux = reader.GetBoolean("run", "reflective_flux", false); 
+  res.reflective_flux_wb = reader.GetBoolean("run", "reflective_flux_wb", false); 
 
   std::map<std::string, ReconstructionType> recons_map{
     {"pcm",          PCM},

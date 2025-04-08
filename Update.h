@@ -126,6 +126,7 @@ public:
                 flux[IPSI] = ch*ch*Bx_m;
                 break;
               }
+              case FIVEWAVES: FiveWaves(qL, qR, flux, pout, params); break;
               default: hllc(qL, qR, flux, pout, params);   break;
             }
             #else

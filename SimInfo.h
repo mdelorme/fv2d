@@ -56,7 +56,8 @@ enum IVar : uint8_t {
 enum RiemannSolver {
   HLL,
   HLLC,
-  HLLD
+  HLLD,
+  FIVEWAVES
 };
 
 enum BoundaryType {
@@ -240,7 +241,8 @@ Params readInifile(std::string filename) {
   std::map<std::string, RiemannSolver> riemann_map{
     {"hll", HLL},
     {"hllc", HLLC},
-    {"hlld", HLLD}
+    {"hlld", HLLD},
+    {"fivewaves", FIVEWAVES}
   };
   res.riemann_solver = riemann_map[tmp];
 

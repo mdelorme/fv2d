@@ -340,5 +340,53 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
 
   flux = computeFlux(q, e_tot);
 }
+
+void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
+  const real_t uL = qL[IU];   const real_t uR = qR[IU];
+  const real_t vL = qL[IV];   const real_t vR = qR[IV];
+  const real_t wL = qL[IW];   const real_t wR = qR[IW];
+  const real_t pL = qL[IP];   const real_t pR = qR[IP];
+  const real_t rL = qL[IR];   const real_t rR = qR[IR];
+  const real_t BxL = qL[IBX]; const real_t BxR = qR[IBX];
+  const real_t ByL = qL[IBY]; const real_t ByR = qR[IBY];
+  const real_t BzL = qL[IBZ]; const real_t BzR = qR[IBZ];
+  const real_t B2L = BxL*BxL + ByL*ByL + BzL*BzL;
+  const real_t B2R = BxR*BxR + ByR*ByR + BzR*BzR;
+  const real_t PIxL = pL + B2L/2 - BxL*BxL; const real_t PIxR = pR + B2R/2 - BxR*BxR;
+  const real_t PIyL = BxL*ByL;              const real_t PIyR = BxR*ByR;
+  const real_t PIzL = BxL*BzL;              const real_t PIzR = BxR*BzR;
+
+  auto computeFlux = [&](const State &q, const real_t Bxu, const real_t Ustar[], const real_t PIstar[]) -> State {
+    State res{};
+
+    res[IR]  = q[IR] * Ustar[0];
+    res[IU]  = q[IR] * q[IU] * Ustar[0] + PIstar[0];
+    res[IV]  = q[IR] * q[IV] * Ustar[1] + PIstar[1];
+    res[IW]  = q[IR] * q[IW] * Ustar[2] + PIstar[2];
+    res[IBX] = q[IBX] * Ustar[0] - Bxu * Ustar[0];
+    res[IBY] = q[IBY] * Ustar[1] - Bxu * Ustar[1];
+    res[IBZ] = q[IBZ] * Ustar[2] - Bxu * Ustar[2];
+    res[IE]  = q[IE] * Ustar[0] + PIstar[0]*Ustar[0] + PIstar[1]*Ustar[1] + PIstar[2]*Ustar[2];
+    res[IPSI] = 0.0;
+    return res;
+  };
+
+  // 1. Compute speeds
+  const real_t csL = speedOfSound(qL, params); const real_t csR = speedOfSound(qR, params);
+  const real_t caL = sqrt(rL) * fabs(BxL) + 1e-14;     const real_t caR = sqrt(rR) * fabs(BxR) + 1e-14;
+  const real_t cbL = rL * csL;                 const real_t cbR = rR * csR;
+  // 2. Compute star zone
+  const real_t uS = (cbL*uL + cbR*uR + PIxL - PIxR) / (cbL + cbR);
+  const real_t vS = (caL*vL + caR*vR + PIyL - PIyR) / (caL + caR);
+  const real_t wS = (caL*wL + caR*wR + PIzL - PIzR) / (caL + caR);
+  const real_t PIxS = (cbR*PIxL + cbL*PIxR + cbL*cbR*(uL-uR)) / (cbL + cbR);
+  const real_t PIyS = (caR*PIyL + caL*PIyR + caL*caR*(vL-vR)) / (caL + caR);
+  const real_t PIzS = (caR*PIzL + caL*PIzR + caL*caR*(wL-wR)) / (caL + caR);
+  const real_t BxUS = (uS < 0.0 ? BxL : BxR);
+  State q = (uS < 0.0 ? qR : qL);
+  const real_t Ustar[3] = {uS, vS, wS};
+  const real_t PIstar[3] = {PIxS, PIyS, PIzS};
+  flux = computeFlux(q, BxUS, Ustar, PIstar);
+}
 #endif
 }

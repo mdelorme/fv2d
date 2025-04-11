@@ -178,9 +178,9 @@ public:
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
-        #ifdef MHD
-        Unew(j, i, IPSI) *= parabolic;
-        #endif
+        // #ifdef MHD
+        // Unew(j, i, IPSI) *= parabolic;
+        // #endif
       });
   }
 

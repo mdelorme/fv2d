@@ -126,7 +126,15 @@ public:
                 flux[IPSI] = ch*ch*Bx_m;
                 break;
               }
-              case FIVEWAVES: FiveWaves(qL, qR, flux, pout, params); break;
+              case FIVEWAVES: {
+                const real_t Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
+                FiveWaves(qL, qR, flux, pout, params);
+                const real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+                flux[IBX] = psi_m;
+                flux[IPSI] = ch*ch*Bx_m;
+                break;
+              }
+              
               default: hllc(qL, qR, flux, pout, params);   break;
             }
             #else
@@ -178,9 +186,9 @@ public:
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
-        // #ifdef MHD
-        // Unew(j, i, IPSI) *= parabolic;
-        // #endif
+        #ifdef MHD
+        Unew(j, i, IPSI) *= parabolic;
+        #endif
       });
   }
 

@@ -340,167 +340,93 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
 
   flux = computeFlux(q, e_tot);
 }
-void FiveWaves(const State &qleft, const State &qright, State &flux, real_t& p_out, const Params &params) {
-using vec_t = Kokkos::Array<real_t, 3>;
-const int IZ = 2;
-constexpr real_t epsilon = 1.0e-16; // No std::numeric_limits
 
-// Left quantities
-const real_t emagL = 0.5 * (qleft[IBX]*qleft[IBX] + qleft[IBY]*qleft[IBY] + qleft[IBZ]*qleft[IBZ]); 
-const real_t B2L   = qleft[IBX]*qleft[IBX];
-const real_t B2TL  = 2.0*emagL - B2L;
-//const real_t BNBTL = sqrt(B2L*B2TL);   
-const real_t cs_L  = sqrt(params.gamma0 * qleft[IP] / qleft[IR]);
-real_t c_AL  = sqrt(qleft[IR] * (1.5*B2L + 0.5*B2TL)) + epsilon;
-real_t c_BL  = sqrt(qleft[IR]*(qleft[IR]*cs_L*cs_L + 1.5*B2TL + 0.5*B2L));
+void FiveWaves(const State &qL, const State &qR, State &flux, real_t &pout, const Params &params) {
+  const uint IZ = 2;
+  using vec_t = Kokkos::Array<real_t, 3>;
+  constexpr real_t epsilon = 1.0e-16;
+  const real_t B2L = qL[IBX]*qL[IBX] + qL[IBY]*qL[IBY] + qL[IBZ]*qL[IBZ];
+  const real_t B2R = qR[IBX]*qR[IBX] + qR[IBY]*qR[IBY] + qR[IBZ]*qR[IBZ];
 
+  const vec_t pL {
+    -qL[IBX]*qL[IBX] + qL[IP] + B2L/2,
+    -qL[IBX]*qL[IBY],
+    -qL[IBX]*qL[IBZ]
+  };
 
-// Right quantities 
-const real_t emagR = 0.5 * (qright[IBX]*qright[IBX] + qright[IBY]*qright[IBY] + qright[IBZ]*qright[IBZ]);    
-const real_t B2R   = qright[IBX]*qright[IBX];
-const real_t B2TR  = 2.0*emagR - B2R;
-//const real_t BNBTR = sqrt(B2R*B2TR);   
-const real_t cs_R  = sqrt(params.gamma0 * qright[IP] / qright[IR]);
-real_t c_AR  = sqrt(qright[IR] * (1.5*B2R + 0.5*B2TR)) + epsilon;
-real_t c_BR  = sqrt(qright[IR]*(qright[IR]*cs_R*cs_R + 1.5*B2TR + 0.5*B2R));
+  const vec_t pR {
+    -qR[IBX]*qR[IBX] + qR[IP] + B2R/2,
+    -qR[IBX]*qR[IBY],
+    -qR[IBX]*qR[IBZ]
+  };
 
-const vec_t pL {-qleft[IBX] * qleft[IBX] + emagL + qleft[IP],
--qleft[IBX] * qleft[IBY],
--qleft[IBX] * qleft[IBZ]};
-const vec_t pR {-qright[IBX] * qright[IBX] + emagR + qright[IP],
--qright[IBX] * qright[IBY],
--qright[IBX] * qright[IBZ]};
+  // 1. Compute speeds
+  const real_t csL = speedOfSound(qL, params); 
+  const real_t csR = speedOfSound(qR, params);
+  real_t caL = sqrt(qL[IR] * (qL[IBX]*qL[IBX] + B2L/2))+epsilon;
+  real_t caR = sqrt(qR[IR] * (qR[IBX]*qR[IBX] + B2R/2))+epsilon;
+  real_t cbL = sqrt(qL[IR] * (qL[IR]*csL*csL + qL[IBY]*qL[IBY] + qL[IBZ]*qL[IBZ] + B2L/2));
+  real_t cbR = sqrt(qR[IR] * (qR[IR]*csR*csR + qR[IBY]*qR[IBY] + qR[IBZ]*qR[IBZ] + B2R/2));
 
-auto computeFastMagnetoAcousticSpeed = [&](const State &q, const real_t B2, const real_t cs) {
-  const real_t c02  = cs*cs;
-  const real_t ca2  = B2 / q[IR];
-  const real_t cap2 = q[IBX]*q[IBX]/q[IR];
-  // Remi's version
-  return sqrt(0.5*(c02+ca2)+0.5*sqrt((c02+ca2)*(c02+ca2)-4.0*c02*cap2));
-};
-
-// Using 3-wave if hyperbolicity is lost
-if ( qleft[IBX]*qright[IBX] < -epsilon 
-  || qleft[IBY]*qright[IBY] < -epsilon
-  || qleft[IBZ]*qright[IBZ] < -epsilon 
-  || true) {
-
-  const real_t cL = qleft[IR]  * computeFastMagnetoAcousticSpeed(qleft,  emagL*2.0, cs_L);
-  const real_t cR = qright[IR] * computeFastMagnetoAcousticSpeed(qright, emagR*2.0, cs_R);
-  const real_t c = fmax(cL, cR);
-
-  c_AL = c;
-  c_AR = c;
-  c_BL = c;
-  c_BR = c;
-}
-
-const real_t inv_sum_A = 1.0 / (c_AL+c_AR);
-const real_t inv_sum_B = 1.0 / (c_BL+c_BR);
-const vec_t cL {c_BL, c_AL, c_AL};
-const vec_t cR {c_BR, c_AR, c_AR};
-const vec_t clpcrm1 {inv_sum_B, inv_sum_A, inv_sum_A};
-
-const vec_t vL {qleft[IU],  qleft[IV],  qleft[IW]};
-const vec_t vR {qright[IU], qright[IV], qright[IW]};
-
-vec_t ustar{}, pstar{};
-for (size_t i=0; i<3; ++i) {
-  ustar[i] = clpcrm1[i] * (cL[i]*vL[i] + cR[i]*vR[i] + pL[i] - pR[i]);
-  pstar[i] = clpcrm1[i] * (cR[i]*pL[i] + cL[i]*pR[i] + cL[i]*cR[i]*(vL[i]-vR[i]));
-}
-
-State qr{};
-real_t Bnext;
-if (ustar[IX] > 0.0) {
-qr = qleft;
-Bnext = qright[IBX];
-}
-else {
-qr = qright;
-Bnext = qleft[IBX];
-}
-
-State ur = primToCons(qr, params);
-real_t us = ustar[IX];
-flux[IR]   = us*ur[IR];
-flux[IU] = us*ur[IU] + pstar[IX];
-flux[IV] = us*ur[IV] + pstar[IY];
-flux[IW] = us*ur[IW] + pstar[IZ];
-flux[IE] = us*ur[IE] + (pstar[IX]*ustar[IX]+pstar[IY]*ustar[IY]+pstar[IZ]*ustar[IZ]);
-flux[IBX]    = us*ur[IBX] - Bnext*ustar[IX];
-flux[IBY]    = us*ur[IBY] - Bnext*ustar[IY];
-flux[IBZ]    = us*ur[IBZ] - Bnext*ustar[IZ];
-
-p_out = pstar[IX];
-}
-
-// void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
-//   const uint IZ = 2;
-//   const real_t pL = qL[IP];   const real_t pR = qR[IP];
-//   const real_t uL = qL[IU];   const real_t uR = qR[IU];
-//   const real_t vL = qL[IV];   const real_t vR = qR[IV];
-//   const real_t wL = qL[IW];   const real_t wR = qR[IW];
-//   const real_t rL = qL[IR];   const real_t rR = qR[IR];
-//   const real_t BxL = qL[IBX]; const real_t BxR = qR[IBX];
-//   const real_t ByL = qL[IBY]; const real_t ByR = qR[IBY];
-//   const real_t BzL = qL[IBZ]; const real_t BzR = qR[IBZ];
-
-//   const real_t B2L = BxL*BxL + ByL*ByL + BzL*BzL;
-//   const real_t B2R = BxR*BxR + ByR*ByR + BzR*BzR;
+  auto computeFastMagnetoAcousticSpeed = [&](const State &q, const real_t B2, const real_t cs) {
+    const real_t c02  = cs*cs;
+    const real_t ca2  = B2 / q[IR];
+    const real_t cap2 = q[IBX]*q[IBX]/q[IR];
+    return sqrt(0.5*(c02+ca2)+0.5*sqrt((c02+ca2)*(c02+ca2)-4.0*c02*cap2));
+  };
   
-//   const real_t PIxL = -BxL*BxL + pL + B2L/2;  
-//   const real_t PIyL = -BxL*ByL;
-//   const real_t PIzL = -BxL*BzL;
+  // Using 3-wave if hyperbolicity is lost (from Dyablo)
+  if ( qL[IBX]*qR[IBX] < -epsilon 
+    || qL[IBY]*qR[IBY] < -epsilon
+    || qL[IBZ]*qR[IBZ] < -epsilon) 
+    {
+    const real_t cL = qL[IR]  * computeFastMagnetoAcousticSpeed(qL,B2L, csL);
+    const real_t cR = qR[IR] * computeFastMagnetoAcousticSpeed(qR, B2R, csR);
+    const real_t c = fmax(cL, cR);
+  
+    caL = c;
+    caR = c;
+    cbL = c;
+    cbR = c;
+  }
+  
+  const vec_t cL {cbL, caL, caL};
+  const vec_t cR {cbR, caR, caR};
 
-//   const real_t PIxR = -BxR*BxR + pR + B2R/2;
-//   const real_t PIyR = -BxR*ByR;
-//   const real_t PIzR = -BxR*BzR;
+  // // 2. Compute star zone
+  const vec_t vL {qL[IU], qL[IV], qL[IW]};
+  const vec_t vR {qR[IU], qR[IV], qR[IW]};
 
-//   // 1. Compute speeds
-//   const real_t csL = speedOfSound(qL, params); 
-//   const real_t csR = speedOfSound(qR, params);
-//   const real_t caL = sqrt(rL * (BxL*BxL + B2L/2))+1e-14;
-//   const real_t caR = sqrt(rR * (BxR*BxR + B2R/2))+1e-14;
-//   const real_t cbL = sqrt(rL*rL * csL*csL + rL * (ByL*ByL + BzL*BzL + B2L/2));
-//   const real_t cbR = sqrt(rR*rR * csR*csR + rR * (ByR*ByR + BzR*BzR + B2R/2));
-//   const real_t cL[3] = {cbL, caL, caL};
-//   const real_t cR[3] = {cbR, caR, caR};
-//   // // 2. Compute star zone
-//   const real_t Ustar[3] = {
-//     (cL[IX]*uL + cR[IX]*uR + PIxL - PIxR) / (cL[IX] + cR[IX]),
-//     (cL[IY]*vL + cR[IY]*vR + PIyL - PIyR) / (cL[IY] + cR[IY]), 
-//     (cL[IZ]*wL + cR[IZ]*wR + PIzL - PIzR) / (cL[IZ] + cR[IZ])};
-//   const real_t PIstar[3] = {
-//     (cR[IX]*PIxL + cL[IX]*PIxR + cL[IX]*cR[IX]*(uL-uR)) / (cL[IX] + cR[IX]),
-//     (cR[IY]*PIyL + cL[IY]*PIyR + cL[IY]*cR[IY]*(vL-vR)) / (cL[IY] + cR[IY]),
-//     (cR[IZ]*PIzL + cL[IZ]*PIzR + cL[IZ]*cR[IZ]*(wL-wR)) / (cL[IZ] + cR[IZ])};
+  vec_t Ustar{}, Pstar{};
+  for (size_t i=0; i<3; ++i) {
+    Ustar[i] = (cL[i]*vL[i] + cR[i]*vR[i] + pL[i] - pR[i])/(cL[i]+cR[i]);
+    Pstar[i] = (cR[i]*pL[i] + cL[i]*pR[i] + cL[i]*cR[i]*(vL[i]-vR[i]))/(cL[i]+cR[i]);
+  }
 
-//   State q;
-//   real_t Bstar;
-//   if (Ustar[IX] > 0.0) {
-//     // flux = computeFlux(qL, BxR, Ustar, PIstar);
-//     q = qL;
-//     Bstar = BxR;
-//   }
-//   else {
-//     // flux = computeFlux(qR, BxL, Ustar, PIstar);
-//     q = qR;
-//     Bstar = BxL;
-//   }
-//   pout = PIstar[IX];
-//   State u = primToCons(q, params);
-//   //3. Commpute flux
-//   const real_t uS = Ustar[IX];
-//   flux[IR]  = u[IR]  * uS;
-//   flux[IU]  = u[IR]  * uS + PIstar[IX];
-//   flux[IV]  = u[IR]  * uS + PIstar[IY];
-//   flux[IW]  = u[IR]  * uS + PIstar[IZ];
-//   flux[IE]  = u[IE]  * uS + PIstar[IX]*uS + PIstar[IY]*Ustar[IY] + PIstar[IZ]*Ustar[IZ];
-//   flux[IBX] = u[IBX] * uS - Bstar * Ustar[IX];
-//   flux[IBY] = u[IBY] * uS - Bstar * Ustar[IY];
-//   flux[IBZ] = u[IBZ] * uS - Bstar * Ustar[IZ];
-//   flux[IPSI] = 0.0;
-// }
+  State q{};
+  real_t Bstar;
+  if (Ustar[IX] > 0.0) {
+    q = qL;
+    Bstar = qR[IBX];
+  }
+  else {
+    q = qR;
+    Bstar = qL[IBX];
+  }
+  State u = primToCons(q, params);
+  //3. Commpute flux
+  real_t uS = Ustar[IX];
+  flux[IR]  = u[IR]  * uS;
+  flux[IU]  = u[IU]  * uS + Pstar[IX];
+  flux[IV]  = u[IV]  * uS + Pstar[IY];
+  flux[IW]  = u[IW]  * uS + Pstar[IZ];
+  flux[IE]  = u[IE]  * uS + Pstar[IX]*uS + Pstar[IY]*Ustar[IY] + Pstar[IZ]*Ustar[IZ];
+  flux[IBX] = u[IBX] * uS - Bstar * Ustar[IX];
+  flux[IBY] = u[IBY] * uS - Bstar * Ustar[IY];
+  flux[IBZ] = u[IBZ] * uS - Bstar * Ustar[IZ];
+  flux[IPSI] = 0.0;
+  
+  pout = Pstar[IX];
+}
 #endif
 }

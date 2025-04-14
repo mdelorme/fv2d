@@ -341,7 +341,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   flux = computeFlux(q, e_tot);
 }
 
-void FiveWaves(const State &qL, const State &qR, State &flux, real_t &pout, const Params &params) {
+void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
   const uint IZ = 2;
   using vec_t = Kokkos::Array<real_t, 3>;
   constexpr real_t epsilon = 1.0e-16;

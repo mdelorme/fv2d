@@ -177,6 +177,8 @@ namespace {
   }
   
   #ifdef MHD
+
+  // 1D MHD Tests
   /**
    * @brief MHD Sod Shock tube aligned along the X axis
    */
@@ -234,6 +236,163 @@ namespace {
   }
 
   /**
+   * @brief Dai and Woodward test
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initDaiWoodward(Array Q, int i, int j, const Params &params) {
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+    const real_t B0 = 1.0 / std::sqrt(4 * M_PI);
+
+    if (x < midbox) {
+      Q(j, i, IR) = 1.08;
+      Q(j, i, IU) = 1.2;
+      Q(j, i, IV) = 0.01;
+      Q(j, i, IW) = 0.5;
+      Q(j, i, IP) = 0.95;
+      Q(j, i, IBX) = B0 * 4.0;
+      Q(j, i, IBY) = B0 * 3.6;
+      Q(j, i, IBZ) = B0 * 2.0;
+    }
+    else {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 1.0;
+      Q(j, i, IBX) = B0 * 4.0;
+      Q(j, i, IBY) = B0 * 4.0;
+      Q(j, i, IBZ) = B0 * 2.0;
+    }
+  }
+
+  /**
+   * @brief Second Brio-Wu test
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initBrioWu2(Array Q, int i, int j, const Params &params){
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+
+    if (x < midbox) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 1000.0;
+      Q(j, i, IBX) = 0.0;
+      Q(j, i, IBY) = 1.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 0.125;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IBX) = 0.0;
+      Q(j, i, IBY) = -1.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+  }
+
+  /**
+   * @brief Slow Rarefaction Test
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initSlowRarefaction(Array Q, int i, int j, const Params &params){
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+
+    if (x < midbox) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 2.0;
+      Q(j, i, IBX) = 1.0;
+      Q(j, i, IBY) = 0.0;
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 0.2;
+      Q(j, i, IU) = 1.186;
+      Q(j, i, IV) = 2.967;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.1368;
+      Q(j, i, IBX) = 1.0;
+      Q(j, i, IBY) = 1.6405;
+      Q(j, i, IBZ) = 0.0;
+    }
+  }
+
+
+  /**
+   * @brief First Expansion Test
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initExpansion1(Array Q, int i, int j, const Params &params){
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+
+    if (x < midbox) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = -3.1;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.45;
+      Q(j, i, IBX) = 0.0;
+      Q(j, i, IBY) = 0.5;
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 3.1;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.45;
+      Q(j, i, IBX) = 0.0;
+      Q(j, i, IBY) = 0.5;
+      Q(j, i, IBZ) = 0.0;
+    }
+  }
+
+  /**
+   * @brief Second Expansion Test
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initExpansion2(Array Q, int i, int j, const Params &params){
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+
+    if (x < midbox) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = -3.1;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.45;
+      Q(j, i, IBX) = 1.0;
+      Q(j, i, IBY) = 0.5;
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 3.1;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.45;
+      Q(j, i, IBX) = 1.0;
+      Q(j, i, IBY) = 0.5;
+      Q(j, i, IBZ) = 0.0;
+    }
+  }
+  // 2D MHD Tests
+  /**
    * @brief Orszag-Tang vortex
    */
   KOKKOS_INLINE_FUNCTION
@@ -290,10 +449,10 @@ namespace {
     Q(j, i, IV) += pert_vy;
     Q(j, i, IPSI) = 0.0;
   }
+
+
   #endif //MHD 
 }
-
-
 
 
 /**
@@ -311,6 +470,11 @@ enum InitType {
   MHD_SOD_Y,
   ORSZAG_TANG,
   KELVIN_HELMOLTZ,
+  DAI_WOODWARD,
+  BRIO_WU2,
+  SLOW_RAREFACTION,
+  EXPANSION1,
+  EXPANSION2,
   #endif //MHD
   C91
 };
@@ -334,6 +498,11 @@ public:
       {"mhd_sod_y", MHD_SOD_Y},
       {"orszag-tang", ORSZAG_TANG},
       {"kelvin-helmoltz", KELVIN_HELMOLTZ},
+      {"dai-woodward", DAI_WOODWARD},
+      {"brio-wu2", BRIO_WU2},
+      {"slow-rarefaction", SLOW_RAREFACTION},
+      {"expansion1", EXPANSION1},
+      {"expansion2", EXPANSION2},
       #endif //MHD
       {"C91", C91}
     };
@@ -368,6 +537,11 @@ public:
                               case MHD_SOD_Y:       initMHDSodY(Q, i, j, params); break;
                               case ORSZAG_TANG:     initOrszagTang(Q, i, j, params); break;
                               case KELVIN_HELMOLTZ: initKelvinHelmoltz(Q, i, j, params, random_pool); break;
+                              case DAI_WOODWARD:    initDaiWoodward(Q, i, j, params); break;
+                              case BRIO_WU2:        initBrioWu2(Q, i, j, params); break;
+                              case SLOW_RAREFACTION: initSlowRarefaction(Q, i, j, params); break;
+                              case EXPANSION1:      initExpansion1(Q, i, j, params); break;
+                              case EXPANSION2:      initExpansion2(Q, i, j, params); break;
                               #endif //MHD
                             }
                           });

@@ -93,12 +93,12 @@ public:
       params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        #ifdef MHD
-        const real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
-        const real_t cr = 0.1; // TODO: à mettre dans les paramètres
-        const real_t cp = std::sqrt(cr*ch);
-        const real_t parabolic = std::exp(-dt*ch*ch/(cp*cp));
-        #endif
+        real_t ch, cp, parabolic;
+        if (mhd_run && params.div_cleaning == DEDNER) {
+          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+          cp = std::sqrt(params.cr*ch);
+          parabolic = std::exp(-dt*ch*ch/(cp*cp));
+        }
 
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
@@ -115,27 +115,32 @@ public:
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
             #ifdef MHD
+            real_t Bx_m, psi_m;
+            if (params.div_cleaning == DEDNER) {
+              Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
+              psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+            } 
+            else {
+              Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]);
+              psi_m = 0.0;
+            }
+
             switch (params.riemann_solver) {
               case HLL: hll(qL, qR, flux, pout, params);   break;
               case HLLD: {
-                // We first compute Bx_m and phi_m for the GLMMHD solver
-                const real_t Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
                 hlld(qL, qR, flux, pout, Bx_m, params);
-                const real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
-                flux[IBX] = psi_m;
-                flux[IPSI] = ch*ch*Bx_m;
                 break;
               }
               case FIVEWAVES: {
-                const real_t Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
                 FiveWaves(qL, qR, flux, pout, params);
-                const real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
-                flux[IBX] = psi_m;
-                flux[IPSI] = ch*ch*Bx_m;
                 break;
               }
               
-              default: hllc(qL, qR, flux, pout, params);   break;
+              default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
+            }
+            if (params.div_cleaning == DEDNER){
+              flux[IBX] = psi_m;
+              flux[IPSI] = ch*ch*Bx_m;
             }
             #else
             switch (params.riemann_solver) {
@@ -186,9 +191,9 @@ public:
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
-        #ifdef MHD
-        Unew(j, i, IPSI) *= parabolic;
-        #endif
+        if (mhd_run && params.div_cleaning == DEDNER) {
+            Unew(j, i, IPSI) *= parabolic;
+        }
       });
   }
 

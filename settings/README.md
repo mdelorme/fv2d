@@ -28,3 +28,13 @@ This companion repository aims to explain the importance of each test, and the r
 | Right State ||$1.0 \quad (-3.1, 0.0, 0.0) \quad 0.45 \quad(1.0, 0.5, 0.0)$
 
 ## 2D Problems
+
+Note, $r$ designates the distance from the center of the box.
+| Test Case Name | $\left(\gamma, [x_i, x_f], [y_i, y_f]\right)$| $\rho\quad(u, v, w)\quad p\quad(B_x, B_y, B_z)$|
+| :--------------|:--------------------------------:| :------------|
+|**Orszag-Tang Vortex**  |$\left(\frac{5}{3}, [0, 1], [0, 1]\right)$||
+| Periodic BC||$\frac{25}{36\pi} \quad (-\sin(2\pi y), \sin(2\pi x), 0.0)\quad \frac{5}{12\pi} \quad\frac{1}{\sqrt{4}}(-\sin(2\pi y), \sin(2\pi x), 0.0)$
+|**MHD Blast Standard**  |$\left(\frac{5}{3}, [0, 1], [0, 1]\right)$||
+| Periodic BC|| $1\quad (0, 0, 0)\quad 10 \text{ if } r < 0.1 \text{ , } 0.1 \text{ else} \quad(\sqrt{2}, \sqrt{2}, 0)$
+|**MHD Blast - low $\beta$**  |$\left(1.4, [0, 1], [0, 1]\right)$||
+| Periodic BC|| $1\quad (0, 0, 0)\quad 1000 \text{ if } r < 0.1 \text{ , } 0.1 \text{ else} \quad(250/\sqrt{2}, 250/\sqrt{2}, 0)$

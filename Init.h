@@ -242,7 +242,7 @@ namespace {
   void initDaiWoodward(Array Q, int i, int j, const Params &params) {
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
-    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+    const real_t midbox = 0.5 * (params.xmax + params.xmin);
     const real_t B0 = 1.0 / std::sqrt(4 * M_PI);
 
     if (x < midbox) {
@@ -274,7 +274,7 @@ namespace {
   void initBrioWu2(Array Q, int i, int j, const Params &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
-    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+    const real_t midbox = 0.5 * (params.xmax + params.xmin);
 
     if (x < midbox) {
       Q(j, i, IR) = 1.0;
@@ -305,7 +305,7 @@ namespace {
   void initSlowRarefaction(Array Q, int i, int j, const Params &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
-    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+    const real_t midbox = 0.5 * (params.xmax + params.xmin);
 
     if (x < midbox) {
       Q(j, i, IR) = 1.0;
@@ -337,7 +337,7 @@ namespace {
   void initExpansion1(Array Q, int i, int j, const Params &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
-    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+    const real_t midbox = 0.5 * (params.xmax + params.xmin);
 
     if (x < midbox) {
       Q(j, i, IR) = 1.0;
@@ -368,7 +368,7 @@ namespace {
   void initExpansion2(Array Q, int i, int j, const Params &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
-    const real_t midbox = 0.5 * (params.xmax - fabs(params.xmin));
+    const real_t midbox = 0.5 * (params.xmax + params.xmin);
 
     if (x < midbox) {
       Q(j, i, IR) = 1.0;
@@ -450,7 +450,77 @@ namespace {
     Q(j, i, IPSI) = 0.0;
   }
 
+  /**
+   * @brief MHD Blast Standard Configuration
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initBlastMHDStandard(Array Q, int i, int j, const Params &params) {
+    real_t x0 = 0.5 * (params.xmin+params.xmax);
+    real_t y0 = 0.5 * (params.ymin+params.ymax);
+    Pos pos = getPos(params, i, j);
+    
+    real_t xi = x0 - pos[IX];
+    real_t yj = y0 - pos[IY];
+    real_t r = sqrt(xi*xi+yj*yj);
+  
+    if (r < 0.1) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 10.0;
+      Q(j, i, IBX) = std::sqrt(2.0*M_PI);
+      Q(j, i, IBY) = std::sqrt(2.0*M_PI);
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IBX) = std::sqrt(2.0*M_PI);
+      Q(j, i, IBY) = std::sqrt(2.0*M_PI);
+      Q(j, i, IBZ) = 0.0;
+    }
+    Q(j,i,IPSI)=0.0;
+  }
 
+/**
+   * @brief MHD Blast Standard Configuration
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initBlastMHDLowBeta(Array Q, int i, int j, const Params &params) {
+    real_t x0 = 0.5 * (params.xmin+params.xmax);
+    real_t y0 = 0.5 * (params.ymin+params.ymax);
+    Pos pos = getPos(params, i, j);
+    
+    real_t xi = x0 - pos[IX];
+    real_t yj = y0 - pos[IY];
+    real_t r = sqrt(xi*xi+yj*yj);
+  
+    if (r < 0.1) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 1000.0;
+      Q(j, i, IBX) = std::sqrt(2.0*M_PI);
+      Q(j, i, IBY) = std::sqrt(2.0*M_PI);
+      Q(j, i, IBZ) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IW) = 0.0;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IBX) = 250/std::sqrt(2.0*M_PI);
+      Q(j, i, IBY) = 250/std::sqrt(2.0*M_PI);
+      Q(j, i, IBZ) = 0.0;
+    }
+    Q(j,i,IPSI)=0.0;
+  }
   #endif //MHD 
 }
 
@@ -475,6 +545,8 @@ enum InitType {
   SLOW_RAREFACTION,
   EXPANSION1,
   EXPANSION2,
+  BlAST_MHD_STANDARD,
+  BlAST_MHD_LOW_BETA,
   #endif //MHD
   C91
 };
@@ -503,6 +575,8 @@ public:
       {"slow-rarefaction", SLOW_RAREFACTION},
       {"expansion1", EXPANSION1},
       {"expansion2", EXPANSION2},
+      {"blast_mhd_standard", BlAST_MHD_STANDARD},
+      {"blast_mhd_low_beta", BlAST_MHD_LOW_BETA},
       #endif //MHD
       {"C91", C91}
     };
@@ -542,6 +616,8 @@ public:
                               case SLOW_RAREFACTION: initSlowRarefaction(Q, i, j, params); break;
                               case EXPANSION1:      initExpansion1(Q, i, j, params); break;
                               case EXPANSION2:      initExpansion2(Q, i, j, params); break;
+                              case BlAST_MHD_STANDARD: initBlastMHDStandard(Q, i, j, params); break;
+                              case BlAST_MHD_LOW_BETA: initBlastMHDLowBeta(Q, i, j, params); break;
                               #endif //MHD
                             }
                           });
@@ -551,7 +627,5 @@ public:
     bc.fillBoundaries(Q);
   }
 };
-
-
 
 }

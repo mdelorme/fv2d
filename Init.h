@@ -521,6 +521,109 @@ namespace {
     }
     Q(j,i,IPSI)=0.0;
   }
+  /**
+   * @brief MHD Rotated Shock Tube. Brio and Wu Shock Tube rotated by an angle \theta
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initRotatedShockTube(Array Q, int i, int j, const Params &params) {
+    real_t x0 = 0.5 * (params.xmin+params.xmax);
+    real_t y0 = 0.5 * (params.ymin+params.ymax);
+    Pos pos = getPos(params, i, j);
+    real_t xi = x0 - pos[IX];
+    real_t yj = y0 - pos[IY];
+    real_t r = sqrt(xi*xi+yj*yj);
+    real_t theta = atan(-2);
+    real_t xt = tan(theta) * (pos[IX] - 0.5);
+    real_t yt = (pos[IY] - 0.5);
+    real_t B0 = 1.0 / sqrt(4 * M_PI);
+    
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 5*B0 * (cos(theta) + sin(theta));
+    Q(j, i, IBY) = 5*B0 * (cos(theta) - sin(theta));
+    Q(j, i, IBZ) = 0.0;
+    Q(j,i,IPSI)=0.0;
+
+    if (xt < yt) {
+      Q(j, i, IU) = 10.0 * cos(theta);
+      Q(j, i, IV) = -10.0 * sin(theta);
+      Q(j, i, IP) = 20.0;
+    }
+    else {
+      Q(j, i, IU) = -10.0 * cos(theta);
+      Q(j, i, IV) = 10.0 * sin(theta);
+      Q(j, i, IP) = 1.0;
+    }
+  }
+
+  /** 
+   * @brief MHD Rotor Test
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initMHDRotor(Array Q, int i, int j, const Params &params) {
+    const real_t x0 = 0.5 * (params.xmin+params.xmax);
+    const real_t y0 = 0.5 * (params.ymin+params.ymax);
+    Pos pos = getPos(params, i, j);
+    real_t xi = x0 - pos[IX];
+    real_t yj = y0 - pos[IY];
+    real_t r = sqrt(xi*xi+yj*yj);
+    const real_t r0 = 0.1, r1 = 0.115, u0=2.0;
+    const real_t f = (r1 - r) / (r1 - r0);
+    const real_t B0 = 1.0 / sqrt(4 * M_PI);
+
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IP) = 1.0;
+    Q(j, i, IBX) = 5 * B0;
+    Q(j, i, IBY) = 0.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j,i,IPSI) = 0.0;
+
+    if (r < r0) {
+      Q(j, i, IR) = 10.0;
+      Q(j, i, IU) = (u0/r0) * (0.5 - pos[IY]);
+      Q(j, i, IV) = (u0/r0) * (pos[IX] - 0.5);
+    }
+    else if (r1 < r && r <= r0) {
+      Q(j, i, IR) = 1 + 9*f;
+      Q(j, i, IU) = (f*u0/r0) * (0.5 - pos[IY]);
+      Q(j, i, IV) = (f*u0/r0) * (pos[IX] - 0.5);
+    }
+    else {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+    }
+  }
+  /**
+   * @brief Field Advection Loop
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initFieldLoopAdvection(Array Q, int i, int j, const Params &params) {
+    const real_t x0 = 0.5 * (params.xmin+params.xmax);
+    const real_t y0 = 0.5 * (params.ymin+params.ymax);
+    Pos pos = getPos(params, i, j);
+    real_t xi = x0 - pos[IX];
+    real_t yj = y0 - pos[IY];
+    real_t r = sqrt(xi*xi+yj*yj);
+    const real_t r0 = 0.3, A0 = 0.001;
+
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IU) = 2.0;
+    Q(j, i, IV) = 1.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IP) = 1.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j,i,IPSI) = 0.0;
+    
+    if (r < r0) {
+      Q(j, i, IBX) = -pos[IX]*A0/r;
+      Q(j, i, IBY) = pos[IY]*A0/r;
+    }
+    else {
+      Q(j, i, IBX) = 0.0;
+      Q(j, i, IBY) = 0.0;
+    }
+  }
   #endif //MHD 
 }
 
@@ -547,6 +650,9 @@ enum InitType {
   EXPANSION2,
   BlAST_MHD_STANDARD,
   BlAST_MHD_LOW_BETA,
+  ROTATED_SHOCK_TUBE,
+  MHD_ROTOR,
+  FIELD_LOOP_ADVECTION,
   #endif //MHD
   C91
 };
@@ -577,6 +683,9 @@ public:
       {"expansion2", EXPANSION2},
       {"blast_mhd_standard", BlAST_MHD_STANDARD},
       {"blast_mhd_low_beta", BlAST_MHD_LOW_BETA},
+      {"rotated_shock_tube", ROTATED_SHOCK_TUBE},
+      {"mhd_rotor", MHD_ROTOR},
+      {"field_loop_advection", FIELD_LOOP_ADVECTION},
       #endif //MHD
       {"C91", C91}
     };
@@ -618,6 +727,9 @@ public:
                               case EXPANSION2:      initExpansion2(Q, i, j, params); break;
                               case BlAST_MHD_STANDARD: initBlastMHDStandard(Q, i, j, params); break;
                               case BlAST_MHD_LOW_BETA: initBlastMHDLowBeta(Q, i, j, params); break;
+                              case ROTATED_SHOCK_TUBE: initRotatedShockTube(Q, i, j, params); break;
+                              case MHD_ROTOR:       initMHDRotor(Q, i, j, params); break;
+                              case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
                               #endif //MHD
                             }
                           });

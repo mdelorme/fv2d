@@ -191,9 +191,11 @@ public:
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
-        if (mhd_run && params.div_cleaning == DEDNER) {
+        #ifdef MHD
+        if (params.div_cleaning == DEDNER) {
             Unew(j, i, IPSI) *= parabolic;
         }
+        #endif
       });
   }
 

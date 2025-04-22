@@ -61,6 +61,7 @@ enum RiemannSolver {
 };
 
 enum DivCleaning {
+  NO_DC,
   DEDNER, // hyperbolic div-cleaning
   DERIGS // entropy consistent
 };
@@ -254,6 +255,7 @@ Params readInifile(std::string filename) {
   res.riemann_solver = riemann_map[tmp];
   tmp = reader.Get("solvers", "div_cleaning", "dedner");
   std::map<std::string, DivCleaning> div_cleaning_map{
+    {"none", NO_DC},
     {"dedner", DEDNER},
     {"derigs", DERIGS}
   };

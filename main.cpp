@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
       ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
       next_save = t + params.save_freq;
+      ite++;
     }
     else
       init.init(Q);

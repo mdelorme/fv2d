@@ -381,11 +381,16 @@ public:
 
     Kokkos::deep_copy(Q, Qhost);
 
+    BoundaryManager bc(params);
+    bc.fillBoundaries(Q);
+    
+    HighFive::Attribute attr_time = file.getAttribute("time");
+    real_t time; attr_time.read(time);
+    HighFive::Attribute attr_ite = file.getAttribute("iteration");
+    int iteration; attr_ite.read(iteration);
+
     std::cout << "Restart finished !" << std::endl;
-
-    real_t time = loadAttribute<real_t>(file, "", "time");
-    int iteration = loadAttribute<int>(file, "", "iteration");
-
+    
     return {time, iteration};
   }
 };

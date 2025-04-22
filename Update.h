@@ -347,6 +347,23 @@ public:
 
           auto [qL, qCL] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, ILEFT,  geometry, params);
           auto [qCR, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, IRIGHT, geometry, params);
+          
+          if (params.fixed_spline_boundaries) {
+            if (dir==IX && (i==params.ibeg || i==params.iend-1)) { 
+              State &q = (i==params.ibeg) ? qL : qR;
+              q[IR] = params.spl_rho.GetValue(params.radial_radius);
+              q[IU] = 0.0;
+              q[IV] = 0.0;
+              q[IP] = params.spl_prs.GetValue(params.radial_radius);
+            }
+            if (dir==IY && (j==params.jbeg || j==params.jend-1)) { 
+              State &q = (j==params.jbeg) ? qL : qR;
+              q[IR] = params.spl_rho.GetValue(params.radial_radius);
+              q[IU] = 0.0;
+              q[IV] = 0.0;
+              q[IP] = params.spl_prs.GetValue(params.radial_radius);
+            }
+          }
 
           // Calling the right Riemann solver
           auto riemann = [&](State &qL, State &qR, State &flux, Pos &rot, real_t &pout) {
@@ -366,46 +383,40 @@ public:
           riemann(qL, qCL, fluxL, rotL, poutL);
           riemann(qCR, qR, fluxR, rotR, poutR);
 
-		  auto get_dP_wb = [&](ISide side) {
+          auto get_dP_wb = [&](ISide side) {
             const Pos center = geometry.mapc2p_center(i,j);
             const real_t r = norm(center);
-            // const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
-            const Pos face_to_face = geometry.faceToFace(i,j,dir);
-            // return 0;
-            // std::string sideinfo; sideinfo += (dir==IX?'X':'Y');sideinfo += (side==ILEFT?'L':'R');
-            // sideinfo += "  ";
-            // if (dir == IY && side == IRIGHT)
-            // std::cout << sideinfo << '('<< i << ',' << j << ")\t"
-            // << dot(center, center_to_face) / r << "\t"
-            // << norm(geometry.faceCenter(i,j,dir,side)) << std::endl;
-            // const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
-            const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r;
-            // std::cout << (dir==IX?'X':'Y') << (side==ILEFT?'L':'R') << ": " << dP << std::endl;
-            // return params.spl_grav.GetValue(r) * qC[IR] * dot(center, center_to_face) / r;
-            // return dP;
-            return dP * (side==IRIGHT?-1.0:1.0);
+            #if 1
+              const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
+              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
+              return dP;
+            #else
+              const Pos face_to_face = geometry.faceToFace(i,j,dir);
+              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r;
+              return dP * (side==IRIGHT?-1.0:1.0);
+            #endif
           };
 
-		  if (params.reflective_flux) {
-		    if (dir == IX) {
+          if (params.reflective_flux) {
+            if (dir == IX) {
               if (i==params.ibeg) {
-				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
+                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
                 fluxL = rotate_back(State{0.0, poutL - dP, 0.0, 0.0}, rotL);
-			  }
+              }
               else if (i==params.iend-1) {
-				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
+                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
                 fluxR = rotate_back(State{0.0, poutR - dP, 0.0, 0.0}, rotR);
               }
-			}
+            }
             else {
               if (j==params.jbeg) {
-				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
+                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
                 fluxL = rotate_back(State{0.0, poutL - dP, 0.0, 0.0}, rotL);
-			  }
+              }
               else if (j==params.jend-1) {
-				real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
+                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
                 fluxR = rotate_back(State{0.0, poutR - dP, 0.0, 0.0}, rotR);
-			  }
+              }
             }
           }
 

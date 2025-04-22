@@ -69,7 +69,7 @@ private:
     uint32_t N;
     uint32_t offset_variable[5];
     real_t r0, dr, rcut;
-    real_t Cp, R;
+    real_t Cp, R, gamma;
   } header;
   Kokkos::View<real_t*[4]> spline;
 };

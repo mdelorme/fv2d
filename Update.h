@@ -83,16 +83,16 @@ namespace {
 
   KOKKOS_INLINE_FUNCTION
   Kokkos::Array<State, 2> reconstruct(Array Q, Array slopesX, Array slopesY, Array psi, int i, int j, IDir dir, ISide side, const Geometry& geometry, const Params &params) {
-    int sx = (dir == IX ? 1 : 0);
-    int sy = (dir == IY ? 1 : 0);
-    int iL = i - (side == ILEFT ? sx : 0 );
-    int jL = j - (side == ILEFT ? sy : 0 );
-    int iR = i + (side == ILEFT ?  0 : sx);
-    int jR = j + (side == ILEFT ?  0 : sy);
-    // int iL = i - (side == ILEFT  && dir == IX);
-    // int jL = j - (side == ILEFT  && dir == IY);
-    // int iR = i + (side == IRIGHT && dir == IX);
-    // int jR = j + (side == IRIGHT && dir == IY);
+    // int sx = (dir == IX ? 1 : 0);
+    // int sy = (dir == IY ? 1 : 0);
+    // int iL = i - (side == ILEFT ? sx : 0 );
+    // int jL = j - (side == ILEFT ? sy : 0 );
+    // int iR = i + (side == ILEFT ?  0 : sx);
+    // int jR = j + (side == ILEFT ?  0 : sy);
+    int iL = i - (side == ILEFT  && dir == IX);
+    int jL = j - (side == ILEFT  && dir == IY);
+    int iR = i + (side == IRIGHT && dir == IX);
+    int jR = j + (side == IRIGHT && dir == IY);
 
     Kokkos::Array<State, 2> q;
 
@@ -218,13 +218,13 @@ public:
           
           case RECONS_NAIVE: case RECONS_BRUNER: case RECONS_BJ:  
           Kokkos::parallel_for(
-          "Slopes(gradient)",
-          params.range_slopes,
-          KOKKOS_LAMBDA(const int i, const int j) {
-            auto grad = computeGradient(Q, getStateFromArray, i, j, geometry, params.gradient_type);
-            setStateInArray(slopesX, i, j, grad[IX]);
-            setStateInArray(slopesY, i, j, grad[IY]);
-          });
+            "Slopes(gradient)",
+            params.range_slopes,
+            KOKKOS_LAMBDA(const int i, const int j) {
+              auto grad = computeGradient(Q, getStateFromArray, i, j, geometry, params.gradient_type);
+              setStateInArray(slopesX, i, j, grad[IX]);
+              setStateInArray(slopesY, i, j, grad[IY]);
+            });
           break;
           default:
           {
@@ -389,15 +389,14 @@ public:
             #if 1
               const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
               const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
-              return dP;
             #else
               const Pos face_to_face = geometry.faceToFace(i,j,dir);
-              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r;
-              return dP * (side==IRIGHT?-1.0:1.0);
+              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r * (side==IRIGHT?-1.0:1.0);
             #endif
+            return dP;
           };
 
-          if (params.reflective_flux) {
+          if (params.reflective_flux || params.reflective_flux_wb) {
             if (dir == IX) {
               if (i==params.ibeg) {
                 real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
@@ -425,9 +424,16 @@ public:
 
           setStateInArray(Unew, i, j, un_loc);
         };
-
-        updateAlongDir(i, j, IX);
-        updateAlongDir(i, j, IY);
+        
+        if (norm(geometry.mapc2p_center(i,j)) < params.radial_radius) {
+          updateAlongDir(i, j, IX);
+          updateAlongDir(i, j, IY);
+        }
+        else {
+          real_t r = params.radial_radius;
+          State q = {params.spl_rho(r), 0, 0, params.spl_prs(r)};
+          setStateInArray(Unew, i, j, primToCons(q, params));
+        }
 
         if (params.use_pressure_gradient) // crash imédiatement avec HLLC, ~ok avec HLL
         {
@@ -641,29 +647,55 @@ public:
 
         // Lambda to update the cell along a direction
         auto updateCorrector = [&](int i, int j, IDir dir) {
+          const int dxm = (dir == IX ?  -1 : 0);
+          const int dym = (dir == IY ?  -1 : 0);
+          const int dxp = (dir == IX ?   1 : 0);
+          const int dyp = (dir == IY ?   1 : 0);
           auto& slopes = (dir == IX ? slopesX : slopesY);
-          int dxm = (dir == IX ? -1 : 0);
-          int dxp = (dir == IX ?  1 : 0);
-          int dym = (dir == IY ? -1 : 0);
-          int dyp = (dir == IY ?  1 : 0);
           // TODO CHANGE DX DY ...
           real_t dtddir  = dt/(dir == IX ? params.dx : params.dy);
-          real_t dtdtdir = dt/(dir == IY ? params.dx : params.dy);
+          real_t dtdtdir = dt/(dir == IX ? params.dy : params.dx);
           IDir tdir = (dir == IX) ? IY : IX; // 2d case
 
-          auto reconstructTransverse = [&](int ii, int jj, real_t sign) {
-            State U = reconstruct1D(Q, slopes, ii, jj, sign, dir, params);
-            U = primToCons(U, params);
-            State FL = getStateFromArray(Fhat[tdir], ii,     jj);
-            State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
-            U = U + 0.5 * dtdtdir * (FL - FR);
-            return consToPrim(U, params);
+//
+          // auto reconstructTransverse = [&](int ii, int jj, real_t len) {
+          //   State U = reconstruct1D(Q, slopes, ii, jj, len, dir, params);
+          //   U = primToCons(U, params);
+          //   State FL = getStateFromArray(Fhat[tdir], ii,     jj);
+          //   State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
+          //   U = U + 0.5 * dtdtdir * (FL - FR);
+          //   return consToPrim(U, params);
+          // };
+
+          // auto [dL, dCL] = geometry.cellReconsLength(i, j, dir);
+          // auto [dCR, dR] = geometry.cellReconsLength(i+dxp, j+dyp, dir);
+          // State qL  = reconstructTransverse(i+dxm, j+dym,  dL);
+          // State qCL = reconstructTransverse(i,     j,     -dCL);
+          // State qCR = reconstructTransverse(i,     j,      dCR);
+          // State qR  = reconstructTransverse(i+dxp, j+dyp, -dR);
+
+//////
+            auto reconstructTransverse = [&](ISide side) -> Kokkos::Array<State, 2> {
+              const int dxp = (dir == IX ?   1 : 0);
+              const int dyp = (dir == IY ?   1 : 0);
+              auto [qL, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, side,  geometry, params);
+              auto applyTransverseFluxes = [&](State &U, ISide side2){
+                int ii = i + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IX);
+                int jj = j + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IY);
+                State FL = getStateFromArray(Fhat[tdir], ii,     jj);
+                State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
+                U  = primToCons(U, params);
+                U = U + 0.5 * dtdtdir * (FL - FR);
+                U = consToPrim(U, params);
+            };
+            applyTransverseFluxes(qL, ILEFT);
+            applyTransverseFluxes(qR, IRIGHT);
+            return {qL, qR};
           };
 
-          State qCL = reconstructTransverse(i,     j,     -1.0);
-          State qCR = reconstructTransverse(i,     j,      1.0);
-          State qL  = reconstructTransverse(i+dxm, j+dym,  1.0);
-          State qR  = reconstructTransverse(i+dxp, j+dyp, -1.0);
+          auto [qL, qCL] = reconstructTransverse(ILEFT);
+          auto [qCR, qR] = reconstructTransverse(IRIGHT);
+//////////
           
           // Calculating flux left and right of the cell
           State fluxL, fluxR;

@@ -347,7 +347,6 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &pa
   constexpr real_t epsilon = 1.0e-16;
   const real_t B2L = qL[IBX]*qL[IBX] + qL[IBY]*qL[IBY] + qL[IBZ]*qL[IBZ];
   const real_t B2R = qR[IBX]*qR[IBX] + qR[IBY]*qR[IBY] + qR[IBZ]*qR[IBZ];
-
   const vec_t pL {
     -qL[IBX]*qL[IBX] + qL[IP] + B2L/2,
     -qL[IBX]*qL[IBY],
@@ -413,6 +412,9 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &pa
     q = qR;
     Bstar = qL[IBX];
   }
+  const real_t beta_min = 1.0e-3;
+  const real_t beta = q[IP] / (0.5*(q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]));
+  bool is_low_beta = (beta < beta_min);
   State u = primToCons(q, params);
   //3. Commpute flux
   real_t uS = Ustar[IX];
@@ -421,11 +423,17 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &pa
   flux[IV]  = u[IV]  * uS + Pstar[IY];
   flux[IW]  = u[IW]  * uS + Pstar[IZ];
   flux[IE]  = u[IE]  * uS + Pstar[IX]*uS + Pstar[IY]*Ustar[IY] + Pstar[IZ]*Ustar[IZ];
-  flux[IBX] = u[IBX] * uS - Bstar * Ustar[IX];
-  flux[IBY] = u[IBY] * uS - Bstar * Ustar[IY];
-  flux[IBZ] = u[IBZ] * uS - Bstar * Ustar[IZ];
+  if (is_low_beta) {
+    flux[IBX] = u[IBX] * uS - q[IBX] * Ustar[IX];
+    flux[IBY] = u[IBY] * uS - q[IBX] * Ustar[IY];
+    flux[IBZ] = u[IBZ] * uS - q[IBX] * Ustar[IZ];
+  }
+  else {
+    flux[IBX] = u[IBX] * uS - Bstar * Ustar[IX];
+    flux[IBY] = u[IBY] * uS - Bstar * Ustar[IY];
+    flux[IBZ] = u[IBZ] * uS - Bstar * Ustar[IZ];
+  }
   flux[IPSI] = 0.0;
-  
   pout = Pstar[IX];
 }
 #endif

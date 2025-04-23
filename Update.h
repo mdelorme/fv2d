@@ -383,38 +383,39 @@ public:
           riemann(qL, qCL, fluxL, rotL, poutL);
           riemann(qCR, qR, fluxR, rotR, poutR);
 
-          auto get_dP_wb = [&](ISide side) {
-            const Pos center = geometry.mapc2p_center(i,j);
-            const real_t r = norm(center);
-            #if 1
-              const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
-              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
-            #else
-              const Pos face_to_face = geometry.faceToFace(i,j,dir);
-              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r * (side==IRIGHT?-1.0:1.0);
-            #endif
-            return dP;
-          };
+          if (params.reflective_flux || params.reflective_flux_wb)
+          {
+            auto get_dP_wb = [&](ISide side) {
+              const Pos center = geometry.mapc2p_center(i,j);
+              const real_t r = norm(center);
+              #if 1
+                const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
+                const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
+              #else
+                const Pos face_to_face = geometry.faceToFace(i,j,dir);
+                const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r * (side==IRIGHT?-1.0:1.0);
+              #endif
+              return dP;
+            };
 
-          if (params.reflective_flux || params.reflective_flux_wb) {
             if (dir == IX) {
               if (i==params.ibeg) {
                 real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
-                fluxL = rotate_back(State{0.0, poutL - dP, 0.0, 0.0}, rotL);
+                fluxL = rotate_back(State{0.0, poutL + dP, 0.0, 0.0}, rotL);
               }
               else if (i==params.iend-1) {
                 real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
-                fluxR = rotate_back(State{0.0, poutR - dP, 0.0, 0.0}, rotR);
+                fluxR = rotate_back(State{0.0, poutR + dP, 0.0, 0.0}, rotR);
               }
             }
             else {
               if (j==params.jbeg) {
                 real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
-                fluxL = rotate_back(State{0.0, poutL - dP, 0.0, 0.0}, rotL);
+                fluxL = rotate_back(State{0.0, poutL + dP, 0.0, 0.0}, rotL);
               }
               else if (j==params.jend-1) {
                 real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
-                fluxR = rotate_back(State{0.0, poutR - dP, 0.0, 0.0}, rotR);
+                fluxR = rotate_back(State{0.0, poutR + dP, 0.0, 0.0}, rotR);
               }
             }
           }
@@ -647,11 +648,11 @@ public:
 
         // Lambda to update the cell along a direction
         auto updateCorrector = [&](int i, int j, IDir dir) {
-          const int dxm = (dir == IX ?  -1 : 0);
-          const int dym = (dir == IY ?  -1 : 0);
-          const int dxp = (dir == IX ?   1 : 0);
-          const int dyp = (dir == IY ?   1 : 0);
-          auto& slopes = (dir == IX ? slopesX : slopesY);
+          // const int dxm = (dir == IX ?  -1 : 0);
+          // const int dym = (dir == IY ?  -1 : 0);
+          // const int dxp = (dir == IX ?   1 : 0);
+          // const int dyp = (dir == IY ?   1 : 0);
+          // auto& slopes = (dir == IX ? slopesX : slopesY);
           // TODO CHANGE DX DY ...
           real_t dtddir  = dt/(dir == IX ? params.dx : params.dy);
           real_t dtdtdir = dt/(dir == IX ? params.dy : params.dx);

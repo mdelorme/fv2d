@@ -190,7 +190,8 @@ public:
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
-        Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
+        Unew(j, i, IR) = fmax(params.smallr, Unew(j, i, IR));
+        Unew(j, i, IP) = fmax(params.smallp, Unew(j, i, IP));
         #ifdef MHD
         if (params.div_cleaning == DEDNER) {
             Unew(j, i, IPSI) *= parabolic;
@@ -198,22 +199,38 @@ public:
         #endif
       });
   }
+  
+  void pressureFix(Array& A){
+      // pressure fix
+      Kokkos::parallel_for(
+        "PressureFix", 
+        params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          for (int ivar=0; ivar < Nfields; ++ivar){
+            A(j, i, IR) = Kokkos::max(A(j, i, IR), 1.0e-10);
+            A(j, i, IP) = Kokkos::max(A(j, i, IP), 1.0e-10);
+          }
+        }); 
+  }
 
   void euler_step(Array Q, Array Unew, real_t dt) {
     // First filling up boundaries for ghosts terms
+    pressureFix(Q);
     bc_manager.fillBoundaries(Q);
 
     // Hypperbolic udpate
     if (params.reconstruction == PLM)
       computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);
-
+    // pressureFix(Unew);
     // Splitted terms
     if (params.thermal_conductivity_active)
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
+    // pressureFix(Q);
   }
+
 
   void update(Array Q, Array Unew, real_t dt) {
     if (params.time_stepping == TS_EULER)
@@ -226,12 +243,11 @@ public:
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
       euler_step(Q, Ustar, dt);
-      
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, params);
+      pressureFix(Q);
       euler_step(Q, Unew, dt);
-
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 

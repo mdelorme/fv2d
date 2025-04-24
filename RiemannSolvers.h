@@ -415,6 +415,8 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &pa
   const real_t beta_min = 1.0e-3;
   const real_t beta = q[IP] / (0.5*(q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]));
   bool is_low_beta = (beta < beta_min);
+  q[IP] = fmax(q[IP], params.smallr);
+  q[IR] = fmax(q[IR], params.smallp);
   State u = primToCons(q, params);
   //3. Commpute flux
   real_t uS = Ustar[IX];

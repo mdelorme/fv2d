@@ -151,7 +151,8 @@ struct Params{
   bool well_balanced = false;
   std::string problem;
   real_t cr = 0.1; // GLMMHD
-
+  real_t smallr = 1.0e-10;
+  real_t smallp = 1.0e-10;
   // Thermal conduction
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
@@ -362,7 +363,8 @@ Params readInifile(std::string filename) {
   res.theta2  = res.GetFloat("polytrope", "theta2", 10.0);
   res.problem = res.Get("physics", "problem", "blast");
   res.well_balanced_flux_at_y_bc = res.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
-
+  res.smallr = res.GetFloat("physics", "smallr", 1.0e-10);
+  res.smallp = res.GetFloat("physics", "smallp", 1.0e-10);
   // Thermal conductivity
   res.thermal_conductivity_active = res.GetBoolean("thermal_conduction", "active", false);
   tmp = res.Get("thermal_conduction", "conductivity_mode", "constant");

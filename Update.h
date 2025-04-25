@@ -6,7 +6,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
-#include "Gravity.h"
+#include "BodyForces.h"
 
 namespace fv2d {
 
@@ -159,6 +159,7 @@ public:
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
   GravityFunctor grav_functor;
+  CoriolisFunctor coriolis_functor;
   Geometry geometry;
 
   Array slopesX, slopesY;
@@ -166,7 +167,7 @@ public:
 
   UpdateFunctor(const Params &params)
     : params(params), bc_manager(params),
-      tc_functor(params), visc_functor(params), grav_functor(params),
+      tc_functor(params), visc_functor(params), grav_functor(params), coriolis_functor(params),
       geometry(params) {
       
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
@@ -748,6 +749,8 @@ public:
       visc_functor.applyViscosity(Q, Unew, dt);
     if (params.gravity != GRAV_NONE)
       grav_functor.applyGravity(Q, Unew, dt);
+    if (params.coriolis_active)
+      coriolis_functor.applyCoriolis(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt) {

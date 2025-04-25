@@ -213,6 +213,10 @@ struct Params {
   bool well_balanced = false;
   std::string problem;
 
+  // Coriolis terms
+  bool coriolis_active = false;
+  real_t coriolis_omega;
+
   // Gradient
   GradientType gradient_type;
   bool use_pressure_gradient; // resolve pressure gradient ouside of the riemann (does not work well)
@@ -414,6 +418,9 @@ Params readInifile(std::string filename) {
     {"readfile", GRAV_READFILE},
   };
   res.gravity = read_map(gravity_map, "physics", "gravity", "false");
+
+  res.coriolis_active = reader.GetBoolean("coriolis", "active", false);
+  res.coriolis_omega = reader.GetFloat("coriolis", "omega", 2.8329587910568913e-06);
 
   std::map<std::string, GradientType> gradient_map{
     {"least-square",       LEAST_SQUARE},

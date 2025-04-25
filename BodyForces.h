@@ -24,7 +24,6 @@ Pos computeGravity(int i, int j, const Params &params, const Geometry &geometry)
 }
 
 class GravityFunctor {
-
 public:
   Params params;
   Geometry geometry;
@@ -58,4 +57,37 @@ public:
   }
 };
 
+class CoriolisFunctor {
+  public:
+    Params params;
+  
+    CoriolisFunctor(const Params &params) 
+      : params(params) {};
+    ~CoriolisFunctor() = default;
+  
+    void applyCoriolis(Array Q, Array Unew, real_t dt) {
+      auto params = this->params;
+      const real_t omega = this->params.coriolis_omega; 
+  
+      Kokkos::parallel_for(
+        "Coriolis", 
+        params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          #if 0
+            real_t rho = Q(j, i, IR);
+            const real_t rhouOld = rho * Q(j, i, IU);
+            const real_t rhovOld = rho * Q(j, i, IV);
+            const real_t rhouNew = Unew(j, i, IU);
+            const real_t rhovNew = Unew(j, i, IV);
+            Unew(j, i, IU) += dt * omega * (rhovOld + rhovNew);
+            Unew(j, i, IV) -= dt * omega * (rhouOld + rhouNew);
+          #else
+            const real_t rhou = Unew(j, i, IU);
+            const real_t rhov = Unew(j, i, IV);
+            Unew(j, i, IU) += dt * 2 * omega * rhov;
+            Unew(j, i, IV) -= dt * 2 * omega * rhou;
+          #endif
+        });
+    }
+  };
 }

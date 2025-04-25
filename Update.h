@@ -191,7 +191,6 @@ public:
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(params.smallr, Unew(j, i, IR));
-        Unew(j, i, IP) = fmax(params.smallp, Unew(j, i, IP));
         #ifdef MHD
         if (params.div_cleaning == DEDNER) {
             Unew(j, i, IPSI) *= parabolic;
@@ -200,22 +199,9 @@ public:
       });
   }
   
-  void pressureFix(Array& A){
-      // pressure fix
-      Kokkos::parallel_for(
-        "PressureFix", 
-        params.range_dom,
-        KOKKOS_LAMBDA(const int i, const int j) {
-          for (int ivar=0; ivar < Nfields; ++ivar){
-            A(j, i, IR) = Kokkos::max(A(j, i, IR), 1.0e-10);
-            A(j, i, IP) = Kokkos::max(A(j, i, IP), 1.0e-10);
-          }
-        }); 
-  }
 
   void euler_step(Array Q, Array Unew, real_t dt) {
     // First filling up boundaries for ghosts terms
-    pressureFix(Q);
     bc_manager.fillBoundaries(Q);
 
     // Hypperbolic udpate
@@ -228,7 +214,18 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
-    // pressureFix(Q);
+    auto params = this->params;
+      Kokkos::parallel_for(
+        "Clean values", 
+        params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          auto uloc = getStateFromArray(Unew, i, j);
+          auto qloc = consToPrim(uloc, params);
+          qloc[IR] = Kokkos::max(qloc[IR], 1.0e-10);
+          qloc[IP] = Kokkos::max(qloc[IP], 1.0e-10);
+          uloc = primToCons(qloc, params);
+          setStateInArray(Unew, i, j, uloc);
+        });
   }
 
 
@@ -246,7 +243,6 @@ public:
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, params);
-      pressureFix(Q);
       euler_step(Q, Unew, dt);
       // SSP-RK2
       Kokkos::parallel_for(

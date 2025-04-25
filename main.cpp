@@ -28,7 +28,6 @@ int main(int argc, char **argv) {
 
     // Allocating main views
     Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);
-    Array Unew = Kokkos::View<real_t***>("Unew", params.Nty, params.Ntx, Nfields);
     Array Q    = Kokkos::View<real_t***>("Q",    params.Nty, params.Ntx, Nfields);
 
 
@@ -59,11 +58,8 @@ int main(int argc, char **argv) {
     int next_log = 0;
 
     while (t + params.epsilon < params.tend) {
-      Kokkos::deep_copy(Unew, U);
-      
       bool save_needed = (t + params.epsilon > next_save);
 
-      consToPrim(U, Q, params);
       dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
       if (next_log == 0)
         next_log = params.log_frequency;
@@ -76,9 +72,9 @@ int main(int argc, char **argv) {
         next_save += params.save_freq;
       }
 
-      update.update(Q, Unew, dt);
-
-      Kokkos::deep_copy(U, Unew);
+      update.update(Q, U, dt);
+      consToPrim(U, Q, params);
+      checkNegatives(Q, params);
 
       t += dt;
     }

@@ -319,4 +319,37 @@ void primToCons(Array &Q, Array &U, const Params &params) {
                         });
 }
 
+void checkNegatives(Array &Q, const Params &params) {
+  uint64_t negative_density  = 0;
+  uint64_t negative_pressure = 0;
+  uint64_t nan_count = 0;
+
+  Kokkos::parallel_reduce(
+    "Check negative density/pressure", 
+    params.range_dom,
+    KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
+      constexpr real_t eps = 1.0e-6;
+      if (Q(j, i, IR) < 0) {
+        Q(j, i, IR) = eps;
+        lnegative_density++;
+      }
+      if (Q(j, i, IP) < 0) {
+        Q(j, i, IP) = eps;
+        lnegative_pressure++;
+      }
+
+      for (int ivar=0; ivar < Nfields; ++ivar)
+        if (std::isnan(Q(j, i, ivar)))
+          lnan_count++;
+
+    }, negative_density, negative_pressure, nan_count);
+
+    if (negative_density) 
+      std::cout << "--> negative density: " << negative_density << std::endl;
+    if (negative_pressure)
+      std::cout << "--> negative pressure: " << negative_pressure << std::endl;
+    if (nan_count)
+      std::cout << "--> NaN detected." << std::endl;
+}
+
 }

@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include "SimInfo.h"
 #include "RiemannSolvers.h"
@@ -13,7 +13,6 @@ namespace {
   State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const Params &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
-    
     State res;
     switch (params.reconstruction) {
       case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
@@ -43,11 +42,12 @@ public:
   UpdateFunctor(const Params &params)
     : params(params), bc_manager(params),
       tc_functor(params), visc_functor(params) {
-      
       slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
       slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
 
-      /** TODO Lucas : Check qu'on n'essaie pas d'utiliser hllc/hll avec un run MHD */
+      if (mhd_run && (params.riemann_solver==HLL || params.riemann_solver==HLLC)){
+        throw std::runtime_error("HLL and HLLC are not supported for MHD runs.");
+      }
     };
   ~UpdateFunctor() = default;
 
@@ -82,7 +82,7 @@ public:
       });
 
   }
-
+  KOKKOS_INLINE_FUNCTION
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
     auto params = this->params;
     auto slopesX = this->slopesX;
@@ -93,6 +93,13 @@ public:
       params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
+        real_t ch, cp, parabolic;
+        if (mhd_run && params.div_cleaning == DEDNER) {
+          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+          cp = std::sqrt(params.cr*ch);
+          parabolic = std::exp(-dt*ch*ch/(cp*cp));
+        }
+
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
@@ -107,11 +114,40 @@ public:
 
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
+            #ifdef MHD
+            real_t Bx_m, psi_m;
+            if (params.div_cleaning == DEDNER) {
+              Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
+              psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+            } 
+            else {
+              Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]);
+              psi_m = 0.0;
+            }
+
             switch (params.riemann_solver) {
               case HLL: hll(qL, qR, flux, pout, params);   break;
-              case HLLD: hlld(qL, qR, flux, pout, params); break;
+              case HLLD: {
+                hlld(qL, qR, flux, pout, Bx_m, params);
+                break;
+              }
+              case FIVEWAVES: {
+                FiveWaves(qL, qR, flux, pout, params);
+                break;
+              }
+              
+              default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
+            }
+            if (params.div_cleaning == DEDNER){
+              flux[IBX] = psi_m;
+              flux[IPSI] = ch*ch*Bx_m;
+            }
+            #else
+            switch (params.riemann_solver) {
+              case HLL: hll(qL, qR, flux, pout, params);   break;
               default: hllc(qL, qR, flux, pout, params);   break;
             }
+            #endif
           };
 
           // Calculating flux left and right of the cell
@@ -127,28 +163,42 @@ public:
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
+              #ifdef MHD
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              #else
               fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
-            else 
+              #endif
+            else
+              #ifdef MHD
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              #else
               fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+              #endif
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
-        
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
           }
-
           setStateInArray(Unew, i, j, un_loc);
         };
-
+        // #ifdef MHD
+        // Q(j, i, IPSI) *= parabolic;
+        // #endif
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
-        Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
+        Unew(j, i, IR) = fmax(params.smallr, Unew(j, i, IR));
+        #ifdef MHD
+        if (params.div_cleaning == DEDNER) {
+            Unew(j, i, IPSI) *= parabolic;
+        }
+        #endif
       });
   }
+  
 
   void euler_step(Array Q, Array Unew, real_t dt) {
     // First filling up boundaries for ghosts terms
@@ -158,13 +208,26 @@ public:
     if (params.reconstruction == PLM)
       computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);
-
+    // pressureFix(Unew);
     // Splitted terms
     if (params.thermal_conductivity_active)
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
+    auto params = this->params;
+      Kokkos::parallel_for(
+        "Clean values", 
+        params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          auto uloc = getStateFromArray(Unew, i, j);
+          auto qloc = consToPrim(uloc, params);
+          qloc[IR] = Kokkos::max(qloc[IR], 1.0e-10);
+          qloc[IP] = Kokkos::max(qloc[IP], 1.0e-10);
+          uloc = primToCons(qloc, params);
+          setStateInArray(Unew, i, j, uloc);
+        });
   }
+
 
   void update(Array Q, Array Unew, real_t dt) {
     if (params.time_stepping == TS_EULER)
@@ -177,12 +240,10 @@ public:
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
       euler_step(Q, Ustar, dt);
-      
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, params);
       euler_step(Q, Unew, dt);
-
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 

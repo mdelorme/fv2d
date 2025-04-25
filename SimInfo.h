@@ -533,11 +533,11 @@ void checkNegatives(Array &Q, const Params &params) {
     params.range_dom,
     KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
       constexpr real_t eps = 1.0e-6;
-      if (Q(j, i, IR) < eps) {
+      if (Q(j, i, IR) < 0) {
         Q(j, i, IR) = eps;
         lnegative_density++;
       }
-      if (Q(j, i, IP) < eps) {
+      if (Q(j, i, IP) < 0) {
         Q(j, i, IP) = eps;
         lnegative_pressure++;
       }

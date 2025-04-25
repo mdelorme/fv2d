@@ -231,6 +231,8 @@ public:
         break;
     }
     interface_len = norm(tj);
+
+    // normal vector
     return {
        tj[IY] / interface_len,
       -tj[IX] / interface_len

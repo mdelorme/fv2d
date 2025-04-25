@@ -393,7 +393,7 @@ public:
                 const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
               #else
                 const Pos face_to_face = geometry.faceToFace(i,j,dir);
-                const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r * (side==IRIGHT?-1.0:1.0);
+                const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r * (side==ILEFT?-1.0:1.0);
               #endif
               return dP;
             };
@@ -600,28 +600,29 @@ public:
       KOKKOS_LAMBDA(const int i, const int j) {
 
         // Calling the right Riemann solver
-        auto riemann = [&](State qL, State qR, State &flux, real_t &pout, IDir dir) {
-          qL = swap_component(qL, dir);
-          qR = swap_component(qR, dir);
+        auto riemann = [&](State qL, State qR, State &flux, Pos &rot, real_t &pout) {
+          qL = rotate(qL , rot);
+          qR = rotate(qR , rot);
           switch (params.riemann_solver) {
             case HLL: hll(qL, qR, flux, pout, params); break;
             default: hllc(qL, qR, flux, pout, params); break;
           }
-          flux = swap_component(flux, dir);
+          flux = rotate_back(flux, rot);
         };
 
         // Lambda to update the cell along a direction
         auto updatePredictor = [&](int i, int j, IDir dir) {
           auto [qL, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, ILEFT, geometry, params);
-          // State qL = reconstruct(Q, slopes, i+dxm, j+dym,  1.0, dir, params);
-          // State qR = reconstruct(Q, slopes, i,     j,     -1.0, dir, params);
 
+          real_t lenL;
+          Pos rotL = geometry.getRotationMatrix(i, j, dir, ILEFT,  lenL);
+          
           // Calculating flux "hat" left
-          State  flux;
+          State  fluxL;
           real_t pout;
 
-          riemann(qL, qR, flux, pout, dir);
-          setStateInArray(Fhat[dir], i, j, flux);
+          riemann(qL, qR, fluxL, rotL, pout);
+          setStateInArray(Fhat[dir], i, j, fluxL); // store the area length within the flux
         };
 
         updatePredictor(i, j, IX);
@@ -636,29 +637,19 @@ public:
         State un_loc = getStateFromArray(Unew, i, j);
 
         // Calling the right Riemann solver
-        auto riemann = [&](State qL, State qR, State &flux, real_t &pout, IDir dir) {
-          qL = swap_component(qL, dir);
-          qR = swap_component(qR, dir);
+        auto riemann = [&](State qL, State qR, State &flux, Pos &rot, real_t &pout) {
+          qL = rotate(qL , rot);
+          qR = rotate(qR , rot);
           switch (params.riemann_solver) {
             case HLL: hll(qL, qR, flux, pout, params); break;
             default: hllc(qL, qR, flux, pout, params); break;
           }
-          flux = swap_component(flux, dir);
+          flux = rotate_back(flux, rot);
         };
 
         // Lambda to update the cell along a direction
         auto updateCorrector = [&](int i, int j, IDir dir) {
-          // const int dxm = (dir == IX ?  -1 : 0);
-          // const int dym = (dir == IY ?  -1 : 0);
-          // const int dxp = (dir == IX ?   1 : 0);
-          // const int dyp = (dir == IY ?   1 : 0);
-          // auto& slopes = (dir == IX ? slopesX : slopesY);
-          // TODO CHANGE DX DY ...
-          real_t dtddir  = dt/(dir == IX ? params.dx : params.dy);
-          real_t dtdtdir = dt/(dir == IX ? params.dy : params.dx);
-          IDir tdir = (dir == IX) ? IY : IX; // 2d case
-
-//
+#if 0 // old
           // auto reconstructTransverse = [&](int ii, int jj, real_t len) {
           //   State U = reconstruct1D(Q, slopes, ii, jj, len, dir, params);
           //   U = primToCons(U, params);
@@ -674,38 +665,56 @@ public:
           // State qCL = reconstructTransverse(i,     j,     -dCL);
           // State qCR = reconstructTransverse(i,     j,      dCR);
           // State qR  = reconstructTransverse(i+dxp, j+dyp, -dR);
+#endif
 
-//////
-            auto reconstructTransverse = [&](ISide side) -> Kokkos::Array<State, 2> {
-              const int dxp = (dir == IX ?   1 : 0);
-              const int dyp = (dir == IY ?   1 : 0);
-              auto [qL, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, side,  geometry, params);
-              auto applyTransverseFluxes = [&](State &U, ISide side2){
-                int ii = i + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IX);
-                int jj = j + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IY);
-                State FL = getStateFromArray(Fhat[tdir], ii,     jj);
-                State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
-                U  = primToCons(U, params);
-                U = U + 0.5 * dtdtdir * (FL - FR);
-                U = consToPrim(U, params);
+          auto reconstructTransverse = [&](ISide side, Pos &normal) -> Kokkos::Array<State, 2> {
+            const IDir tdir = (dir == IX ? IY : IX); // 2d case
+            const int  dxp  = (dir == IX ?  1 :  0);
+            const int  dyp  = (dir == IY ?  1 :  0);
+            auto [qL, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, side,  geometry, params);
+            Pos tangential = {normal[IY], -normal[IX]};
+            
+            auto applyTransverseFluxes = [&](State &U, ISide side2){
+              int ii = i + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IX);
+              int jj = j + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IY);
+
+              real_t lenTL, lenTR;
+              {
+                Pos normalTL = geometry.getRotationMatrix(ii, jj, tdir, ILEFT,  lenTL);
+                Pos normalTR = geometry.getRotationMatrix(ii, jj, tdir, IRIGHT, lenTR);
+                lenTL = lenTL * fabs(dot(normalTL, tangential));
+                lenTR = lenTR * fabs(dot(normalTR, tangential));
+              }
+              const real_t cellAreaT = geometry.cellArea(ii, jj);
+
+              State FL = getStateFromArray(Fhat[tdir], ii,     jj);
+              State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
+              U  = primToCons(U, params);
+              U = U + 0.5 * dt * (lenTL*FL - lenTR*FR) / cellAreaT;
+              U = consToPrim(U, params);
             };
+
             applyTransverseFluxes(qL, ILEFT);
             applyTransverseFluxes(qR, IRIGHT);
             return {qL, qR};
           };
 
-          auto [qL, qCL] = reconstructTransverse(ILEFT);
-          auto [qCR, qR] = reconstructTransverse(IRIGHT);
-//////////
-          
+          real_t lenL, lenR;
+          Pos rotL = geometry.getRotationMatrix(i, j, dir, ILEFT,  lenL);
+          Pos rotR = geometry.getRotationMatrix(i, j, dir, IRIGHT, lenR);
+          real_t cellArea = geometry.cellArea(i,j);
+
+          auto [qL, qCL] = reconstructTransverse(ILEFT, rotL);
+          auto [qCR, qR] = reconstructTransverse(IRIGHT, rotR);
+
           // Calculating flux left and right of the cell
           State fluxL, fluxR;
           real_t poutL, poutR;
 
-          riemann(qL, qCL, fluxL, poutL, dir);
-          riemann(qCR, qR, fluxR, poutR, dir);
+          riemann(qL, qCL, fluxL, rotL, poutL);
+          riemann(qCR, qR, fluxR, rotR, poutR);
 
-          un_loc += dtddir * (fluxL - fluxR);
+          un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
         };
         
         updateCorrector(i, j, IX);

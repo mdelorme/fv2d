@@ -141,8 +141,6 @@ public:
 
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
-
-        Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
       });
   }
 

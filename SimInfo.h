@@ -164,6 +164,18 @@ Pos getPos(const Params& params, int i, int j) {
 Params readInifile(std::string filename) {
   INIReader reader(filename);
 
+  auto read_map = [&reader](const auto& map, const std::string& section, const std::string& name, const std::string& default_value){
+    std::string tmp;
+    tmp = reader.Get(section, name, default_value);
+
+    if (map.count(tmp) == 0) {
+      tmp = "\nautorized values: ";
+      for (auto elem : map) tmp += elem.first + ", ";
+      throw std::runtime_error(std::string("bad parameter for ") + name + ": " + tmp);
+    }
+    return map.at(tmp);
+  };
+
   Params res;
 
   // Mesh
@@ -195,38 +207,32 @@ Params readInifile(std::string filename) {
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
 
-  std::string tmp;
-  tmp = reader.Get("run", "boundaries_x", "reflecting");
   std::map<std::string, BoundaryType> bc_map{
     {"reflecting",         BC_REFLECTING},
     {"absorbing",          BC_ABSORBING},
     {"periodic",           BC_PERIODIC}
   };
-  res.boundary_x = bc_map[tmp];
-  tmp = reader.Get("run", "boundaries_y", "reflecting");
-  res.boundary_y = bc_map[tmp];
+  res.boundary_x = read_map(bc_map, "run", "boundaries_x", "reflecting");
+  res.boundary_y = read_map(bc_map, "run", "boundaries_y", "reflecting");
 
-  tmp = reader.Get("solvers", "reconstruction", "pcm");
   std::map<std::string, ReconstructionType> recons_map{
     {"pcm",    PCM},
     {"pcm_wb", PCM_WB},
     {"plm",    PLM}
   };
-  res.reconstruction = recons_map[tmp];
+  res.reconstruction = read_map(recons_map, "solvers", "reconstruction", "pcm");
 
-  tmp = reader.Get("solvers", "riemann_solver", "hllc");
   std::map<std::string, RiemannSolver> riemann_map{
     {"hll", HLL},
     {"hllc", HLLC}
   };
-  res.riemann_solver = riemann_map[tmp];
+  res.riemann_solver = read_map(riemann_map, "solvers", "riemann_solver", "hllc");
 
-  tmp = reader.Get("solvers", "time_stepping", "euler");
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
     {"RK2",   TS_RK2}
   };
-  res.time_stepping = ts_map[tmp];
+  res.time_stepping = read_map(ts_map, "solvers", "time_stepping", "euler");
 
   res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
 
@@ -244,12 +250,11 @@ Params readInifile(std::string filename) {
 
   // Thermal conductivity
   res.thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
-  tmp = reader.Get("thermal_conduction", "conductivity_mode", "constant");
   std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
     {"constant", TCM_CONSTANT},
     {"B02",      TCM_B02}
   };
-  res.thermal_conductivity_mode = thermal_conductivity_map[tmp];
+  res.thermal_conductivity_mode = read_map(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
   res.kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
 
   std::map<std::string, BCTC_Mode> bctc_map{
@@ -257,20 +262,17 @@ Params readInifile(std::string filename) {
     {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
     {"fixed_gradient",    BCTC_FIXED_GRADIENT}
   };
-  tmp = reader.Get("thermal_conduction", "bc_xmin", "none");
-  res.bctc_ymin = bctc_map[tmp];
-  tmp = reader.Get("thermal_conduction", "bc_xmax", "none");
-  res.bctc_ymax = bctc_map[tmp];
+  res.bctc_ymin = read_map(bctc_map, "thermal_conduction", "bc_xmin", "none");
+  res.bctc_ymax = read_map(bctc_map, "thermal_conduction", "bc_xmax", "none");
   res.bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
   res.bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
 
   // Viscosity
   res.viscosity_active = reader.GetBoolean("viscosity", "active", false);
-  tmp = reader.Get("viscosity", "viscosity_mode", "constant");
   std::map<std::string, ViscosityMode> viscosity_map{
     {"constant", VSC_CONSTANT},
   };
-  res.viscosity_mode = viscosity_map[tmp];
+  res.viscosity_mode = read_map(viscosity_map, "viscosity", "viscosity_mode", "constant");
   res.mu = reader.GetFloat("viscosity", "mu", 0.0);
 
   // H84
@@ -317,6 +319,39 @@ void primToCons(Array &Q, Array &U, const Params &params) {
                           State Uloc = primToCons(Qloc, params);
                           setStateInArray(U, i, j, Uloc);
                         });
+}
+
+void checkNegatives(Array &Q, const Params &params) {
+  uint64_t negative_density  = 0;
+  uint64_t negative_pressure = 0;
+  uint64_t nan_count = 0;
+
+  Kokkos::parallel_reduce(
+    "Check negative density/pressure", 
+    params.range_dom,
+    KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
+      constexpr real_t eps = 1.0e-6;
+      if (Q(j, i, IR) < 0) {
+        Q(j, i, IR) = eps;
+        lnegative_density++;
+      }
+      if (Q(j, i, IP) < 0) {
+        Q(j, i, IP) = eps;
+        lnegative_pressure++;
+      }
+
+      for (int ivar=0; ivar < Nfields; ++ivar)
+        if (std::isnan(Q(j, i, ivar)))
+          lnan_count++;
+
+    }, negative_density, negative_pressure, nan_count);
+
+    if (negative_density) 
+      std::cout << "--> negative density: " << negative_density << std::endl;
+    if (negative_pressure)
+      std::cout << "--> negative pressure: " << negative_pressure << std::endl;
+    if (nan_count)
+      std::cout << "--> NaN detected." << std::endl;
 }
 
 }

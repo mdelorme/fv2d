@@ -37,6 +37,11 @@ enum RiemannSolver {
   HLLC
 };
 
+enum DivCleaning {
+  DEDNER, // hyperbolic div-cleaning
+  DERIGS // entropy consistent
+};
+
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
@@ -80,6 +85,7 @@ struct Params {
   BoundaryType boundary_y = BC_REFLECTING;
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
+  DivCleaning div_cleaning = DEDNER;
   TimeStepping time_stepping = TS_EULER;
   real_t CFL = 0.1;
 
@@ -117,6 +123,7 @@ struct Params {
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
   std::string problem;
+  real_t cr = 0.1; // GLMMHD
 
   // Thermal conduction
   bool thermal_conductivity_active;
@@ -220,7 +227,15 @@ Params readInifile(std::string filename) {
     {"hllc", HLLC}
   };
   res.riemann_solver = riemann_map[tmp];
-
+  tmp = reader.Get("solvers", "div_cleaning", "dedner");
+  std::map<std::string, DivCleaning> div_cleaning_map{
+    {"dedner", DEDNER},
+    {"derigs", DERIGS}
+  };
+  res.div_cleaning = div_cleaning_map[tmp];
+  if (res.div_cleaning == DERIGS) {
+    throw std::runtime_error("Derigs div cleaning is not implemented yet !");
+  };
   tmp = reader.Get("solvers", "time_stepping", "euler");
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
@@ -235,6 +250,7 @@ Params readInifile(std::string filename) {
   res.gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
   res.gravity = reader.GetBoolean("physics", "gravity", false);
   res.g       = reader.GetFloat("physics", "g", 0.0);
+  res.cr      = reader.GetFloat("physics", "cr", 0.1);
   res.m1      = reader.GetFloat("polytrope", "m1", 1.0);
   res.theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
   res.m2      = reader.GetFloat("polytrope", "m2", 1.0);

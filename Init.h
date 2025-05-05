@@ -84,7 +84,7 @@ namespace {
     real_t x = pos[IX];
     real_t y = pos[IY];
 
-    real_t T = y;
+//   real_t T = y;
     real_t rho = pow(y, params.m1);
     real_t prs = pow(y, params.m1+1.0); 
     
@@ -532,7 +532,8 @@ namespace {
     real_t xi = x0 - pos[IX];
     real_t yj = y0 - pos[IY];
     real_t r = sqrt(xi*xi+yj*yj);
-    real_t theta = atan(-2);
+    real_t theta = Kokkos::atan(-2);
+
     real_t xt = tan(theta) * (pos[IX] - 0.5);
     real_t yt = (pos[IY] - 0.5);
     real_t B0 = 1.0 / sqrt(4 * M_PI);

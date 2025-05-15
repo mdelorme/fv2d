@@ -6,3 +6,8 @@ render/
 __pycache__/
 *.pyc
 pre_commit_logs/
+settings/profiles/hse/*png
+settings/profiles/hse/*ini
+settings/profiles/hse/*dat
+*~
+*#

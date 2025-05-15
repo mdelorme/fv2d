@@ -229,7 +229,7 @@ public:
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
 
-    // Hypperbolic udpate
+    // Hyperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);

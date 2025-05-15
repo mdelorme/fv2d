@@ -488,7 +488,7 @@ struct Params
 
   // Run
   std::string problem;
-  std::string init_filename;
+  std::string init_filename; // for profiles and such
 
   // All the physics
   DeviceParams device_params;

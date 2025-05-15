@@ -169,10 +169,16 @@ public:
       }
     }
 
-    file.createDataSet("rho", trho);
-    file.createDataSet("u", tu);
-    file.createDataSet("v", tv);
-    file.createDataSet("prs", tprs);
+    std::vector<size_t> dims{trho.size()};
+
+    auto rho_data  = file.createDataSet<real_t>("rho", DataSpace(dims));
+    auto u_data    = file.createDataSet<real_t>("u",   DataSpace(dims));
+    auto v_data    = file.createDataSet<real_t>("v",   DataSpace(dims));
+    auto prs_data  = file.createDataSet<real_t>("prs", DataSpace(dims));
+    rho_data.write(trho);
+    u_data.write(tu);
+    v_data.write(tv);
+    prs_data.write(tprs);
     file.createAttribute("time", t);
     file.createAttribute("iteration", iteration);
 

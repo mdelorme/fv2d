@@ -63,6 +63,42 @@ namespace fv2d {
 
     return getStateFromArray(Q, i, j);
   }
+
+  /**
+   * @brief Reflecting boundary condition in hydrostatic equilibrium
+   **/
+   KOKKOS_INLINE_FUNCTION
+   State fillHSE(Array Q, int i, int j, IDir dir, const Params &params) {
+    if (dir == IX) {
+      Kokkos::abort("ERROR : Cannot use hse boundary conditions along X");
+    }
+    else {
+      // ymin
+      if (j < params.jbeg) {
+        State out = getStateFromArray(Q, i, params.jbeg);
+        real_t rho = out[IR];
+        real_t dy  = params.dy * (params.jbeg - j);
+        real_t p   = out[IP] - dy * rho * params.g;
+        out[IP] = p;
+
+        out[IV] *= -1.0;
+
+        return out;
+      }
+      // ymax
+      else {
+        State out = getStateFromArray(Q, i, params.jend-1);
+        real_t rho = out[IR];
+        real_t dy  = params.dy * (j - params.jend+1);
+        real_t p   = out[IP] + dy * rho * params.g;        
+        out[IP] = p;
+
+        out[IV] *= -1.0;
+        
+        return out;
+      }
+    }
+   }
 } // anonymous namespace
 
 
@@ -91,9 +127,10 @@ public:
                             auto fill = [&](int i, int iref) {
                               switch (bc_x) {
                                 default:
-                                case BC_ABSORBING:  return fillAbsorbing(Q, iref, j); break;
-                                case BC_REFLECTING: return fillReflecting(Q, i, j, iref, j, IX, params); break;
-                                case BC_PERIODIC:   return fillPeriodic(Q, i, j, IX, params); break;
+                                case BC_ABSORBING:      return fillAbsorbing(Q, iref, j); break;
+                                case BC_REFLECTING:     return fillReflecting(Q, i, j, iref, j, IX, params); break;
+                                case BC_PERIODIC:       return fillPeriodic(Q, i, j, IX, params); break;
+                                case BC_HSE:            return fillHSE(Q, i, j, IX, params); break;
                               }
                             };
 
@@ -113,9 +150,10 @@ public:
                             auto fill = [&](int j, int jref) {
                               switch (bc_y) {
                                 default:
-                                case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
-                                case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
-                                case BC_PERIODIC:   return fillPeriodic(Q, i, j, IY, params); break;
+                                case BC_ABSORBING:      return fillAbsorbing(Q, i, jref); break;
+                                case BC_REFLECTING:     return fillReflecting(Q, i, j, i, jref, IY, params); break;
+                                case BC_PERIODIC:       return fillPeriodic(Q, i, j, IY, params); break;
+                                case BC_HSE:            return fillHSE(Q, i, j, IY, params); break;
                               }
                             };
 

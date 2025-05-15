@@ -1,2 +1,7 @@
 .vscode
 build*
+settings/profiles/hse/*png
+settings/profiles/hse/*ini
+settings/profiles/hse/*dat
+*~
+*#

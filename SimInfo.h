@@ -330,7 +330,7 @@ struct Params {
 
   // Run
   std::string problem;
-  std::string init_filename;
+  std::string init_filename; // for profiles and such
 
   // All the physics
   DeviceParams device_params;
@@ -436,6 +436,28 @@ Params readInifile(std::string filename) {
   res.save_freq = res.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = res.Get("run", "output_filename", "run");
   res.init_filename = res.Get("run", "init_filename", "profile.dat");
+
+  std::map<std::string, BoundaryType> bc_map{
+    {"reflecting",         BC_REFLECTING},
+    {"absorbing",          BC_ABSORBING},
+    {"periodic",           BC_PERIODIC},
+    {"hse",                BC_HSE}
+  };
+  res.boundary_x = read_map(bc_map, "run", "boundaries_x", "reflecting");
+  res.boundary_y = read_map(bc_map, "run", "boundaries_y", "reflecting");
+
+  std::map<std::string, ReconstructionType> recons_map{
+    {"pcm",    PCM},
+    {"pcm_wb", PCM_WB},
+    {"plm",    PLM}
+  };
+  res.reconstruction = read_map(recons_map, "solvers", "reconstruction", "pcm");
+
+  std::map<std::string, RiemannSolver> riemann_map{
+    {"hll", HLL},
+    {"hllc", HLLC}
+  };
+  res.riemann_solver = read_map(riemann_map, "solvers", "riemann_solver", "hllc");
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},

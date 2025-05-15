@@ -202,6 +202,71 @@ namespace {
     Q(j, i, IV) = v;
     Q(j, i, IP) = params.kh_P0;
   }
+
+  /**
+   * @brief Reading a spline from the disk
+   **/
+   void initProfile(Array Q, const Params &params) {
+    // Reading input file
+    std::string filename = params.init_filename;
+    std::vector<real_t> y, rho, u, v, p;
+    std::ifstream f_in(filename);
+
+    while (f_in.good()) {
+      real_t y_, rho_, u_, v_, p_;
+      f_in >> y_ >> rho_ >> u_ >> v_ >> p_;
+      if (f_in.good()) {
+        y.push_back(y_);
+        rho.push_back(rho_);
+        u.push_back(u_);
+        v.push_back(v_);
+        p.push_back(p_);
+      }
+    }
+    f_in.close();
+    
+    // Copying profile on GPU
+    size_t N = y.size();
+    Kokkos::View<real_t**> profile("profile", N, 5);
+    auto profile_host = Kokkos::create_mirror_view(profile);
+
+    std::cout << "Profile read from " << filename << " has " << N << " points" << std::endl;
+
+    for (size_t i=0; i < N; ++i) {
+      profile_host(i, 0) = y[i];
+      profile_host(i, 1) = rho[i];
+      profile_host(i, 2) = u[i];
+      profile_host(i, 3) = v[i];
+      profile_host(i, 4) = p[i];
+    }
+
+    Kokkos::deep_copy(profile, profile_host);
+
+    // Initializing domain
+    Kokkos::parallel_for("Initialization from profile",
+                         params.range_dom,
+                         KOKKOS_LAMBDA(const int i, const int j) {
+                          auto pos = getPos(params, i, j);
+                          real_t y = pos[IY];
+                    
+                          // Finding current cell position in profile.
+                          // Could be optimized if dy in the profile is fixed
+                          int iy = 0;
+                          real_t prof_y = profile(iy, 0);
+                          constexpr real_t eps = 1.0e-5;
+                          while (prof_y-eps < y && Kokkos::abs(prof_y - y) > eps) {
+                            iy++;
+                            prof_y = profile(iy, 0);
+                          }
+                    
+                          // Linear interpolation
+                          real_t fy = (y - profile(iy-1, 0)) / (profile(iy, 0) - profile(iy-1, 0));
+                          for (int ivar=1; ivar < 5; ++ivar)
+                            Q(j, i, ivar-1) = profile(iy-1, ivar) * (1.0 - fy) + profile(iy, ivar) * fy;
+                        
+                          // Todo : Edge case extrapolation
+                         });
+  }
 }
 
 
@@ -218,6 +283,8 @@ enum InitType {
   H84,
   C91,
   KELVIN_HELMHOLTZ
+  HSE,
+  PROFILE
 };
 
 struct InitFunctor {
@@ -235,7 +302,8 @@ public:
       {"diffusion", DIFFUSION},
       {"H84", H84},
       {"C91", C91},
-      {"kelvin_helmholtz", KELVIN_HELMHOLTZ}
+      {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
+      {"profile", PROFILE}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -264,8 +332,14 @@ public:
                               case H84:              initH84(Q, i, j, params, random_pool); break;
                               case C91:              initC91(Q, i, j, params, random_pool); break;
                               case KELVIN_HELMHOLTZ: initKelvinHelmholtz(Q, i, j, params); break;
+                              default:
+                                break;
                             }
                           });
+
+    // If filling is via a spline
+    if (init_type == PROFILE)
+      initProfile(Q, params);
   
     // ... and boundaries
     BoundaryManager bc(full_params);

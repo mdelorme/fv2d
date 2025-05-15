@@ -56,7 +56,8 @@ enum RiemannSolver {
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_HSE
 };
 
 enum TimeStepping {
@@ -205,7 +206,8 @@ struct DeviceParams {
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
-      {"periodic",           BC_PERIODIC}
+      {"periodic",           BC_PERIODIC},
+      {"hse",                BC_HSE}
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
@@ -316,6 +318,7 @@ struct Params {
 
   // Run
   std::string problem;
+  std::string init_filename;
 
   // All the physics
   DeviceParams device_params;
@@ -420,6 +423,7 @@ Params readInifile(std::string filename) {
     
   res.save_freq = res.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = res.Get("run", "output_filename", "run");
+  res.init_filename = res.Get("run", "init_filename", "profile.dat");
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <map>
 
+#include "Gravity.h"
 #include "SimInfo.h"
 
 namespace fv2d
@@ -69,6 +70,42 @@ State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params)
 
   return getStateFromArray(Q, i, j);
 }
+
+/**
+ * @brief Reflecting boundary condition in hydrostatic equilibrium
+ **/
+KOKKOS_INLINE_FUNCTION
+State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
+  if (dir == IX) {
+    Kokkos::abort("ERROR : Cannot use hse boundary conditions along X");
+  }
+  else {
+    // ymin
+    if (j < params.jbeg) {
+      State out = getStateFromArray(Q, i, params.jbeg);
+      real_t rho = out[IR];
+      real_t dy  = params.dy * (params.jbeg - j);
+      real_t p   = out[IP] - dy * rho * getGravity(i, j, dir, params);
+      out[IP] = p;
+
+      out[IV] *= -1.0;
+
+      return out;
+    }
+    // ymax
+    else {
+      State out = getStateFromArray(Q, i, params.jend-1);
+      real_t rho = out[IR];
+      real_t dy  = params.dy * (j - params.jend+1);
+      real_t p   = out[IP] + dy * rho * getGravity(i, j, dir, params);        
+      out[IP] = p;
+
+      out[IV] *= -1.0;
+      
+      return out;
+    }
+  }
+}
 } // anonymous namespace
 
 class BoundaryManager
@@ -108,6 +145,9 @@ public:
             case BC_PERIODIC:
               return fillPeriodic(Q, i, j, IX, params);
               break;
+            case BC_HSE:
+              return fillHSE(Q, i, j, IX, params);
+              break;
             }
           };
 
@@ -137,6 +177,9 @@ public:
               break;
             case BC_PERIODIC:
               return fillPeriodic(Q, i, j, IY, params);
+              break;
+            case BC_HSE:
+              return fillHSE(Q, i, j, IY, params);
               break;
             }
           };

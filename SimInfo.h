@@ -49,7 +49,8 @@ enum BoundaryType
 {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_HSE
 };
 
 enum TimeStepping
@@ -378,7 +379,8 @@ struct DeviceParams
     CFL = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{{"reflecting", BC_REFLECTING},
                                                {"absorbing", BC_ABSORBING},
-                                               {"periodic", BC_PERIODIC}};
+                                               {"periodic", BC_PERIODIC},
+                                               {"hse", BC_HSE}};
     boundary_x = reader.GetMapValue(bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = reader.GetMapValue(bc_map, "run", "boundaries_y", "reflecting");
 
@@ -481,6 +483,7 @@ struct Params
 
   // Run
   std::string problem;
+  std::string init_filename;
 
   // All the physics
   DeviceParams device_params;
@@ -540,6 +543,7 @@ Params readInifile(std::string filename)
   res.save_freq    = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
   res.output_path  = reader.Get("run", "output_path", "./");
+  res.init_filename = reader.Get("run", "init_filename", "profile.dat");
 
   std::map<std::string, TimeStepping> ts_map{{"euler", TS_EULER}, {"RK2", TS_RK2}};
   res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");

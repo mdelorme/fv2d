@@ -20,10 +20,6 @@ public:
     real_t inv_dt_hyp = 0.0;
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
-    bool is_fslp = (params.riemann_solver == FSLP);
-    const real_t fslp_K = params.fslp_K;
-    const real_t gamma0 = params.gamma0;
-    const real_t gdx = params.g * params.dy;
 
     Kokkos::parallel_reduce("Computing DT",
                             full_params.range_dom,

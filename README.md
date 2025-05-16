@@ -131,3 +131,10 @@ f.close()
 
 
 More example of post-treatment scripts can be found in the `python` folder at the root of FV2D.
+
+## Contributors
+
+* Maxime Delorme
+* Grégoire Doebele
+* Lucas Barbier
+* Adam Finley

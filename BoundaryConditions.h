@@ -19,7 +19,7 @@ namespace fv2d {
    * @brief Reflecting boundary conditions
    */
   KOKKOS_INLINE_FUNCTION
-  State fillReflecting(Array Q, int i, int j, int iref, int jref, IDir dir, const Params &params) {
+  State fillReflecting(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params) {
     int isym, jsym;
     if (dir == IX) {
       int ipiv = (i < iref ? params.ibeg : params.iend);
@@ -47,7 +47,7 @@ namespace fv2d {
    * 
    */
   KOKKOS_INLINE_FUNCTION
-  State fillPeriodic(Array Q, int i, int j, IDir dir, const Params &params) {
+  State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
     if (dir == IX) {
       if (i < params.ibeg)
         i += params.Nx;
@@ -68,19 +68,19 @@ namespace fv2d {
 
 class BoundaryManager {
 public:
-  Params params;
+  Params full_params;
 
-  BoundaryManager(const Params &params) 
-    : params(params) {};
+  BoundaryManager(const Params &full_params) 
+    : full_params(full_params) {};
   ~BoundaryManager() = default;
 
   void fillBoundaries(Array Q) {
+    auto params = full_params.device_params;
     auto bc_x = params.boundary_x;
     auto bc_y = params.boundary_y;
-    auto params = this->params;
 
     Kokkos::parallel_for( "Filling X-boundary",
-                          params.range_xbound,
+                          full_params.range_xbound,
                           KOKKOS_LAMBDA(int i, int j) {
 
                             int ileft     = i;
@@ -102,7 +102,7 @@ public:
                           });
 
     Kokkos::parallel_for( "Filling Y-boundary",
-                          params.range_ybound,
+                          full_params.range_ybound,
                           KOKKOS_LAMBDA(int i, int j) {
 
                             int jtop     = j;

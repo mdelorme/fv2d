@@ -25,10 +25,11 @@ int main(int argc, char **argv) {
 
     // Reading parameters from .ini file
     auto params = readInifile(argv[1]);
+    auto device_params = params.device_params;
 
     // Allocating main views
-    Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);
-    Array Q    = Kokkos::View<real_t***>("Q",    params.Nty, params.Ntx, Nfields);
+    Array U    = Kokkos::View<real_t***>("U", device_params.Nty, device_params.Ntx, Nfields);
+    Array Q    = Kokkos::View<real_t***>("Q", device_params.Nty, device_params.Ntx, Nfields);
 
 
     // Misc vars for iteration
@@ -57,8 +58,8 @@ int main(int argc, char **argv) {
     real_t dt;
     int next_log = 0;
 
-    while (t + params.epsilon < params.tend) {
-      bool save_needed = (t + params.epsilon > next_save);
+    while (t + device_params.epsilon < params.tend) {
+      bool save_needed = (t + device_params.epsilon > next_save);
 
       dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
       if (next_log == 0)

@@ -7,6 +7,20 @@
 
 namespace fv2d {
 
+namespace {
+  auto read_map(INIReader &reader, const auto& map, const std::string& section, const std::string& name, const std::string& default_value){
+    std::string tmp;
+    tmp = reader.Get(section, name, default_value);
+
+    if (map.count(tmp) == 0) {
+      tmp = "\nallowed values: ";
+      for (auto elem : map) tmp += elem.first + ", ";
+      throw std::runtime_error(std::string("bad parameter for ") + name + ": " + tmp);
+    }
+    return map.at(tmp);
+  };
+}
+
 using real_t = double;
 constexpr int Nfields = 4;
 using Pos   = Kokkos::Array<real_t, 2>;
@@ -70,59 +84,20 @@ enum ViscosityMode {
   VSC_CONSTANT
 };
 
-// Run
-struct Params {
-  real_t save_freq;
-  real_t tend;
-  std::string filename_out = "run";
-  std::string restart_file = "";
-  BoundaryType boundary_x = BC_REFLECTING;
-  BoundaryType boundary_y = BC_REFLECTING;
-  ReconstructionType reconstruction = PCM; 
-  RiemannSolver riemann_solver = HLL;
-  TimeStepping time_stepping = TS_EULER;
-  real_t CFL = 0.1;
-
-  bool multiple_outputs = false;
-
-  // Parallel stuff
-  ParallelRange range_tot;
-  ParallelRange range_dom;
-  ParallelRange range_xbound;
-  ParallelRange range_ybound;
-  ParallelRange range_slopes;
-
-  // Mesh
-  int Nx;      // Number of domain cells
-  int Ny;      
-  int Ng;      // Number of ghosts
-  int Ntx;     // Total number of cells
-  int Nty;
-  int ibeg;    // First cell of the domain
-  int iend;    // First cell outside of the domain
-  int jbeg;
-  int jend;
-  real_t xmin; // Minimum boundary of the domain
-  real_t xmax; // Maximum boundary of the domain
-  real_t ymin;
-  real_t ymax;
-  real_t dx;   // Space step
-  real_t dy;
-
-  // Run and physics
-  real_t epsilon = 1.0e-6;
+// All parameters that should be copied on the device
+struct DeviceParams { 
+  // Thermodynamics
   real_t gamma0 = 5.0/3.0;
+
+  // Gravity
   bool gravity = false;
   real_t g;
   bool well_balanced_flux_at_y_bc = false;
-  bool well_balanced = false;
-  std::string problem;
 
-  // Thermal conduction
+  // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
   real_t kappa;
-
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
 
@@ -149,6 +124,147 @@ struct Params {
   real_t b02_kappa2;
   real_t b02_thickness;
 
+  // Boundaries
+  BoundaryType boundary_x = BC_REFLECTING;
+  BoundaryType boundary_y = BC_REFLECTING;
+
+  // Godunov
+  ReconstructionType reconstruction = PCM; 
+  RiemannSolver riemann_solver = HLL;
+
+  // Mesh
+  int Nx;      // Number of domain cells
+  int Ny;      
+  int Ng;      // Number of ghosts
+  int Ntx;     // Total number of cells
+  int Nty;
+  int ibeg;    // First cell of the domain
+  int iend;    // First cell outside of the domain
+  int jbeg;
+  int jend;
+  real_t xmin; // Minimum boundary of the domain
+  real_t xmax; // Maximum boundary of the domain
+  real_t ymin;
+  real_t ymax;
+  real_t dx;   // Space step
+  real_t dy;
+
+  // Misc stuff
+  real_t epsilon = 1.0e-6;
+
+  void init_from_inifile(INIReader &reader) {
+    
+
+    // Mesh
+    Nx = reader.GetInteger("mesh", "Nx", 32);
+    Ny = reader.GetInteger("mesh", "Ny", 32);
+    Ng = reader.GetInteger("mesh", "Nghosts", 2);
+    xmin = reader.GetFloat("mesh", "xmin", 0.0);
+    xmax = reader.GetFloat("mesh", "xmax", 1.0);
+    ymin = reader.GetFloat("mesh", "ymin", 0.0);
+    ymax = reader.GetFloat("mesh", "ymax", 1.0);
+
+    Ntx  = Nx + 2*Ng;
+    Nty  = Ny + 2*Ng;
+    ibeg = Ng;
+    iend = Ng+Nx;
+    jbeg = Ng;
+    jend = Ng+Ny;
+
+    dx = (xmax-xmin) / Nx;
+    dy = (ymax-ymin) / Ny;
+
+    std::map<std::string, BoundaryType> bc_map{
+      {"reflecting",         BC_REFLECTING},
+      {"absorbing",          BC_ABSORBING},
+      {"periodic",           BC_PERIODIC}
+    };
+    boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
+    boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
+
+    std::map<std::string, ReconstructionType> recons_map{
+      {"pcm",    PCM},
+      {"pcm_wb", PCM_WB},
+      {"plm",    PLM}
+    };
+    reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
+
+    std::map<std::string, RiemannSolver> riemann_map{
+      {"hll", HLL},
+      {"hllc", HLLC}
+    };
+    riemann_solver = read_map(reader, riemann_map, "solvers", "riemann_solver", "hllc");
+
+    // Physics
+    epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
+    gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
+    gravity = reader.GetBoolean("physics", "gravity", false);
+    g       = reader.GetFloat("physics", "g", 0.0);
+    m1      = reader.GetFloat("polytrope", "m1", 1.0);
+    theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
+    m2      = reader.GetFloat("polytrope", "m2", 1.0);
+    theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
+    well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+
+    // Thermal conductivity
+    thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
+    std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
+      {"constant", TCM_CONSTANT},
+      {"B02",      TCM_B02}
+    };
+    thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
+    kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
+
+    std::map<std::string, BCTC_Mode> bctc_map{
+      {"none",              BCTC_NONE},
+      {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
+      {"fixed_gradient",    BCTC_FIXED_GRADIENT}
+    };
+    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_xmin", "none");
+    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
+    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
+    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
+
+    // Viscosity
+    viscosity_active = reader.GetBoolean("viscosity", "active", false);
+    std::map<std::string, ViscosityMode> viscosity_map{
+      {"constant", VSC_CONSTANT},
+    };
+    viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
+    mu = reader.GetFloat("viscosity", "mu", 0.0);
+
+    // H84
+    h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
+
+    // C91
+    c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
+  }
+};
+
+// All the parameters
+struct Params {
+  real_t save_freq;
+  real_t tend;
+  std::string filename_out = "run";
+  std::string restart_file = "";
+  TimeStepping time_stepping = TS_EULER;
+  real_t CFL = 0.1;
+
+  bool multiple_outputs = false;
+
+  // Parallel stuff
+  ParallelRange range_tot;
+  ParallelRange range_dom;
+  ParallelRange range_xbound;
+  ParallelRange range_ybound;
+  ParallelRange range_slopes;
+
+  // Run
+  std::string problem;
+
+  // All the physics
+  DeviceParams device_params;
+
   // Misc 
   int seed;
   int log_frequency;
@@ -156,7 +272,7 @@ struct Params {
 
 // Helper to get the position in the mesh
 KOKKOS_INLINE_FUNCTION
-Pos getPos(const Params& params, int i, int j) {
+Pos getPos(const DeviceParams& params, int i, int j) {
   return {params.xmin + (i-params.ibeg+0.5) * params.dx,
           params.ymin + (j-params.jbeg+0.5) * params.dy};
 }
@@ -164,38 +280,7 @@ Pos getPos(const Params& params, int i, int j) {
 Params readInifile(std::string filename) {
   INIReader reader(filename);
 
-  auto read_map = [&reader](const auto& map, const std::string& section, const std::string& name, const std::string& default_value){
-    std::string tmp;
-    tmp = reader.Get(section, name, default_value);
-
-    if (map.count(tmp) == 0) {
-      tmp = "\nautorized values: ";
-      for (auto elem : map) tmp += elem.first + ", ";
-      throw std::runtime_error(std::string("bad parameter for ") + name + ": " + tmp);
-    }
-    return map.at(tmp);
-  };
-
   Params res;
-
-  // Mesh
-  res.Nx = reader.GetInteger("mesh", "Nx", 32);
-  res.Ny = reader.GetInteger("mesh", "Ny", 32);
-  res.Ng = reader.GetInteger("mesh", "Nghosts", 2);
-  res.xmin = reader.GetFloat("mesh", "xmin", 0.0);
-  res.xmax = reader.GetFloat("mesh", "xmax", 1.0);
-  res.ymin = reader.GetFloat("mesh", "ymin", 0.0);
-  res.ymax = reader.GetFloat("mesh", "ymax", 1.0);
-
-  res.Ntx  = res.Nx + 2*res.Ng;
-  res.Nty  = res.Ny + 2*res.Ng;
-  res.ibeg = res.Ng;
-  res.iend = res.Ng+res.Nx;
-  res.jbeg = res.Ng;
-  res.jend = res.Ng+res.Ny;
-
-  res.dx = (res.xmax-res.xmin) / res.Nx;
-  res.dy = (res.ymax-res.ymin) / res.Ny;
 
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
@@ -207,91 +292,29 @@ Params readInifile(std::string filename) {
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
 
-  std::map<std::string, BoundaryType> bc_map{
-    {"reflecting",         BC_REFLECTING},
-    {"absorbing",          BC_ABSORBING},
-    {"periodic",           BC_PERIODIC}
-  };
-  res.boundary_x = read_map(bc_map, "run", "boundaries_x", "reflecting");
-  res.boundary_y = read_map(bc_map, "run", "boundaries_y", "reflecting");
-
-  std::map<std::string, ReconstructionType> recons_map{
-    {"pcm",    PCM},
-    {"pcm_wb", PCM_WB},
-    {"plm",    PLM}
-  };
-  res.reconstruction = read_map(recons_map, "solvers", "reconstruction", "pcm");
-
-  std::map<std::string, RiemannSolver> riemann_map{
-    {"hll", HLL},
-    {"hllc", HLLC}
-  };
-  res.riemann_solver = read_map(riemann_map, "solvers", "riemann_solver", "hllc");
-
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
     {"RK2",   TS_RK2}
   };
-  res.time_stepping = read_map(ts_map, "solvers", "time_stepping", "euler");
+  res.time_stepping = read_map(reader, ts_map, "solvers", "time_stepping", "euler");
+  res.problem = reader.Get("physics", "problem", "blast");
 
   res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
-
-  // Physics
-  res.epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
-  res.gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
-  res.gravity = reader.GetBoolean("physics", "gravity", false);
-  res.g       = reader.GetFloat("physics", "g", 0.0);
-  res.m1      = reader.GetFloat("polytrope", "m1", 1.0);
-  res.theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
-  res.m2      = reader.GetFloat("polytrope", "m2", 1.0);
-  res.theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
-  res.problem = reader.Get("physics", "problem", "blast");
-  res.well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
-
-  // Thermal conductivity
-  res.thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
-  std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
-    {"constant", TCM_CONSTANT},
-    {"B02",      TCM_B02}
-  };
-  res.thermal_conductivity_mode = read_map(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
-  res.kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
-
-  std::map<std::string, BCTC_Mode> bctc_map{
-    {"none",              BCTC_NONE},
-    {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
-    {"fixed_gradient",    BCTC_FIXED_GRADIENT}
-  };
-  res.bctc_ymin = read_map(bctc_map, "thermal_conduction", "bc_xmin", "none");
-  res.bctc_ymax = read_map(bctc_map, "thermal_conduction", "bc_xmax", "none");
-  res.bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
-  res.bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
-
-  // Viscosity
-  res.viscosity_active = reader.GetBoolean("viscosity", "active", false);
-  std::map<std::string, ViscosityMode> viscosity_map{
-    {"constant", VSC_CONSTANT},
-  };
-  res.viscosity_mode = read_map(viscosity_map, "viscosity", "viscosity_mode", "constant");
-  res.mu = reader.GetFloat("viscosity", "mu", 0.0);
-
-  // H84
-  res.h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
-
-  // C91
-  res.c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
 
   // Misc
   res.seed = reader.GetInteger("misc", "seed", 12345);
   res.log_frequency = reader.GetInteger("misc", "log_frequency", 10);
 
+  // All device parameters
+  res.device_params.init_from_inifile(reader);
 
   // Parallel ranges
-  res.range_tot = ParallelRange({0, 0}, {res.Ntx, res.Nty});
-  res.range_dom = ParallelRange({res.ibeg, res.jbeg}, {res.iend, res.jend});
-  res.range_xbound = ParallelRange({0, res.jbeg}, {res.Ng, res.jend});
-  res.range_ybound = ParallelRange({0, 0}, {res.Ntx, res.Ng});
-  res.range_slopes = ParallelRange({res.ibeg-1, res.jbeg-1}, {res.iend+1, res.jend+1});
+  res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
+  res.range_dom = ParallelRange({res.device_params.ibeg, res.device_params.jbeg}, {res.device_params.iend, res.device_params.jend});
+  res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
+  res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
+  res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
+
 
   return res;
 } 
@@ -301,9 +324,10 @@ Params readInifile(std::string filename) {
 #include "States.h"
 
 namespace fv2d {
-void consToPrim(Array U, Array Q, const Params &params) {
+void consToPrim(Array U, Array Q, const Params &full_params) {
+  auto params = full_params.device_params;
   Kokkos::parallel_for( "Conservative to Primitive", 
-                        params.range_tot,
+                        full_params.range_tot,
                         KOKKOS_LAMBDA(const int i, const int j) {
                           State Uloc = getStateFromArray(U, i, j);
                           State Qloc = consToPrim(Uloc, params);
@@ -311,9 +335,10 @@ void consToPrim(Array U, Array Q, const Params &params) {
                         });
 }
 
-void primToCons(Array &Q, Array &U, const Params &params) {
+void primToCons(Array &Q, Array &U, const Params &full_params) {
+  auto params = full_params.device_params;
   Kokkos::parallel_for( "Primitive to Conservative", 
-                        params.range_tot,
+                        full_params.range_tot,
                         KOKKOS_LAMBDA(const int i, const int j) {
                           State Qloc = getStateFromArray(Q, i, j);
                           State Uloc = primToCons(Qloc, params);
@@ -321,14 +346,14 @@ void primToCons(Array &Q, Array &U, const Params &params) {
                         });
 }
 
-void checkNegatives(Array &Q, const Params &params) {
+void checkNegatives(Array &Q, const Params &full_params) {
   uint64_t negative_density  = 0;
   uint64_t negative_pressure = 0;
   uint64_t nan_count = 0;
 
   Kokkos::parallel_reduce(
     "Check negative density/pressure", 
-    params.range_dom,
+    full_params.range_dom,
     KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
       constexpr real_t eps = 1.0e-6;
       if (Q(j, i, IR) < 0) {

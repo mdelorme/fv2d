@@ -10,7 +10,7 @@ namespace fv2d {
 
 namespace {
   KOKKOS_INLINE_FUNCTION
-  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const Params &params) {
+  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
     
@@ -32,31 +32,29 @@ namespace {
 
 class UpdateFunctor {
 public:
-  Params params;
+  Params full_params;
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
 
   Array slopesX, slopesY;
 
-  UpdateFunctor(const Params &params)
-    : params(params), bc_manager(params),
-      tc_functor(params), visc_functor(params) {
-      
-      slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
-      slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
+  UpdateFunctor(const Params &full_params)
+    : full_params(full_params), bc_manager(full_params),
+      tc_functor(full_params), visc_functor(full_params) {
+      auto device_params = full_params.device_params;
+      slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
+      slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
     };
   ~UpdateFunctor() = default;
 
-  KOKKOS_INLINE_FUNCTION
   void computeSlopes(const Array &Q) const {
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    auto params  = this->params;
 
     Kokkos::parallel_for(
       "Slopes",
-      params.range_slopes,
+      full_params.range_slopes,
       KOKKOS_LAMBDA(const int i, const int j) {
         for (int ivar=0; ivar < Nfields; ++ivar) {
           real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
@@ -81,13 +79,13 @@ public:
   }
 
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
-    auto params = this->params;
+    auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
 
     Kokkos::parallel_for(
       "Update", 
-      params.range_dom,
+      full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
         auto updateAlongDir = [&](int i, int j, IDir dir) {
@@ -149,21 +147,22 @@ public:
     bc_manager.fillBoundaries(Q);
 
     // Hypperbolic udpate
-    if (params.reconstruction == PLM)
+    if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);
 
     // Splitted terms
-    if (params.thermal_conductivity_active)
+    if (full_params.device_params.thermal_conductivity_active)
       tc_functor.applyThermalConduction(Q, Unew, dt);
-    if (params.viscosity_active)
+    if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt) {
-    if (params.time_stepping == TS_EULER)
+    if (full_params.time_stepping == TS_EULER)
       euler_step(Q, Unew, dt);
-    else if (params.time_stepping == TS_RK2) {
+    else if (full_params.time_stepping == TS_RK2) {
+      auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
       Array Ustar = Array("Ustar", params.Nty, params.Ntx, Nfields);
       
@@ -174,13 +173,13 @@ public:
       
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
-      consToPrim(Ustar, Q, params);
+      consToPrim(Ustar, Q, full_params);
       euler_step(Q, Unew, dt);
 
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 
-        params.range_dom,
+        full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           for (int ivar=0; ivar < Nfields; ++ivar)
             Unew(j, i, ivar) = 0.5 * (U0(j, i, ivar) + Unew(j, i, ivar));

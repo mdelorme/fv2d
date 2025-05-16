@@ -103,10 +103,10 @@ public:
           const real_t gdx = (dir == IX ? 0.0 : params.g * params.dy);
 
           // Calling the right Riemann solver
-          auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
+          auto riemann = [&](State qL, State qR, State &flux, int side, real_t &pout) {
             switch (params.riemann_solver) {
               case HLL:  hll(qL, qR, flux, pout, params); break;
-              case FSLP: fslp(qL, qR, flux, pout, gdx, params); break;
+              case FSLP: fslp(qL, qR, flux, pout, side, gdx, params); break;
               default:   hllc(qL, qR, flux, pout, params); break;
             }
           };
@@ -115,8 +115,8 @@ public:
           State fluxL, fluxR;
           real_t poutL, poutR;
 
-          riemann(qL, qCL, fluxL, poutL);
-          riemann(qCR, qR, fluxR, poutR);
+          riemann(qL, qCL, fluxL, -1, poutL);
+          riemann(qCR, qR, fluxR,  1, poutR);
 
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);
@@ -133,7 +133,7 @@ public:
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
         
-          if (params.gravity_mode != GRAV_NONE) {
+          if (params.gravity_mode != GRAV_NONE && params.riemann_solver != FSLP) {
             real_t g = getGravity(i, j, dir, params);
             un_loc[IV] += dt * Q(j, i, IR) * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;

@@ -241,7 +241,6 @@ namespace {
                          });
    }
 
-   /**
    * @brief Gresho-Vortex setup for Low-mach flows
    * 
    * Based on Miczek et al. 2015 "New numerical solver for flows at various Mach numbers"
@@ -260,7 +259,7 @@ namespace {
 
     Q(j, i, IR) = params.gresho_density;
 
-    real_t u_phi, p;
+    real_t u_phi;
     if (r < 0.2) {
       u_phi = 5.0*r;
       Q(j, i, IP) = pressure + 12.5*r*r;

@@ -1,6 +1,8 @@
 # FV2D
 2D finite volume code with Kokkos for experimentation/prototyping purposes
 
+Check the [change log](CHANGELOG.md) for the latest updates.
+
 ## Dependencies
 
 * HDF5 (1.8+)

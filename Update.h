@@ -119,7 +119,7 @@ public:
             const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
 
             // Calling the right Riemann solver
-            auto riemann = [&](State qL, State qR, State &flux, real_t &pout)
+            auto riemann = [&](State qL, State qR, State &flux, int side, real_t &pout)
             {
               switch (params.riemann_solver)
               {
@@ -127,7 +127,7 @@ public:
                 hll(qL, qR, flux, pout, params);
                 break;
               case FSLP:
-                fslp(qL, qR, flux, pout, gdx, params);
+                fslp(qL, qR, flux, pout, gdx, side, params);
                 break;
               default:
                 hllc(qL, qR, flux, pout, params);
@@ -139,8 +139,8 @@ public:
             State fluxL, fluxR;
             real_t poutL, poutR;
 
-            riemann(qL, qCL, fluxL, poutL);
-            riemann(qCR, qR, fluxR, poutR);
+            riemann(qL, qCL, fluxL, -1, poutL);
+            riemann(qCR, qR, fluxR, 1, poutR);
 
             fluxL = swap_component(fluxL, dir);
             fluxR = swap_component(fluxR, dir);

@@ -270,6 +270,7 @@ namespace {
                          });
    }
 
+  /**
    * @brief Gresho-Vortex setup for Low-mach flows
    * 
    * Based on Miczek et al. 2015 "New numerical solver for flows at various Mach numbers"

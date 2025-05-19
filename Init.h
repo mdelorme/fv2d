@@ -16,7 +16,7 @@ namespace {
    * @brief Sod Shock tube aligned along the X axis
    */
   KOKKOS_INLINE_FUNCTION
-  void initSodX(Array Q, int i, int j, const Params &params) {
+  void initSodX(Array Q, int i, int j, const DeviceParams &params) {
     if (getPos(params, i, j)[IX] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
@@ -33,7 +33,7 @@ namespace {
    * @brief Sod Shock tube aligned along the Y axis
    */
   KOKKOS_INLINE_FUNCTION
-  void initSodY(Array Q, int i, int j, const Params &params) {
+  void initSodY(Array Q, int i, int j, const DeviceParams &params) {
     if (getPos(params, i, j)[IY] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
@@ -51,7 +51,7 @@ namespace {
    * @brief Sedov blast initial conditions
    */
   KOKKOS_INLINE_FUNCTION
-  void initBlast(Array Q, int i, int j, const Params &params) {
+  void initBlast(Array Q, int i, int j, const DeviceParams &params) {
     real_t xmid = 0.5 * (params.xmin+params.xmax);
     real_t ymid = 0.5 * (params.ymin+params.ymax);
     
@@ -79,12 +79,11 @@ namespace {
    * @brief Stratified convection based on Hurlburt et al 1984
    */
   KOKKOS_INLINE_FUNCTION
-  void initH84(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initH84(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
 
-//   real_t T = y;
     real_t rho = pow(y, params.m1);
     real_t prs = pow(y, params.m1+1.0); 
     
@@ -102,7 +101,7 @@ namespace {
    * @brief Stratified convection based on Cattaneo et al. 1991
    */
   KOKKOS_INLINE_FUNCTION
-  void initC91(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initC91(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
@@ -127,7 +126,7 @@ namespace {
    * @brief Simple diffusion test with a structure being advected on the grid
    */
   KOKKOS_INLINE_FUNCTION
-  void initDiffusion(Array Q, int i, int j, const Params &params) {
+  void initDiffusion(Array Q, int i, int j, const DeviceParams &params) {
     real_t xmid = 0.5 * (params.xmin+params.xmax);
     real_t ymid = 0.5 * (params.ymin+params.ymax);
 
@@ -152,7 +151,7 @@ namespace {
    * @brief Rayleigh-Taylor instability setup
    */
   KOKKOS_INLINE_FUNCTION
-  void initRayleighTaylor(Array Q, int i, int j, const Params &params) {
+  void initRayleighTaylor(Array Q, int i, int j, const DeviceParams &params) {
     real_t ymid = 0.5*(params.ymin + params.ymax);
     
     Pos pos = getPos(params, i, j);
@@ -688,11 +687,11 @@ enum InitType {
 
 struct InitFunctor {
 private:
-  Params params;
+  Params full_params;
   InitType init_type;
 public:
-  InitFunctor(Params &params)
-    : params(params) {
+  InitFunctor(Params &full_params)
+    : full_params(full_params) {
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
       {"sod_y", SOD_Y},
@@ -720,22 +719,22 @@ public:
       {"C91", C91}
     };
 
-    if (init_map.count(params.problem) == 0)
-      throw std::runtime_error("Error unknown problem " + params.problem);
+    if (init_map.count(full_params.problem) == 0)
+      throw std::runtime_error("Error unknown problem " + full_params.problem);
 
-    init_type = init_map[params.problem];
+    init_type = init_map[full_params.problem];
   };
   ~InitFunctor() = default;
 
   void init(Array &Q) {
     auto init_type = this->init_type;
-    auto params = this->params;
+    auto params = full_params.device_params;
 
-    RandomPool random_pool(params.seed);
+    RandomPool random_pool(full_params.seed);
 
     // Filling active domain ...
     Kokkos::parallel_for( "Initialization", 
-                          params.range_dom, 
+                          full_params.range_dom, 
                           KOKKOS_LAMBDA(const int i, const int j) {
                             switch(init_type) {
                               case SOD_X:           initSodX(Q, i, j, params); break;
@@ -766,7 +765,7 @@ public:
                           });
                           
     // ... and boundaries
-    BoundaryManager bc(params);
+    BoundaryManager bc(full_params);
     bc.fillBoundaries(Q);
   }
 };

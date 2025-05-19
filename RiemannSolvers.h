@@ -3,7 +3,7 @@
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
-void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) {
+void hll(State &qL, State &qR, State& flux, real_t &pout, const DeviceParams &params) {
   const real_t aL = speedOfSound(qL, params);
   const real_t aR = speedOfSound(qR, params);
 
@@ -17,7 +17,7 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) 
   const real_t SR = fmax(smaxL, smaxR);
 
 
-  auto computeFlux = [&](State &q, const Params &params) {
+  auto computeFlux = [&](State &q, const DeviceParams &params) {
     const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
     const real_t E = (q[IP] / (params.gamma0-1.0) + Ek);
 
@@ -51,7 +51,7 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) 
 }
 
 KOKKOS_INLINE_FUNCTION
-void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
+void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params) {
   const real_t rL = qL[IR];
   const real_t uL = qL[IU];
   const real_t vL = qL[IV];

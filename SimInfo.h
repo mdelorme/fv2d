@@ -255,6 +255,7 @@ struct DeviceParams {
 struct Params {
   real_t save_freq;
   real_t tend;
+  INIReader reader;
   std::string filename_out = "run";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
@@ -365,7 +366,7 @@ Pos getPos(const DeviceParams& params, int i, int j) {
 Params readInifile(std::string filename) {
   // Params reader(filename);
   Params res;
-
+  res.reader = INIReader(filename);
   // Run
   res.tend = res.GetFloat("run", "tend", 1.0);
   res.multiple_outputs = res.GetBoolean("run", "multiple_outputs", false);
@@ -380,8 +381,8 @@ Params readInifile(std::string filename) {
     {"euler", TS_EULER},
     {"RK2",   TS_RK2}
   };
-  res.time_stepping = read_map(reader, ts_map, "solvers", "time_stepping", "euler");
-  res.problem = reader.Get("physics", "problem", "blast");
+  res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
+  res.problem = res.Get("physics", "problem", "blast");
 
   res.CFL = res.GetFloat("solvers", "CFL", 0.8);
 
@@ -390,7 +391,7 @@ Params readInifile(std::string filename) {
   res.log_frequency = res.GetInteger("misc", "log_frequency", 10);
 
   // All device parameters
-  res.device_params.init_from_inifile(reader);
+  res.device_params.init_from_inifile(res.reader);
 
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});

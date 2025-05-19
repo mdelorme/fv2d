@@ -53,11 +53,6 @@ enum RiemannSolver {
   HLLC
 };
 
-enum DivCleaning {
-  DEDNER, // hyperbolic div-cleaning
-  DERIGS // entropy consistent
-};
-
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
@@ -102,7 +97,6 @@ struct DeviceParams {
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
   std::string problem;
-  // real_t cr = 0.1; // GLMMHD
 
   // Thermal conductivity
   bool thermal_conductivity_active;

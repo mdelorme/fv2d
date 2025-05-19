@@ -182,7 +182,7 @@ namespace {
    * @brief MHD Sod Shock tube aligned along the X axis
    */
   KOKKOS_INLINE_FUNCTION
-  void initMHDSodX(Array Q, int i, int j, const Params &params) {
+  void initMHDSodX(Array Q, int i, int j, const DeviceParams &params) {
     if (getPos(params, i, j)[IX] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
@@ -210,7 +210,7 @@ namespace {
    * @brief MHD Sod Shock tube aligned along the Y axis
    */
   KOKKOS_INLINE_FUNCTION
-  void initMHDSodY(Array Q, int i, int j, const Params &params) {
+  void initMHDSodY(Array Q, int i, int j, const DeviceParams &params) {
     if (getPos(params, i, j)[IY] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
@@ -238,7 +238,7 @@ namespace {
    * @brief Dai and Woodward test
    */
   KOKKOS_INLINE_FUNCTION
-  void initDaiWoodward(Array Q, int i, int j, const Params &params) {
+  void initDaiWoodward(Array Q, int i, int j, const DeviceParams &params) {
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
@@ -270,7 +270,7 @@ namespace {
    * @brief Second Brio-Wu test
    */
   KOKKOS_INLINE_FUNCTION
-  void initBrioWu2(Array Q, int i, int j, const Params &params){
+  void initBrioWu2(Array Q, int i, int j, const DeviceParams &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
@@ -301,7 +301,7 @@ namespace {
    * @brief Slow Rarefaction Test
    */
   KOKKOS_INLINE_FUNCTION
-  void initSlowRarefaction(Array Q, int i, int j, const Params &params){
+  void initSlowRarefaction(Array Q, int i, int j, const DeviceParams &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
@@ -333,7 +333,7 @@ namespace {
    * @brief First Expansion Test
    */
   KOKKOS_INLINE_FUNCTION
-  void initExpansion1(Array Q, int i, int j, const Params &params){
+  void initExpansion1(Array Q, int i, int j, const DeviceParams &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
@@ -364,7 +364,7 @@ namespace {
    * @brief Second Expansion Test
    */
   KOKKOS_INLINE_FUNCTION
-  void initExpansion2(Array Q, int i, int j, const Params &params){
+  void initExpansion2(Array Q, int i, int j, const DeviceParams &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
@@ -392,7 +392,7 @@ namespace {
   }
 
   KOKKOS_INLINE_FUNCTION
-  void initShuOsher(Array Q, int i, int j, const Params &params){
+  void initShuOsher(Array Q, int i, int j, const DeviceParams &params){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     const real_t x0 = -4.0; // shock interface
@@ -422,7 +422,7 @@ namespace {
    * @brief Orszag-Tang vortex
    */
   KOKKOS_INLINE_FUNCTION
-  void initOrszagTang(Array Q, int i, int j, const Params &params){
+  void initOrszagTang(Array Q, int i, int j, const DeviceParams &params){
     const real_t B0 = 1/Kokkos::sqrt(4*M_PI);
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
@@ -443,7 +443,7 @@ namespace {
    * @brief Kelvin-Helmholtz instability
    */
   KOKKOS_INLINE_FUNCTION
-  void initKelvinHelmoltz(Array Q, int i, int j, const Params &params, const RandomPool &random_pool){
+  void initKelvinHelmoltz(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool){
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
@@ -480,7 +480,7 @@ namespace {
    * @brief MHD Blast Standard Configuration
    */
   KOKKOS_INLINE_FUNCTION
-  void initBlastMHDStandard(Array Q, int i, int j, const Params &params) {
+  void initBlastMHDStandard(Array Q, int i, int j, const DeviceParams &params) {
     real_t x0 = 0.5 * (params.xmin+params.xmax);
     real_t y0 = 0.5 * (params.ymin+params.ymax);
     Pos pos = getPos(params, i, j);
@@ -516,7 +516,7 @@ namespace {
    * @brief MHD Blast Standard Configuration
    */
   KOKKOS_INLINE_FUNCTION
-  void initBlastMHDLowBeta(Array Q, int i, int j, const Params &params) {
+  void initBlastMHDLowBeta(Array Q, int i, int j, const DeviceParams &params) {
     real_t x0 = 0.5 * (params.xmin+params.xmax);
     real_t y0 = 0.5 * (params.ymin+params.ymax);
     Pos pos = getPos(params, i, j);
@@ -551,7 +551,7 @@ namespace {
    * @brief MHD Rotated Shock Tube. Brio and Wu Shock Tube rotated by an angle \theta
    */
   KOKKOS_INLINE_FUNCTION
-  void initRotatedShockTube(Array Q, int i, int j, const Params &params) {
+  void initRotatedShockTube(Array Q, int i, int j, const DeviceParams &params) {
     real_t x0 = 0.5 * (params.xmin+params.xmax);
     real_t y0 = 0.5 * (params.ymin+params.ymax);
     Pos pos = getPos(params, i, j);
@@ -587,7 +587,7 @@ namespace {
    * @brief MHD Rotor Test
    */
   KOKKOS_INLINE_FUNCTION
-  void initMHDRotor(Array Q, int i, int j, const Params &params) {
+  void initMHDRotor(Array Q, int i, int j, const DeviceParams &params) {
     const real_t x0 = 0.5 * (params.xmin+params.xmax);
     const real_t y0 = 0.5 * (params.ymin+params.ymax);
     Pos pos = getPos(params, i, j);
@@ -625,7 +625,7 @@ namespace {
    * @brief Field Advection Loop
    */
   KOKKOS_INLINE_FUNCTION
-  void initFieldLoopAdvection(Array Q, int i, int j, const Params &params) {
+  void initFieldLoopAdvection(Array Q, int i, int j, const DeviceParams &params) {
     const real_t x0 = 0.5 * (params.xmin+params.xmax);
     const real_t y0 = 0.5 * (params.ymin+params.ymax);
     Pos pos = getPos(params, i, j);

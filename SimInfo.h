@@ -169,6 +169,10 @@ struct DeviceParams {
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
 
+  // Divergence Cleaning - MHD only
+  DivCleaning div_cleaning = NO_DC;
+
+
   // Mesh
   int Nx;      // Number of domain cells
   int Ny;      
@@ -190,8 +194,6 @@ struct DeviceParams {
   real_t epsilon = 1.0e-6;
 
   void init_from_inifile(INIReader &reader) {
-    
-
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -233,13 +235,12 @@ struct DeviceParams {
       {"fivewaves", FIVEWAVES}
     };
     riemann_solver = read_map(reader, riemann_map, "solvers", "riemann_solver", "hllc");
-    tmp = res.Get("solvers", "div_cleaning", "dedner");
     std::map<std::string, DivCleaning> div_cleaning_map{
       {"none", NO_DC},
       {"dedner", DEDNER},
       {"derigs", DERIGS}
     };
-    div_cleaning_map = read_map(reader, div_cleaning_map, "solvers", "div_cleaning", "dedner");
+    div_cleaning = read_map(reader, div_cleaning_map, "solvers", "div_cleaning", "dedner");
     if (div_cleaning == DERIGS) {
       throw std::runtime_error("Derigs div cleaning is not implemented yet !");
     };

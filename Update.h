@@ -46,7 +46,7 @@ public:
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
       slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
 
-      if (mhd_run && (params.riemann_solver==HLL || params.riemann_solver==HLLC)){
+      if (mhd_run && (device_params.riemann_solver==HLL || device_params.riemann_solver==HLLC)){
         throw std::runtime_error("HLL and HLLC are not supported for MHD runs.");
       }
     };
@@ -83,10 +83,11 @@ public:
   }
 
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
+    real_t cfl = full_params.CFL;
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-
+    
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
@@ -94,7 +95,7 @@ public:
         // Lambda to update the cell along a direction
         real_t ch, cp, parabolic;
         if (mhd_run && params.div_cleaning == DEDNER) {
-          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+          ch = 0.5 * cfl * fmin(params.dx, params.dy)/dt;
           cp = std::sqrt(params.cr*ch);
           parabolic = std::exp(-dt*ch*ch/(cp*cp));
         }
@@ -213,10 +214,11 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
-    auto params = this->params;
+    ParallelRange range_dom = full_params.range_dom;
+    auto params = full_params.device_params;
       Kokkos::parallel_for(
         "Clean values", 
-        params.range_dom,
+        range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           auto uloc = getStateFromArray(Unew, i, j);
           auto qloc = consToPrim(uloc, params);

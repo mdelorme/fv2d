@@ -88,10 +88,11 @@ namespace fv2d {
 class IOManager {
 public:
   Params params;
+  BoundaryManager bc_manager;
   DeviceParams &device_params;
 
   IOManager(Params &params)
-    : params(params), device_params(params.device_params) {};
+    : params(params), bc_manager(params), device_params(params.device_params) {};
 
   ~IOManager() = default;
 
@@ -168,8 +169,8 @@ public:
           tbx.push_back(bx);
           tby.push_back(by);
           tbz.push_back(bz);
-          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * params.dx);
-          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * params.dy);
+          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
+          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
           real_t divB = dBx_dx + dBy_dy;
           tdivB.push_back(dBx_dx + dBy_dy);
         #endif //MHD
@@ -201,7 +202,6 @@ public:
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v"));
     #endif
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "rho"));
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v"));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "prs"));
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
@@ -282,8 +282,8 @@ public:
         rbx.push_back(bx);
         rby.push_back(by);
         rbz.push_back(bz);
-        real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * params.dx);
-        real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * params.dy);
+        real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
+        real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
         real_t divB = dBx_dx + dBy_dy;
         rdivB.push_back(divB);
         #endif //MHD
@@ -326,7 +326,6 @@ public:
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v"));
     #endif
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "rho"));
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v"));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "prs"));
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);

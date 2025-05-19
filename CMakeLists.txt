@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(fv2d LANGUAGES C CXX)
 
 # Various sets
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory(external/kokkos)
 add_subdirectory(external/HighFive)

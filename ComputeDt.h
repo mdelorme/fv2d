@@ -8,24 +8,21 @@ namespace fv2d {
 
 class ComputeDtFunctor {
 public:
-  Params params;
+  Params full_params;
 
-  ComputeDtFunctor(const Params &params)
-    : params(params) {};
+  ComputeDtFunctor(const Params &full_params)
+    : full_params(full_params) {};
   ~ComputeDtFunctor() = default;
 
   real_t computeDt(Array Q, real_t max_dt, real_t t, bool diag) const {
-    using DtArray = Kokkos::Array<real_t, 3>;
-    DtArray inv_dts {0,0,0};
-
-    auto params = this->params;
+    auto params = full_params.device_params;
 
     real_t inv_dt_hyp = 0.0;
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
 
     Kokkos::parallel_reduce("Computing DT",
-                            params.range_dom,
+                            full_params.range_dom,
                             KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
                               // Hydro time-step
                               State q = getStateFromArray(Q, i, j);
@@ -51,12 +48,15 @@ public:
                                Kokkos::Max<real_t>(inv_dt_par_visc));
   
     if (diag) {
-      std::cout << "Computing dts at (t=" << t << ") : dt_hyp=" << 1.0/inv_dt_hyp
-                << "; dt_TC="   << 1.0/inv_dt_par_tc
-                << "; dt_visc=" << 1.0/inv_dt_par_visc << std::endl; 
+      std::cout << "Computing dts at (t=" << t << ") : dt_hyp=" << 1.0/inv_dt_hyp;
+      if(params.thermal_conductivity_active)
+        std::cout << "; dt_TC="   << 1.0/inv_dt_par_tc;
+      if(params.viscosity_active)
+        std::cout << "; dt_visc=" << 1.0/inv_dt_par_visc;
+      std::cout << std::endl; 
     }
 
-    return params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
+    return full_params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
   }
 };
 

@@ -27,10 +27,11 @@ int main(int argc, char **argv) {
     auto params = readInifile(argv[1]);
     std::ofstream out_ini("last.ini");
     params.outputValues(out_ini);
+    auto device_params = params.device_params;
+
     // Allocating main views
-    Array U    = Kokkos::View<real_t***>("U",    params.Nty, params.Ntx, Nfields);
-    Array Unew = Kokkos::View<real_t***>("Unew", params.Nty, params.Ntx, Nfields);
-    Array Q    = Kokkos::View<real_t***>("Q",    params.Nty, params.Ntx, Nfields);
+    Array U    = Kokkos::View<real_t***>("U", device_params.Nty, device_params.Ntx, Nfields);
+    Array Q    = Kokkos::View<real_t***>("Q", device_params.Nty, device_params.Ntx, Nfields);
 
 
     // Misc vars for iteration
@@ -50,6 +51,7 @@ int main(int argc, char **argv) {
       ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
       next_save = t + params.save_freq;
+      ite++;
     }
     else
       init.init(Q);
@@ -58,12 +60,9 @@ int main(int argc, char **argv) {
     real_t dt;
     int next_log = 0;
 
-    while (t + params.epsilon < params.tend) {
-      Kokkos::deep_copy(Unew, U);
-      
-      bool save_needed = (t + params.epsilon > next_save);
+    while (t + device_params.epsilon < params.tend) {
+      bool save_needed = (t + device_params.epsilon > next_save);
 
-      consToPrim(U, Q, params);
       dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
       if (next_log == 0)
         next_log = params.log_frequency;
@@ -76,9 +75,9 @@ int main(int argc, char **argv) {
         next_save += params.save_freq;
       }
 
-      update.update(Q, Unew, dt);
-
-      Kokkos::deep_copy(U, Unew);
+      update.update(Q, U, dt);
+      consToPrim(U, Q, params);
+      checkNegatives(Q, params);
 
       t += dt;
     }

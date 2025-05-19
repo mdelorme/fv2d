@@ -1,6 +1,8 @@
 # FV2D
 2D finite volume code with Kokkos for experimentation/prototyping purposes
 
+Check the [change log](CHANGELOG.md) for the latest updates.
+
 ## Dependencies
 
 * HDF5 (1.8+)
@@ -131,3 +133,10 @@ f.close()
 
 
 More example of post-treatment scripts can be found in the `python` folder at the root of FV2D.
+
+## Contributors
+
+* Maxime Delorme
+* Grégoire Doebele
+* Lucas Barbier
+* Adam Finley

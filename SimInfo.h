@@ -63,7 +63,8 @@ enum ReconstructionType
 {
   PCM,
   PCM_WB,
-  PLM
+  PLM,
+  PLM_WB
 };
 
 enum ThermalConductivityMode
@@ -383,8 +384,13 @@ struct DeviceParams
     boundary_x = reader.GetMapValue(bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = reader.GetMapValue(bc_map, "run", "boundaries_y", "reflecting");
 
-    std::map<std::string, ReconstructionType> recons_map{{"pcm", PCM}, {"pcm_wb", PCM_WB}, {"plm", PLM}};
-    reconstruction = reader.GetMapValue(recons_map, "solvers", "reconstruction", "pcm");
+    std::map<std::string, ReconstructionType> recons_map{
+      {"pcm",    PCM},
+      {"pcm_wb", PCM_WB},
+      {"plm",    PLM},
+      {"plm_wb", PLM_WB}
+    };
+    reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
 
     std::map<std::string, RiemannSolver> riemann_map{{"hll", HLL}, {"hllc", HLLC}, {"fslp", FSLP}};
     riemann_solver = reader.GetMapValue(riemann_map, "solvers", "riemann_solver", "hllc");

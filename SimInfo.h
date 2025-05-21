@@ -90,52 +90,52 @@ enum ViscosityMode {
 struct DeviceParams { 
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
-
+  
   // Gravity
   bool gravity = false;
   real_t g;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
-  std::string problem;
-
+  
   // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
   real_t kappa;
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
-
+  
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
-
+  
   // Polytropes and such
   real_t m1;
   real_t theta1;
   real_t m2;
   real_t theta2;
-
+  
   // H84
   real_t h84_pert;
-
+  
   // C91
   real_t c91_pert;
-
+  
   // B02
   real_t b02_ymid;
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
-
+  
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
-
+  
   // Godunov
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
-
+  real_t CFL = 0.1;
+  
   // Mesh
   int Nx;      // Number of domain cells
   int Ny;      
@@ -155,10 +155,10 @@ struct DeviceParams {
 
   // Misc stuff
   real_t epsilon = 1.0e-6;
-
+  
   void init_from_inifile(INIReader &reader) {
     
-
+    
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -167,17 +167,18 @@ struct DeviceParams {
     xmax = reader.GetFloat("mesh", "xmax", 1.0);
     ymin = reader.GetFloat("mesh", "ymin", 0.0);
     ymax = reader.GetFloat("mesh", "ymax", 1.0);
-
+    
     Ntx  = Nx + 2*Ng;
     Nty  = Ny + 2*Ng;
     ibeg = Ng;
     iend = Ng+Nx;
     jbeg = Ng;
     jend = Ng+Ny;
-
+    
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
-
+    
+    CFL = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
@@ -253,7 +254,6 @@ struct Params {
   std::string filename_out = "run";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
-  real_t CFL = 0.1;
 
   bool multiple_outputs = false;
 
@@ -378,7 +378,6 @@ Params readInifile(std::string filename) {
   res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
   res.problem = res.Get("physics", "problem", "blast");
 
-  res.CFL = res.GetFloat("solvers", "CFL", 0.8);
 
   // Misc
   res.seed = res.GetInteger("misc", "seed", 12345);

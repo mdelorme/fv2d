@@ -172,7 +172,7 @@ public:
           real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
           real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
           real_t divB = dBx_dx + dBy_dy;
-          tdivB.push_back(dBx_dx + dBy_dy);
+          tdivB.push_back(divB);
         #endif //MHD
         }
       }
@@ -252,7 +252,7 @@ public:
 
     Table trho, tu, tv, tprs;
     #ifdef MHD
-    Table tw, tbx, tby, tbz, tdivB; // TODO: Ajouter un condition sur régime MHD
+    Table tw, tbx, tby, tbz, tdivB;
     #endif
 
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
@@ -308,7 +308,7 @@ public:
     group.createDataSet("v", tv);
     group.createDataSet("prs", tprs);
     #ifdef MHD
-      group.createDataSet("w", tw); // TODO: Ajouter un condition sur régime MHD
+      group.createDataSet("w", tw);
       group.createDataSet("bx", tbx);
       group.createDataSet("by", tby);
       group.createDataSet("bz", tbz);

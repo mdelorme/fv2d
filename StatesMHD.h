@@ -22,7 +22,7 @@ void setStateInArray(Array arr, int i, int j, State st) {
 }
 
 KOKKOS_INLINE_FUNCTION
-State primToCons(State &q, const Params &params) {
+State primToCons(State &q, const DeviceParams &params) {
   State res;
   res[IR] = q[IR];
   res[IU] = q[IR]*q[IU];
@@ -41,7 +41,7 @@ State primToCons(State &q, const Params &params) {
 
 
 KOKKOS_INLINE_FUNCTION
-State consToPrim(State &u, const Params &params) {
+State consToPrim(State &u, const DeviceParams &params) {
   State res;
   res[IR] = u[IR];
   res[IU] = u[IU] / u[IR];
@@ -60,7 +60,7 @@ State consToPrim(State &u, const Params &params) {
 }
 
 KOKKOS_INLINE_FUNCTION
-real_t speedOfSound(State &q, const Params &params) {
+real_t speedOfSound(State &q, const DeviceParams &params) {
   return sqrt(q[IP] * params.gamma0 / q[IR]);
 }
 

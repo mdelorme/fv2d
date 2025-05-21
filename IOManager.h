@@ -89,9 +89,10 @@ class IOManager {
 public:
   Params params;
   BoundaryManager bc_manager;
+  DeviceParams &device_params;
 
   IOManager(Params &params)
-    : params(params), bc_manager(params) {};
+    : params(params), bc_manager(params), device_params(params.device_params) {};
 
   ~IOManager() = default;
 
@@ -113,23 +114,23 @@ public:
     File file(h5_filename, File::Truncate);
     FILE* xdmf_fd = fopen(xmf_filename.c_str(), "w+");
 
-    file.createAttribute("Ntx", params.Ntx);
-    file.createAttribute("Nty", params.Nty);
-    file.createAttribute("Nx", params.Nx);
-    file.createAttribute("Ny", params.Ny);
-    file.createAttribute("ibeg", params.ibeg);
-    file.createAttribute("iend", params.iend);
-    file.createAttribute("jbeg", params.jbeg);
-    file.createAttribute("jend", params.jend);
+    file.createAttribute("Ntx",  device_params.Ntx);
+    file.createAttribute("Nty",  device_params.Nty);
+    file.createAttribute("Nx",   device_params.Nx);
+    file.createAttribute("Ny",   device_params.Ny);
+    file.createAttribute("ibeg", device_params.ibeg);
+    file.createAttribute("iend", device_params.iend);
+    file.createAttribute("jbeg", device_params.jbeg);
+    file.createAttribute("jend", device_params.jend);
     file.createAttribute("problem", params.problem);
     file.createAttribute("iteration", iteration);
 
     std::vector<real_t> x, y;
     // -- vertex pos
-    for (int j=params.jbeg; j <= params.jend; ++j) {
-      for (int i=params.ibeg; i <= params.iend; ++i) {
-        x.push_back((i-params.ibeg) * params.dx);
-        y.push_back((j-params.jbeg) * params.dy);
+    for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
+      for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
+        x.push_back((i-device_params.ibeg) * device_params.dx);
+        y.push_back((j-device_params.jbeg) * device_params.dy);
       }
     }
 
@@ -143,12 +144,11 @@ public:
 
     Table trho, tu, tv, tprs;
     #ifdef MHD
-    Table tw, tbx, tby, tbz; // TODO: Ajouter un condition sur régime MHD
+    Table tw, tbx, tby, tbz, tdivB;
     #endif
-    // std::vector<Table> divB(params.Ntx, Table(params.Nty, 0.0));
-    for (int j=params.jbeg; j<params.jend; ++j) {
 
-      for (int i=params.ibeg; i<params.iend; ++i) {
+    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
+      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
         real_t rho = Qhost(j, i, IR);
         real_t u   = Qhost(j, i, IU);
         real_t v   = Qhost(j, i, IV);
@@ -169,9 +169,10 @@ public:
           tbx.push_back(bx);
           tby.push_back(by);
           tbz.push_back(bz);
-          // real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
-          // real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
-          // divB[i][j] = dBx_dx + dBy_dy;
+          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
+          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
+          real_t divB = dBx_dx + dBy_dy;
+          tdivB.push_back(dBx_dx + dBy_dy);
         #endif //MHD
         }
       }
@@ -185,23 +186,23 @@ public:
       file.createDataSet("bx", tbx);
       file.createDataSet("by", tby);
       file.createDataSet("bz", tbz);
-      // file.createDataSet("divB", divB);
-    #endif //MHD
+      file.createDataSet("divB", tdivB);
+    #endif //MHDÒ
     file.createAttribute("time", t);
 
     std::string empty_string = "";
 
-    fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(params, path));
+    fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, path));
     fprintf(xdmf_fd, str_xdmf_ite_header, t);
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "rho"));
     #ifdef MHD
-      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "velocity", "u", "v", "w"));
-      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "magnetic_field", "bx", "by", "bz"));    
-      // fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "divB"));
+      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v", "w"));
+      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "magnetic_field", "bx", "by", "bz"));    
+      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "divB"));
     #else
-      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, path, empty_string, "velocity", "u", "v"));
+      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v"));
     #endif
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, path, empty_string, "prs"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "rho"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "prs"));
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);
@@ -219,28 +220,28 @@ public:
     FILE* xdmf_fd = fopen((params.filename_out + ".xdmf").c_str(), flag_xdmf);
 
     if (iteration == 0) {
-      file.createAttribute("Ntx", params.Ntx);
-      file.createAttribute("Nty", params.Nty);
-      file.createAttribute("Nx", params.Nx);
-      file.createAttribute("Ny", params.Ny);
-      file.createAttribute("ibeg", params.ibeg);
-      file.createAttribute("iend", params.iend);
-      file.createAttribute("jbeg", params.jbeg);
-      file.createAttribute("jend", params.jend);
+      file.createAttribute("Ntx",  device_params.Ntx);
+      file.createAttribute("Nty",  device_params.Nty);
+      file.createAttribute("Nx",   device_params.Nx);
+      file.createAttribute("Ny",   device_params.Ny);
+      file.createAttribute("ibeg", device_params.ibeg);
+      file.createAttribute("iend", device_params.iend);
+      file.createAttribute("jbeg", device_params.jbeg);
+      file.createAttribute("jend", device_params.jend);
       file.createAttribute("problem", params.problem);
 
       std::vector<real_t> x, y;
       // -- vertex pos
-      for (int j=params.jbeg; j <= params.jend; ++j)
-        for (int i=params.ibeg; i <= params.iend; ++i)
+      for (int j=device_params.jbeg; j <= device_params.jend; ++j)
+        for (int i=device_params.ibeg; i <= device_params.iend; ++i)
         {
-          x.push_back((i-params.ibeg) * params.dx);
-          y.push_back((j-params.jbeg) * params.dy);
+          x.push_back((i-device_params.ibeg) * device_params.dx);
+          y.push_back((j-device_params.jbeg) * device_params.dy);
         }
       file.createDataSet("x", x);
       file.createDataSet("y", y);
 
-      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(params, params.filename_out));
+      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out));
       fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
 
@@ -251,13 +252,16 @@ public:
 
     Table trho, tu, tv, tprs;
     #ifdef MHD
-    Table tw, tbx, tby, tbz; // TODO: Ajouter un condition sur régime MHD
+    Table tw, tbx, tby, tbz, tdivB; // TODO: Ajouter un condition sur régime MHD
     #endif
-    // Table divB(params.Ntx, std::vector<real_t>(params.Nty, 0.0));
-    for (int j=params.jbeg; j<params.jend; ++j) {
+
+    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
       std::vector<real_t> rrho, ru, rv, rprs;
-      std::vector<real_t> rw, rbx, rby, rbz; // TODO: Ajouter un condition sur régime MHD
-      for (int i=params.ibeg; i<params.iend; ++i) {
+      #ifdef MHD
+      std::vector<real_t> rw, rbx, rby, rbz, rdivB;
+      #endif
+
+      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
         real_t rho = Qhost(j, i, IR);
         real_t u   = Qhost(j, i, IU);
         real_t v   = Qhost(j, i, IV);
@@ -278,9 +282,10 @@ public:
         rbx.push_back(bx);
         rby.push_back(by);
         rbz.push_back(bz);
-        // real_t dBx_dx = (Qhost(j+1, i, IBX) - Qhost(j-1, i, IBX)) / (2 * params.dx);
-        // real_t dBy_dy = (Qhost(j, i+1, IBY) - Qhost(j, i-1, IBY)) / (2 * params.dy);
-        // divB[i][j] = dBx_dx + dBy_dy;
+        real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
+        real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
+        real_t divB = dBx_dx + dBy_dy;
+        rdivB.push_back(divB);
         #endif //MHD
       }
       trho.push_back(rrho);
@@ -293,6 +298,7 @@ public:
       tbx.push_back(rbx);
       tby.push_back(rby);
       tbz.push_back(rbz);
+      tdivB.push_back(rdivB);
       #endif //MHD
   } // loop j
 
@@ -306,21 +312,21 @@ public:
       group.createDataSet("bx", tbx);
       group.createDataSet("by", tby);
       group.createDataSet("bz", tbz);
-      // group.createDataSet("divB", divB);
+      group.createDataSet("divB", tdivB);
     #endif //MHD
     group.createAttribute("time", t);
 
     fseek(xdmf_fd, -sizeof(str_xdmf_footer), SEEK_END);
     fprintf(xdmf_fd, str_xdmf_ite_header, t);
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, params.filename_out, path, "rho"));
     #ifdef MHD
-      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, params.filename_out, path, "velocity", "u", "v", "w"));
-      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, params.filename_out, path, "magnetic_field", "bx", "by", "bz"));
-      // fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, params.filename_out, path, "divB"));
+      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v", "w"));
+      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "magnetic_field", "bx", "by", "bz"));
+      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "divB"));
     #else
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(params, params.filename_out, path, "velocity", "u", "v"));
+    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v"));
     #endif
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(params, params.filename_out, path, "prs"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "rho"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "prs"));
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);
@@ -331,9 +337,9 @@ public:
 
     auto Nt = getShape(file, "rho")[0];
 
-    if (Nt != params.Nx*params.Ny) {
+    if (Nt != device_params.Nx*device_params.Ny) {
       std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = " 
-                << params.Nx << "x" << params.Ny << "=" << params.Nx*params.Ny << std::endl;
+                << device_params.Nx << "x" << device_params.Ny << "=" << device_params.Nx*device_params.Ny << std::endl;
       throw std::runtime_error("ERROR : Trying to restart from a file with a different resolution !");
     }
 
@@ -346,9 +352,9 @@ public:
       auto table = load<Table>(file, var_name);
       // Parallel for here ?
       int lid = 0;
-      for (int y=0; y < params.Ny; ++y) {
-        for (int x=0; x < params.Nx; ++x) {
-          Qhost(y+params.jbeg, x+params.ibeg, var_id) = table[lid++];
+      for (int y=0; y < device_params.Ny; ++y) {
+        for (int x=0; x < device_params.Nx; ++x) {
+          Qhost(y+device_params.jbeg, x+device_params.ibeg, var_id) = table[lid++];
         }
       }
     };
@@ -364,10 +370,15 @@ public:
     #endif //MHD
     Kokkos::deep_copy(Q, Qhost);
 
+    BoundaryManager bc(params);
+    bc.fillBoundaries(Q);
+    
+    HighFive::Attribute attr_time = file.getAttribute("time");
+    real_t time; attr_time.read(time);
+    HighFive::Attribute attr_ite = file.getAttribute("iteration");
+    int iteration; attr_ite.read(iteration);
+    
     std::cout << "Restart finished !" << std::endl;
-
-    real_t time = loadAttribute<real_t>(file, "", "time");
-    int iteration = loadAttribute<int>(file, "", "iteration");
 
     return {time, iteration};
   }

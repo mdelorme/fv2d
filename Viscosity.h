@@ -5,7 +5,7 @@
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
-real_t computeMu(int i, int j, const Params &params) {
+real_t computeMu(int i, int j, const DeviceParams &params) {
   switch (params.viscosity_mode) {
     default: return params.mu; break;
   }
@@ -13,20 +13,20 @@ real_t computeMu(int i, int j, const Params &params) {
 
 class ViscosityFunctor {
 public:
-  Params params;
+  Params full_params;
 
-  ViscosityFunctor(const Params &params) 
-    : params(params) {};
+  ViscosityFunctor(const Params &full_params) 
+    : full_params(full_params) {};
   ~ViscosityFunctor() = default;
 
   void applyViscosity(Array Q, Array Unew, real_t dt) {
-    auto params = this->params;
+    auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
 
     Kokkos::parallel_for(
       "Viscosity",
-      params.range_dom,
+      full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         Pos pos = getPos(params, i, j);
         real_t x = pos[IX];

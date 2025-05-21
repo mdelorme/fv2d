@@ -3,7 +3,7 @@
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
-void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) {
+void hll(State &qL, State &qR, State& flux, real_t &pout, const DeviceParams &params) {
   const real_t aL = speedOfSound(qL, params);
   const real_t aR = speedOfSound(qR, params);
 
@@ -17,7 +17,7 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) 
   const real_t SR = fmax(smaxL, smaxR);
 
 
-  auto computeFlux = [&](State &q, const Params &params) {
+  auto computeFlux = [&](State &q, const DeviceParams &params) {
     const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
     const real_t E = (q[IP] / (params.gamma0-1.0) + Ek);
 
@@ -51,7 +51,7 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const Params &params) 
 }
 
 KOKKOS_INLINE_FUNCTION
-void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
+void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params) {
   const real_t rL = qL[IR];
   const real_t uL = qL[IU];
   const real_t vL = qL[IV];
@@ -127,7 +127,7 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const Params &params)
 #ifdef MHD
 
 KOKKOS_INLINE_FUNCTION
-void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx, const Params &params) {
+void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx, const DeviceParams &params) {
   const real_t Bsgn = (Bx < 0.0 ? -1.0 : 1.0);
   const real_t smalle = std::pow(10.0, -5.0);
   // Deref of states
@@ -153,7 +153,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   const real_t pTR = pR + 0.5 * B2R;
   const real_t ER  = pR / (params.gamma0-1.0) + 0.5*rR*(uR*uR+vR*vR+wR*wR) + 0.5*B2R;
 
-  auto computeFastMagnetoAcousticSpeed = [&](const State &q, const Params &params) {
+  auto computeFastMagnetoAcousticSpeed = [&](const State &q, const DeviceParams &params) {
     const real_t gp = params.gamma0 * q[IP];
     const real_t B2 = Bx*Bx + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];
     
@@ -341,7 +341,8 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   flux = computeFlux(q, e_tot);
 }
 
-void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const Params &params) {
+KOKKOS_INLINE_FUNCTION
+void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params) {
   const uint IZ = 2;
   using vec_t = Kokkos::Array<real_t, 3>;
   constexpr real_t epsilon = 1.0e-16;

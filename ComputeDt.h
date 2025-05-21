@@ -56,7 +56,7 @@ public:
       std::cout << std::endl; 
     }
 
-    return full_params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
+    return full_params.device_params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
   }
 };
 

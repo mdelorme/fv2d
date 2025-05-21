@@ -123,7 +123,6 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &p
   flux[IE] = (E + st[IP])*st[IU];
 }
 
-/** TODO Lucas OK */
 #ifdef MHD
 
 KOKKOS_INLINE_FUNCTION
@@ -436,6 +435,48 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   }
   flux[IPSI] = 0.0;
   pout = Pstar[IX];
+}
+
+KOKKOS_INLINE_FUNCTION
+void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params){
+  // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
+  const real_t betaL = 0.5 * qL[IR]/qL[IP];
+  const real_t betaR = 0.5 * qR[IR]/qR[IP];
+  const real_t umax = 1; // TODO: Umax doit être la vitesse max sur toute la grille
+  const real_t lambda_max = 2; // TODO: Valeur propre la plus grande
+  const real_t ch = lambda_max - umax;
+  auto average = [&](const real_t xL, const real_t xR){
+    return 0.5 * (xL + xR);
+  };
+  auto jumpStates = [&](const real_t xL, const real_t xR) {
+    // Compute quantities denoted with a `[[.]]` in the paper, meaning a jump in state
+    return 0.5 * (xR - xL);
+  };
+  // TODO: Check the numerical stable procedure for computing the log mean
+  auto logMean = [&](const real_t xL, const real_t xR) {
+    // Compute the quantities denoted with a `ln` exposant in the paper
+    // And defined as : (.)^{ln} = [[.]] / [[ln(.)]]
+    return jumpStates(xL, xR) / jumpStates(Kokkos::log(xL), Kokkos::log(xR));
+  };
+
+  State avgQ = 0.5 * (qL + qR);
+  const real_t beta_avg = 0.5 * (betaL + betaR);
+  const real_t beta_ln = logMean(betaL, betaR);
+  const real_t uB_avg  = average(qL[IU]*qL[IBX],         qR[IU]*qR[IBX])         + average(qL[IV]*qL[IBY],         qR[IV]*qR[IBY])         + average(qL[IW]*qL[IBZ],         qR[IW]*qR[IBZ]);
+  const real_t uB2_avg = average(qL[IU]*qL[IBX]*qL[IBX], qR[IU]*qR[IBX]*qR[IBX]) + average(qL[IU]*qL[IBY]*qL[IBY], qR[IU]*qR[IBY]*qR[IBY]) + average(qL[IU]*qL[IBZ]*qL[IBZ], qR[IU]*qR[IBZ]*qR[IBZ]);
+  const real_t f1 = logMean(qL[IR], qR[IR]) * avgQ[IU];
+  const real_t f2 = f1 * avgQ[IU] - avgQ[IBX]*avgQ[IBX] + 0.5 * avgQ[IP]/beta_avg + 0.5 * (avgQ[IBX]*avgQ[IBX] + avgQ[IBY]*avgQ[IBY] + avgQ[IBZ]*avgQ[IBZ]);
+  const real_t f3 = f1 * avgQ[IV] - avgQ[IBX]*avgQ[IBY];
+  const real_t f4 = f1 * avgQ[IW] - avgQ[IBX]*avgQ[IBZ];
+  const real_t f6 = ch * avgQ[IPSI];
+  const real_t f7 = avgQ[IU]*avgQ[IBY] - avgQ[IV]*avgQ[IBX];
+  const real_t f8 = avgQ[IU]*avgQ[IBZ] - avgQ[IW]*avgQ[IBX];
+  const real_t f9 = ch * avgQ[IBX];
+  const real_t f5 = f1 * (1 / (2*beta_ln*(params.gamma0-1)) - 0.5 * (avgQ[IU]*avgQ[IU] + avgQ[IV]*avgQ[IV] + avgQ[IW]*avgQ[IW])) + f2*avgQ[IU] + f3*avgQ[IV] + f4*avgQ[IW]
+  + f6*avgQ[IBX] * f7*avgQ[IBY] * f8*avgQ[IBZ] + f9*avgQ[IPSI] - 0.5 * uB2_avg + avgQ[IBX] * uB_avg - ch * average(qL[IBX]*qL[IPSI], qR[IBX]*qR[IPSI]);
+  
+  State FluxKepeck {f1, f2, f3, f4, f5, f7, f8, f9};
+  flux = FluxKepeck;
 }
 #endif
 }

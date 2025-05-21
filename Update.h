@@ -83,7 +83,6 @@ public:
   }
 
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
-    real_t cfl = full_params.CFL;
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
@@ -95,7 +94,7 @@ public:
         // Lambda to update the cell along a direction
         real_t ch, cp, parabolic;
         if (mhd_run && params.div_cleaning == DEDNER) {
-          ch = 0.5 * cfl * fmin(params.dx, params.dy)/dt;
+          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
           cp = std::sqrt(params.cr*ch);
           parabolic = std::exp(-dt*ch*ch/(cp*cp));
         }
@@ -203,22 +202,21 @@ public:
   void euler_step(Array Q, Array Unew, real_t dt) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
-
-    // Hypperbolic udpate
+    // Hyperbolic update
     if (full_params.device_params.reconstruction == PLM)
-      computeSlopes(Q);
+    computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);
     // pressureFix(Unew);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-      tc_functor.applyThermalConduction(Q, Unew, dt);
+    tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
-      visc_functor.applyViscosity(Q, Unew, dt);
-    ParallelRange range_dom = full_params.range_dom;
+    visc_functor.applyViscosity(Q, Unew, dt);
+
     auto params = full_params.device_params;
-      Kokkos::parallel_for(
+    Kokkos::parallel_for(
         "Clean values", 
-        range_dom,
+        full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           auto uloc = getStateFromArray(Unew, i, j);
           auto qloc = consToPrim(uloc, params);

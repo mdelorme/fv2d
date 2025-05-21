@@ -119,60 +119,60 @@ enum ViscosityMode {
 struct DeviceParams { 
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
-
+  
   // Gravity
   bool gravity = false;
   real_t g;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
-  std::string problem;
-  real_t cr = 0.1; // GLMMHD
   real_t smallr = 1.0e-10;
   real_t smallp = 1.0e-10;
   // Thermal conduction
-
+  
   // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
   real_t kappa;
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
-
+  
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
-
+  
   // Polytropes and such
   real_t m1;
   real_t theta1;
   real_t m2;
   real_t theta2;
-
+  
   // H84
   real_t h84_pert;
-
+  
   // C91
   real_t c91_pert;
-
+  
   // B02
   real_t b02_ymid;
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
-
+  
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
-
+  
   // Godunov
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
-
+  real_t CFL = 0.1;
+  
   // Divergence Cleaning - MHD only
   DivCleaning div_cleaning = NO_DC;
-
-
+  real_t cr = 0.18; // GLMMHD
+  
+  
   // Mesh
   int Nx;      // Number of domain cells
   int Ny;      
@@ -189,10 +189,10 @@ struct DeviceParams {
   real_t ymax;
   real_t dx;   // Space step
   real_t dy;
-
+  
   // Misc stuff
   real_t epsilon = 1.0e-6;
-
+  
   void init_from_inifile(INIReader &reader) {
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
@@ -202,17 +202,19 @@ struct DeviceParams {
     xmax = reader.GetFloat("mesh", "xmax", 1.0);
     ymin = reader.GetFloat("mesh", "ymin", 0.0);
     ymax = reader.GetFloat("mesh", "ymax", 1.0);
-
+    
     Ntx  = Nx + 2*Ng;
     Nty  = Ny + 2*Ng;
     ibeg = Ng;
     iend = Ng+Nx;
     jbeg = Ng;
     jend = Ng+Ny;
-
+    
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
-
+    
+    CFL = reader.GetFloat("solvers", "CFL", 0.8);
+    
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
@@ -220,14 +222,14 @@ struct DeviceParams {
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
-
+    
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},
       {"plm",    PLM}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
-
+    
     std::map<std::string, RiemannSolver> riemann_map{
       {"hll", HLL},
       {"hllc", HLLC},
@@ -254,7 +256,7 @@ struct DeviceParams {
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
-
+    
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
@@ -263,7 +265,7 @@ struct DeviceParams {
     };
     thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
-
+    
     std::map<std::string, BCTC_Mode> bctc_map{
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
@@ -273,7 +275,7 @@ struct DeviceParams {
     bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
     bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
     bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
-
+    
     // Viscosity
     viscosity_active = reader.GetBoolean("viscosity", "active", false);
     std::map<std::string, ViscosityMode> viscosity_map{
@@ -281,10 +283,10 @@ struct DeviceParams {
     };
     viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
-
+    
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
-
+    
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
   }
@@ -298,7 +300,6 @@ struct Params {
   std::string filename_out = "run";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
-  real_t CFL = 0.1;
 
   bool multiple_outputs = false;
 
@@ -423,7 +424,6 @@ Params readInifile(std::string filename) {
   res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
   res.problem = res.Get("physics", "problem", "blast");
 
-  res.CFL = res.GetFloat("solvers", "CFL", 0.8);
 
   // Misc
   res.seed = res.GetInteger("misc", "seed", 12345);

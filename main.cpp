@@ -25,6 +25,8 @@ int main(int argc, char **argv) {
 
     // Reading parameters from .ini file
     auto params = readInifile(argv[1]);
+    std::ofstream out_ini("last.ini");
+    params.outputValues(out_ini);
     auto device_params = params.device_params;
 
     // Allocating main views

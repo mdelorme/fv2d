@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cmath>
+#include <string>
+#include <iomanip>
 #include <functional>
 #include "INIReader.h"
 #include <Kokkos_Core.hpp>
@@ -88,50 +90,52 @@ enum ViscosityMode {
 struct DeviceParams { 
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
-
+  
   // Gravity
   bool gravity = false;
   real_t g;
   bool well_balanced_flux_at_y_bc = false;
-
+  bool well_balanced = false;
+  
   // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
   real_t kappa;
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
-
+  
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
-
+  
   // Polytropes and such
   real_t m1;
   real_t theta1;
   real_t m2;
   real_t theta2;
-
+  
   // H84
   real_t h84_pert;
-
+  
   // C91
   real_t c91_pert;
-
+  
   // B02
   real_t b02_ymid;
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
-
+  
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
-
+  
   // Godunov
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
-
+  real_t CFL = 0.1;
+  
   // Mesh
   int Nx;      // Number of domain cells
   int Ny;      
@@ -151,10 +155,10 @@ struct DeviceParams {
 
   // Misc stuff
   real_t epsilon = 1.0e-6;
-
+  
   void init_from_inifile(INIReader &reader) {
     
-
+    
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -163,17 +167,18 @@ struct DeviceParams {
     xmax = reader.GetFloat("mesh", "xmax", 1.0);
     ymin = reader.GetFloat("mesh", "ymin", 0.0);
     ymax = reader.GetFloat("mesh", "ymax", 1.0);
-
+    
     Ntx  = Nx + 2*Ng;
     Nty  = Ny + 2*Ng;
     ibeg = Ng;
     iend = Ng+Nx;
     jbeg = Ng;
     jend = Ng+Ny;
-
+    
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
-
+    
+    CFL = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
@@ -245,10 +250,10 @@ struct DeviceParams {
 struct Params {
   real_t save_freq;
   real_t tend;
+  INIReader reader;
   std::string filename_out = "run";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
-  real_t CFL = 0.1;
 
   bool multiple_outputs = false;
 
@@ -268,7 +273,82 @@ struct Params {
   // Misc 
   int seed;
   int log_frequency;
+  
+  struct value_container {
+    std::string value;
+    bool from_file = false;
+    bool used = false;
+  };
+  std::map<std::string, std::map<std::string, value_container>> _values;
+  
+  template<typename T>
+  void registerValue(std::string section, std::string name, const T& default_value) {
+    // TODO: revoir la logique car affiche unused et default à chaque paramètre.
+    // Les valeurs sont par contre correctes.
+    auto hasValue = [&](const std::string& section, const std::string& name) {
+      return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0);
+    };
+
+    bool is_present_in_file = hasValue(section, name);
+    if (is_present_in_file) {
+      this->_values[section][name].used = true;
+      this->_values[section][name].from_file = true;
+    }
+    if constexpr (std::is_same_v<T, std::string>){
+      this->_values[section][name].value = default_value;
+    }
+    else {
+      this->_values[section][name].value = std::to_string(default_value);
+    }
+  }
+  bool GetBoolean(std::string section, std::string name, bool default_value){
+    bool res = this->reader.GetBoolean(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+  
+  int GetInteger(std::string section, std::string name, int default_value){
+    int res = this->reader.GetInteger(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+  
+  real_t GetFloat(std::string section, std::string name, real_t default_value){
+    real_t res = this->reader.GetFloat(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+  std::string Get(std::string section, std::string name, std::string default_value){
+    std::string res = this->reader.Get(section, name, default_value);
+    registerValue(section, name, res);
+    return res;
+  }
+
+  void outputValues(std::ostream& o){
+    constexpr std::string::size_type name_width = 20;
+    constexpr std::string::size_type value_width = 20;
+    auto initial_format = o.flags();
+    std::string problem = this->Get("physics", "problem", "unknown");
+    o << "Parameters used for the problem: " << problem << std::endl;
+    o << std::left;
+    for( auto p_section : this->_values )
+    {
+      const std::string& section_name = p_section.first;
+      const std::map<std::string, value_container>& map_section = p_section.second;
+
+      o << "\n[" << section_name << "]" << std::endl;
+      for( auto p_var : map_section )
+      {
+        const std::string& var_name = p_var.first;
+        const value_container& val = p_var.second;
+
+        o << std::setw(std::max(var_name.length(),name_width)) << var_name << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value << std::endl;
+      }
+    }
+    o.flags(initial_format);
+  }
 };
+
 
 // Helper to get the position in the mesh
 KOKKOS_INLINE_FUNCTION
@@ -278,35 +358,33 @@ Pos getPos(const DeviceParams& params, int i, int j) {
 }
 
 Params readInifile(std::string filename) {
-  INIReader reader(filename);
-
+  // Params reader(filename);
   Params res;
-
+  res.reader = INIReader(filename);
   // Run
-  res.tend = reader.GetFloat("run", "tend", 1.0);
-  res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
-  res.restart_file = reader.Get("run", "restart_file", "");
+  res.tend = res.GetFloat("run", "tend", 1.0);
+  res.multiple_outputs = res.GetBoolean("run", "multiple_outputs", false);
+  res.restart_file = res.Get("run", "restart_file", "");
   if (res.restart_file != "" && !res.multiple_outputs)
     throw std::runtime_error("Restart one unique files is not implemented yet !");
     
-  res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = reader.Get("run", "output_filename", "run");
+  res.save_freq = res.GetFloat("run", "save_freq", 1.0e-1);
+  res.filename_out = res.Get("run", "output_filename", "run");
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
     {"RK2",   TS_RK2}
   };
-  res.time_stepping = read_map(reader, ts_map, "solvers", "time_stepping", "euler");
-  res.problem = reader.Get("physics", "problem", "blast");
+  res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
+  res.problem = res.Get("physics", "problem", "blast");
 
-  res.CFL = reader.GetFloat("solvers", "CFL", 0.8);
 
   // Misc
-  res.seed = reader.GetInteger("misc", "seed", 12345);
-  res.log_frequency = reader.GetInteger("misc", "log_frequency", 10);
+  res.seed = res.GetInteger("misc", "seed", 12345);
+  res.log_frequency = res.GetInteger("misc", "log_frequency", 10);
 
   // All device parameters
-  res.device_params.init_from_inifile(reader);
+  res.device_params.init_from_inifile(res.reader);
 
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
@@ -319,6 +397,7 @@ Params readInifile(std::string filename) {
   return res;
 } 
 }
+
 
 // All states operations
 #include "States.h"

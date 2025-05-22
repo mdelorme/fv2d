@@ -51,6 +51,23 @@ public:
       }
     };
   ~UpdateFunctor() = default;
+  #ifdef MHD
+ real_t ComputeMaxSpeed(Array Q) const {
+    real_t umax = 0.0;
+    Kokkos::parallel_reduce("Compute Max Speed",
+                            full_params.range_dom,
+                            KOKKOS_LAMBDA(int i, int j, real_t& lmax) {
+                                State q = getStateFromArray(Q, i, j);
+                                lmax = Kokkos::max(lmax,
+                                                  Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])})
+                                                );
+                            },
+                            Kokkos::Max<real_t>(umax));
+    return umax;
+};
+
+
+  #endif //MHD
 
   void computeSlopes(const Array &Q) const {
     auto slopesX = this->slopesX;
@@ -134,6 +151,12 @@ public:
                 FiveWaves(qL, qR, flux, pout, params);
                 break;
               }
+
+              case IDEALGLM: {
+                real_t umax = ComputeMaxSpeed(Q);
+                IdealGLM(qL, qR, flux, pout, umax, params);
+                break;
+              }
               
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
             }
@@ -160,6 +183,7 @@ public:
           fluxR = swap_component(fluxR, dir);
 
           // Remove mechanical flux in a well-balanced fashion
+          // TODO: Vérifier s'il faut pas changer params en device_params ici
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
               #ifdef MHD

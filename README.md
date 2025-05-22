@@ -11,6 +11,18 @@ Check the [change log](CHANGELOG.md) for the latest updates.
 
 ## Building
 
+### Get the Sources
+
+`fv2d` includes Kokkos and other libraries as `git submodules`. Make sure to clone this repository recursively, this will also download `Kokkos` and other dependencies`
+
+```bash
+git clone --recurse-submodules git@github.com:mdelorme/fv2d.git
+```
+or if you already cloned the repository without `--recurse-submodules`
+```bash
+git submodule update --init
+```
+
 Building relies on CMake. As FV2D is built with Kokkos included as a submodule, all Kokkos option have to be passed here. For more information on how to indicate which architecture/compiler you wish to use with Kokkos, please refer to the [Kokkos documentation](https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/Compiling.html). Here are a few examples of build commands for FV2D depending on the architecture : 
 
 ### Configuring on CPU with Clang

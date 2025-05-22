@@ -73,7 +73,8 @@ enum RiemannSolver {
   HLL,
   HLLC,
   HLLD,
-  FIVEWAVES
+  FIVEWAVES,
+  IDEALGLM
 };
 
 enum DivCleaning {
@@ -234,7 +235,8 @@ struct DeviceParams {
       {"hll", HLL},
       {"hllc", HLLC},
       {"hlld", HLLD},
-      {"fivewaves", FIVEWAVES}
+      {"fivewaves", FIVEWAVES},
+      {"idealGLM", IDEALGLM}
     };
     riemann_solver = read_map(reader, riemann_map, "solvers", "riemann_solver", "hllc");
     std::map<std::string, DivCleaning> div_cleaning_map{

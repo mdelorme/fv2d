@@ -438,16 +438,56 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
 }
 
 KOKKOS_INLINE_FUNCTION
-void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params){
+void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const real_t &umax, const DeviceParams &params){
   // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
-  const real_t betaL = 0.5 * qL[IR]/qL[IP];
-  const real_t betaR = 0.5 * qR[IR]/qR[IP];
-  const real_t umax = 1; // TODO: Umax doit être la vitesse max sur toute la grille
-  const real_t lambda_max = 2; // TODO: Valeur propre la plus grande
-  const real_t ch = lambda_max - umax;
+  using vec_t = Kokkos::Array<real_t, 3>;
+  
   auto average = [&](const real_t xL, const real_t xR){
     return 0.5 * (xL + xR);
   };
+  enum WaveType {
+    SLOW,
+    FAST
+  };
+  State avgQ = 0.5 * (qL + qR);
+  auto ComputeMagnetoAccousticWave = [&](State &q, WaveType waveType, const DeviceParams &params){
+    const vec_t b = {q[IBX]/q[IR], q[IBY]/q[IR], q[IBZ]/q[IR]};
+    const real_t a2 = params.gamma0 * q[IP]/q[IR];
+    const real_t first_term = a2 + b[0]*b[0] + b[1]*b[1] + b[2]*b[2];
+    const real_t second_term = Kokkos::sqrt(first_term * first_term - 4 * a2 * b[0]*b[0]);
+    switch (waveType) {
+      case SLOW: {return 0.5 * (first_term - second_term);}
+      case FAST: {return 0.5 * (first_term + second_term);}
+      default: return 0.0;
+    }
+  };
+
+  const real_t lambda_max = Kokkos::max(
+    Kokkos::abs(qL[IU] - ComputeMagnetoAccousticWave(qL, FAST, params)), 
+    Kokkos::abs(qR[IU] + ComputeMagnetoAccousticWave(qR, FAST, params))
+  );
+  const real_t ch = lambda_max - umax;
+
+  // // Special discrete averages (C.18)
+  // const vec_t bL {qL[IBX]/Kokkos::sqrt(qL[IR]), qL[IBY]/Kokkos::sqrt(qL[IR]), qL[IBZ]/Kokkos::sqrt(qL[IR])};
+  // const vec_t bR {qR[IBX]/Kokkos::sqrt(qR[IR]), qR[IBY]/Kokkos::sqrt(qR[IR]), qR[IBZ]/Kokkos::sqrt(qR[IR])};
+  // const vec_t b {average(bL[0], bR[0]), average(bL[1], bR[1]), average(bL[2], bR[2])};
+  // const real_t b2 = b[0]*b[0] + b[1]*b[1] + b[2]*b[2];
+  // const real_t BnormL = Kokkos::sqrt(qL[IBX]*qL[IBX] + qL[IBY]*qL[IBY] + qL[IBZ]*qL[IBZ]); 
+  // const real_t BnormR = Kokkos::sqrt(qR[IBX]*qR[IBX] + qR[IBY]*qR[IBY] + qR[IBZ]*qR[IBZ]);
+  // real_t bvec2 = 0.0;
+  // for (int i=0; i<3; ++i) {
+  //   bvec2 += average(qL[IBX+i], qR[IBX+i]) * average(qL[IBX+i]/qL[IR], qR[IBX+i]/qR[IR]);
+  // }
+  // const real_t a2 = params.gamma0 * avgQ[IP] * average(1/qL[IR], 1/qR[IR]);
+  // // Discrete wave speeds (C.17)
+  // const real_t ca = Kokkos::abs(b[0]);
+  // const real_t cf = 0.5 * (Kokkos::sqrt(a2 + b2 + 2*Kokkos::sqrt(a2*b[0]*b[0])) + Kokkos::sqrt(a2 + b2 - 2*Kokkos::sqrt(a2*b[0]*b[0])));
+  // const real_t cs = 0.5 * (Kokkos::sqrt(a2 + b2 + 2*Kokkos::sqrt(a2*b[0]*b[0])) - Kokkos::sqrt(a2 + b2 - 2*Kokkos::sqrt(a2*b[0]*b[0])));
+
+  const real_t betaL = 0.5 * qL[IR]/qL[IP];
+  const real_t betaR = 0.5 * qR[IR]/qR[IP];
+
   auto jumpStates = [&](const real_t xL, const real_t xR) {
     // Compute quantities denoted with a `[[.]]` in the paper, meaning a jump in state
     return 0.5 * (xR - xL);
@@ -459,11 +499,11 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const DeviceParam
     return jumpStates(xL, xR) / jumpStates(Kokkos::log(xL), Kokkos::log(xR));
   };
 
-  State avgQ = 0.5 * (qL + qR);
   const real_t beta_avg = 0.5 * (betaL + betaR);
   const real_t beta_ln = logMean(betaL, betaR);
   const real_t uB_avg  = average(qL[IU]*qL[IBX],         qR[IU]*qR[IBX])         + average(qL[IV]*qL[IBY],         qR[IV]*qR[IBY])         + average(qL[IW]*qL[IBZ],         qR[IW]*qR[IBZ]);
   const real_t uB2_avg = average(qL[IU]*qL[IBX]*qL[IBX], qR[IU]*qR[IBX]*qR[IBX]) + average(qL[IU]*qL[IBY]*qL[IBY], qR[IU]*qR[IBY]*qR[IBY]) + average(qL[IU]*qL[IBZ]*qL[IBZ], qR[IU]*qR[IBZ]*qR[IBZ]);
+  // Flux components
   const real_t f1 = logMean(qL[IR], qR[IR]) * avgQ[IU];
   const real_t f2 = f1 * avgQ[IU] - avgQ[IBX]*avgQ[IBX] + 0.5 * avgQ[IP]/beta_avg + 0.5 * (avgQ[IBX]*avgQ[IBX] + avgQ[IBY]*avgQ[IBY] + avgQ[IBZ]*avgQ[IBZ]);
   const real_t f3 = f1 * avgQ[IV] - avgQ[IBX]*avgQ[IBY];
@@ -473,7 +513,7 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const DeviceParam
   const real_t f8 = avgQ[IU]*avgQ[IBZ] - avgQ[IW]*avgQ[IBX];
   const real_t f9 = ch * avgQ[IBX];
   const real_t f5 = f1 * (1 / (2*beta_ln*(params.gamma0-1)) - 0.5 * (avgQ[IU]*avgQ[IU] + avgQ[IV]*avgQ[IV] + avgQ[IW]*avgQ[IW])) + f2*avgQ[IU] + f3*avgQ[IV] + f4*avgQ[IW]
-  + f6*avgQ[IBX] * f7*avgQ[IBY] * f8*avgQ[IBZ] + f9*avgQ[IPSI] - 0.5 * uB2_avg + avgQ[IBX] * uB_avg - ch * average(qL[IBX]*qL[IPSI], qR[IBX]*qR[IPSI]);
+                  + f6*avgQ[IBX] * f7*avgQ[IBY] * f8*avgQ[IBZ] + f9*avgQ[IPSI] - 0.5 * uB2_avg + avgQ[IBX] * uB_avg - ch * average(qL[IBX]*qL[IPSI], qR[IBX]*qR[IPSI]);
   
   State FluxKepeck {f1, f2, f3, f4, f5, f7, f8, f9};
   flux = FluxKepeck;

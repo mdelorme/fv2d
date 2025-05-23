@@ -438,35 +438,29 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
 }
 
 KOKKOS_INLINE_FUNCTION
-void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const real_t &umax, const DeviceParams &params){
+void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, const real_t &ch, const DeviceParams &params){
   // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
-  using vec_t = Kokkos::Array<real_t, 3>;
+  // using vec_t = Kokkos::Array<real_t, 3>;
   
   auto average = [&](const real_t xL, const real_t xR){
     return 0.5 * (xL + xR);
   };
-  enum WaveType {
-    SLOW,
-    FAST
-  };
+  // enum WaveType {
+  //   SLOW,
+  //   FAST
+  // };
   State avgQ = 0.5 * (qL + qR);
-  auto ComputeMagnetoAccousticWave = [&](State &q, WaveType waveType, const DeviceParams &params){
-    const vec_t b = {q[IBX]/q[IR], q[IBY]/q[IR], q[IBZ]/q[IR]};
-    const real_t a2 = params.gamma0 * q[IP]/q[IR];
-    const real_t first_term = a2 + b[0]*b[0] + b[1]*b[1] + b[2]*b[2];
-    const real_t second_term = Kokkos::sqrt(first_term * first_term - 4 * a2 * b[0]*b[0]);
-    switch (waveType) {
-      case SLOW: {return 0.5 * (first_term - second_term);}
-      case FAST: {return 0.5 * (first_term + second_term);}
-      default: return 0.0;
-    }
-  };
-
-  const real_t lambda_max = Kokkos::max(
-    Kokkos::abs(qL[IU] - ComputeMagnetoAccousticWave(qL, FAST, params)), 
-    Kokkos::abs(qR[IU] + ComputeMagnetoAccousticWave(qR, FAST, params))
-  );
-  const real_t ch = lambda_max - umax;
+  // auto ComputeMagnetoAccousticWave = [&](State &q, WaveType waveType, const DeviceParams &params){
+  //   const vec_t b = {q[IBX]/q[IR], q[IBY]/q[IR], q[IBZ]/q[IR]};
+  //   const real_t a2 = params.gamma0 * q[IP]/q[IR];
+  //   const real_t first_term = a2 + b[0]*b[0] + b[1]*b[1] + b[2]*b[2];
+  //   const real_t second_term = Kokkos::sqrt(first_term * first_term - 4 * a2 * b[0]*b[0]);
+  //   switch (waveType) {
+  //     case SLOW: {return Kokkos::sqrt(0.5 * (first_term - second_term));}
+  //     case FAST: {return Kokkos::sqrt(0.5 * (first_term + second_term));}
+  //     default: return 0.0;
+  //   }
+  // };
 
   // // Special discrete averages (C.18)
   // const vec_t bL {qL[IBX]/Kokkos::sqrt(qL[IR]), qL[IBY]/Kokkos::sqrt(qL[IR]), qL[IBZ]/Kokkos::sqrt(qL[IR])};

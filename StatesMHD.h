@@ -65,6 +65,16 @@ real_t speedOfSound(State &q, const DeviceParams &params) {
 }
 
 KOKKOS_INLINE_FUNCTION
+real_t fastMagnetoAcousticSpeed(State &q, const DeviceParams &params, IDir idir) {
+  const real_t cs = speedOfSound(q, params);
+  const real_t c02  = cs*cs;
+  const real_t B2 = q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];
+  const real_t ca2  = B2 / q[IR];
+  const real_t cap2 = q[IBX+idir]*q[IBX+idir]/q[IR];
+  return sqrt(0.5*(c02+ca2)+0.5*sqrt((c02+ca2)*(c02+ca2)-4.0*c02*cap2));
+}
+
+KOKKOS_INLINE_FUNCTION
 State& operator+=(State &a, State b) {
   for (int i=0; i < Nfields; ++i)
     a[i] += b[i];

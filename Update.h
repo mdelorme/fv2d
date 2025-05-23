@@ -52,21 +52,25 @@ public:
     };
   ~UpdateFunctor() = default;
   #ifdef MHD
- real_t ComputeMaxSpeed(Array Q) const {
-    real_t umax = 0.0;
-    Kokkos::parallel_reduce("Compute Max Speed",
-                            full_params.range_dom,
-                            KOKKOS_LAMBDA(int i, int j, real_t& lmax) {
-                                State q = getStateFromArray(Q, i, j);
-                                lmax = Kokkos::max(lmax,
-                                                  Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])})
-                                                );
-                            },
-                            Kokkos::Max<real_t>(umax));
-    return umax;
+ real_t ComputeGlobalDivergenceSpeed(Array Q) const {
+  auto params = full_params.device_params;
+  real_t u_max = 0.0;
+  real_t lamba_max = 0.0;
+  Kokkos::parallel_reduce("Compute Global Divergece Speed",
+                          full_params.range_dom,
+                          KOKKOS_LAMBDA(int i, int j, real_t& u_max, real_t& lamba_max) {
+                              State q = getStateFromArray(Q, i, j);
+                              real_t umax_loc = Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])});
+                              real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
+                              real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
+                              real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
+                              u_max = Kokkos::max(u_max, umax_loc);
+                              lamba_max = Kokkos::max(lamba_max, lambda_loc);
+                          },
+                          Kokkos::Max<real_t>(u_max),
+                          Kokkos::Max<real_t>(lamba_max));
+  return lamba_max - u_max;
 };
-
-
   #endif //MHD
 
   void computeSlopes(const Array &Q) const {
@@ -103,19 +107,22 @@ public:
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    
+    real_t ch;
+    if (params.riemann_solver == IDEALGLM){
+      real_t ch = ComputeGlobalDivergenceSpeed(Q);
+    }
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        real_t ch, cp, parabolic;
+        real_t cp, parabolic;
         if (mhd_run && params.div_cleaning == DEDNER) {
+          real_t ch;
           ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
           cp = std::sqrt(params.cr*ch);
           parabolic = std::exp(-dt*ch*ch/(cp*cp));
         }
-
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
@@ -127,7 +134,7 @@ public:
           State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
           State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
           State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
-
+          
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
             #ifdef MHD
@@ -153,8 +160,7 @@ public:
               }
 
               case IDEALGLM: {
-                real_t umax = ComputeMaxSpeed(Q);
-                IdealGLM(qL, qR, flux, pout, umax, params);
+                IdealGLM(qL, qR, flux, pout, ch, params);
                 break;
               }
               

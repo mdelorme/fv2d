@@ -5,6 +5,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Sources.h"
 
 namespace fv2d {
 
@@ -36,12 +37,14 @@ public:
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
+  SourcesFunctor sources_functor;
 
   Array slopesX, slopesY;
 
   UpdateFunctor(const Params &full_params)
     : full_params(full_params), bc_manager(full_params),
-      tc_functor(full_params), visc_functor(full_params) {
+      tc_functor(full_params), visc_functor(full_params),
+      sources_functor(full_params) {
       auto device_params = full_params.device_params;
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
       slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
@@ -51,27 +54,6 @@ public:
       }
     };
   ~UpdateFunctor() = default;
-  #ifdef MHD
- real_t ComputeGlobalDivergenceSpeed(Array Q) const {
-  auto params = full_params.device_params;
-  real_t u_max = 0.0;
-  real_t lamba_max = 0.0;
-  Kokkos::parallel_reduce("Compute Global Divergece Speed",
-                          full_params.range_dom,
-                          KOKKOS_LAMBDA(int i, int j, real_t& u_max, real_t& lamba_max) {
-                              State q = getStateFromArray(Q, i, j);
-                              real_t umax_loc = Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])});
-                              real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
-                              real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
-                              real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
-                              u_max = Kokkos::max(u_max, umax_loc);
-                              lamba_max = Kokkos::max(lamba_max, lambda_loc);
-                          },
-                          Kokkos::Max<real_t>(u_max),
-                          Kokkos::Max<real_t>(lamba_max));
-  return lamba_max - u_max;
-};
-  #endif //MHD
 
   void computeSlopes(const Array &Q) const {
     auto slopesX = this->slopesX;
@@ -107,22 +89,21 @@ public:
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    real_t ch;
+    real_t ch, cp, parabolic;
+    real_t lambda_max = 0.0;
     if (params.riemann_solver == IDEALGLM){
-      real_t ch = ComputeGlobalDivergenceSpeed(Q);
+      ch = ComputeGlobalDivergenceSpeed(Q, full_params);
     }
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        real_t cp, parabolic;
-        if (mhd_run && params.div_cleaning == DEDNER) {
-          real_t ch;
-          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
-          cp = std::sqrt(params.cr*ch);
-          parabolic = std::exp(-dt*ch*ch/(cp*cp));
-        }
+        // if (mhd_run && params.div_cleaning == DEDNER) {
+        //   ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+        //   cp = std::sqrt(params.cr*ch);
+        //   parabolic = std::exp(-dt*ch*ch/(cp*cp));
+        // }
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
@@ -160,7 +141,7 @@ public:
               }
 
               case IDEALGLM: {
-                IdealGLM(qL, qR, flux, pout, ch, params);
+                IdealGLM(qL, qR, flux, pout, lambda_max, ch, params);
                 break;
               }
               
@@ -213,18 +194,16 @@ public:
           }
           setStateInArray(Unew, i, j, un_loc);
         };
-        // #ifdef MHD
-        // Q(j, i, IPSI) *= parabolic;
-        // #endif
+
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(params.smallr, Unew(j, i, IR));
-        #ifdef MHD
-        if (params.div_cleaning == DEDNER) {
-            Unew(j, i, IPSI) *= parabolic;
-        }
-        #endif
+        // #ifdef MHD
+        // if (params.div_cleaning == DEDNER) {
+        //     Unew(j, i, IPSI) *= parabolic;
+        // }
+        // #endif
       });
   }
   
@@ -242,7 +221,7 @@ public:
     tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
     visc_functor.applyViscosity(Q, Unew, dt);
-
+    sources_functor.applySources(Q, Unew, dt);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
         "Clean values", 

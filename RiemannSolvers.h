@@ -445,11 +445,6 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
     return 0.5 * (xL + xR);
   };
 
-  auto jumpStates = [&](const real_t xL, const real_t xR) {
-    // Compute quantities denoted with a `[[.]]` in the paper, meaning a jump in state
-    return xR - xL;
-  };
-  
   const real_t betaL = 0.5 * qL[IR]/qL[IP];
   const real_t betaR = 0.5 * qR[IR]/qR[IP];
   const real_t beta_avg = 0.5 * (betaL + betaR);
@@ -461,6 +456,7 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
         bL[i] = qL[IBX+i]; bR[i] = qR[IBX+i];
         }
   // Compute average values
+  // TODO: voir si peut être simplifié avec StateMHD
   real_t v2_avg=0.0, B2_avg=0.0, uB_avg=0.0, uB2_avg=0.0;
   for (int i=0; i<3; ++i){
     v2_avg += average(vL[i]*vL[i], vR[i]*vR[i]);
@@ -497,16 +493,21 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   const real_t beta_ln = logMean(betaL, betaR);
   const real_t rho_ln = logMean(qL[IR], qR[IR]);
   State q = 0.5 * (qL + qR); //{{q}}
+  State q2 = 0.5 * (qL*qL + qR*qR); //{{q^2}}
   // Some useful constants defined in eq. (4.63)
   const real_t b1 = q[IBX]/ rho_ln;
-  const real_t B2 = b1*q[IBX] + q[IBY]*q[IBY]/rho_ln + q[IBZ]*q[IBZ]/rho_ln;;
+  const real_t b2 = q[IBY]/ rho_ln;
+  const real_t b3 = q[IBZ]/ rho_ln;
+  const real_t B2 = b1*q[IBX] + b2*q[IBY] + b3*q[IBZ];
   const real_t p_tilde = 0.5 * q[IR]/beta_avg;
   const real_t a2 = params.gamma0 * p_tilde / rho_ln;
 
   // Compute the discrete wave speeds
   const real_t ca = Kokkos::abs(b1);
-  const real_t cf = Kokkos::sqrt(0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1)));
-  const real_t cs = Kokkos::sqrt(0.5 * (a2 + B2 - Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1)));
+  const real_t cf2 = 0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
+  const real_t cf = Kokkos::sqrt(cf2);
+  const real_t cs2 = 0.5 * (a2 + B2 - Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
+  const real_t cs = Kokkos::sqrt(cs2);
 
   // Eigenvalues, as defined in eq. (4.74)
   State lambda_hat {
@@ -526,6 +527,39 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   const real_t z4 = 4.0 * beta_avg;
   const real_t z5 = rho_ln * (params.gamma0 - 1.0) / params.gamma0;
   State Z {1.0/z1, 1.0/z2, 1.0/z1, 1.0/z4, z5, 1.0/z4, 1.0/z1, 1.0/z2, 1.0/z1};
+
+  // Discrete eigenvectors, eqs. (4.67)-(4.69)
+  const real_t u2bar = 2*(q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]) - (q2[IU] + q2[IV] + q2[IW]);
+  // GLM Waves: \lambda +/- \psi
+  State rpsi_p {0.0, 0.0, 0.0, 0.0, q[IBX] + q[IPSI], 1.0, 0.0, 0.0, 1.0}; // r\lambda_{+ \psi}
+  State rpsi_m {0.0, 0.0, 0.0, 0.0, q[IBX] - q[IPSI], 1.0, 0.0, 0.0, -1.0}; // r\lambda_{- \psi}  
+  // Entropy wave : \lambda_E
+  State rE {1.0, q[IU], q[IV], q[IW], 0.5*u2bar, 0.0, 0.0, 0.0, 0.0};
+  // Alfvén Waves : \lambda_{\pma}
+  const real_t bTrans = b2*q[IBY] + b3*q[IBZ];
+  const real_t chi2 = b2 / bTrans;
+  const real_t chi3 = b3 / bTrans;
+  const real_t rhoSrho = rho_ln*Kokkos::sqrt(q[IR]);
+  State rA_p {0.0, 0.0, rhoSrho*chi3, -rhoSrho*chi2, -rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rho_ln*chi3, rho_ln*chi2, 0.0}; // r\lambda_{+a}
+  State rA_m {0.0, 0.0, -rhoSrho*chi3, rhoSrho*chi2,  rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rho_ln*chi3, rho_ln*chi2, 0.0}; // r\lambda_{-a}
+  // Fast Magnetoacoustic Waves : \lambda_{\pm f}
+  auto sigma = [&](const real_t omega) {
+    return (omega >= 0.0 ? 1.0 : -1.0);
+  };
+  const real_t alpha_f = Kokkos::sqrt((a2 - cs2) / (cf2 - cs2));
+  const real_t alpha_s = Kokkos::sqrt((cf2 - a2) / (cf2 - cs2));
+  const real_t a_ln2 = params.gamma0 / (2.0 * beta_ln);
+  const real_t a_beta = Kokkos::sqrt(params.gamma0 / (2.0 * beta_avg));
+  const real_t psi_sp = 0.5*alpha_s*rho_ln*u2bar - a_beta*alpha_f*rho_ln*bTrans + (alpha_s*rho_ln*a_ln2)/(params.gamma0 - 1.0) + alpha_s*cs*rho_ln*q[IU] + alpha_f*cf*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+s}
+  const real_t psi_sm = 0.5*alpha_s*rho_ln*u2bar + a_beta*alpha_f*rho_ln*bTrans + (alpha_s*rho_ln*a_ln2)/(params.gamma0 - 1.0) - alpha_s*cs*rho_ln*q[IU] - alpha_f*cf*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{-s}
+  const real_t psi_fp = 0.5*alpha_f*rho_ln*u2bar + a_beta*alpha_s*rho_ln*bTrans + (alpha_f*rho_ln*a_ln2)/(params.gamma0 - 1.0) + alpha_f*cf*rho_ln*q[IU] - alpha_s*cs*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+f}
+  const real_t psi_fm = 0.5*alpha_f*rho_ln*u2bar + a_beta*alpha_s*rho_ln*bTrans + (alpha_f*rho_ln*a_ln2)/(params.gamma0 - 1.0) - alpha_f*cf*rho_ln*q[IU] + alpha_s*cs*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+f}
+  State rF_p {alpha_f*rho_ln, alpha_f*rho_ln*(q[IU] + cf), rho_ln*(alpha_f*q[IV] - alpha_s*cs*chi2*sigma(b1)), rho_ln*(alpha_f*q[IW] - alpha_s*cs*chi3*sigma(b1)), psi_fp, 0.0, alpha_s*a_beta*chi2*Kokkos::sqrt(rho_ln), alpha_s*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+  State rF_m {alpha_f*rho_ln, alpha_f*rho_ln*(q[IU] - cf), rho_ln*(alpha_f*q[IV] + alpha_s*cs*chi2*sigma(b1)), rho_ln*(alpha_f*q[IW] + alpha_s*cs*chi3*sigma(b1)), psi_fm, 0.0, alpha_s*a_beta*chi2*Kokkos::sqrt(rho_ln), alpha_s*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+  // Slow Magnetoacoustic Waves : \lambda_{\pm s}
+  State rS_p {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] + cs), rho_ln*(alpha_s*q[IV] + alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] + alpha_f*cf*chi3*sigma(b1)), psi_sp, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+  State rS_m {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] - cs), rho_ln*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+
 }
 #endif
 }

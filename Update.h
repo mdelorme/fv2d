@@ -89,21 +89,19 @@ public:
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    real_t ch, cp, parabolic;
+    real_t ch_global;
     real_t lambda_max = 0.0;
-    if (params.riemann_solver == IDEALGLM){
-      ch = ComputeGlobalDivergenceSpeed(Q, full_params);
-    }
+    if (params.riemann_solver == IDEALGLM)
+      ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
+    
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        // if (mhd_run && params.div_cleaning == DEDNER) {
-        //   ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
-        //   cp = std::sqrt(params.cr*ch);
-        //   parabolic = std::exp(-dt*ch*ch/(cp*cp));
-        // }
+        real_t ch;
+        if (mhd_run && params.div_cleaning == DEDNER)
+          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
@@ -139,12 +137,10 @@ public:
                 FiveWaves(qL, qR, flux, pout, params);
                 break;
               }
-
               case IDEALGLM: {
                 IdealGLM(qL, qR, flux, pout, lambda_max, ch, params);
                 break;
               }
-              
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
             }
             if (params.div_cleaning == DEDNER){
@@ -199,11 +195,6 @@ public:
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(params.smallr, Unew(j, i, IR));
-        // #ifdef MHD
-        // if (params.div_cleaning == DEDNER) {
-        //     Unew(j, i, IPSI) *= parabolic;
-        // }
-        // #endif
       });
   }
   
@@ -215,7 +206,6 @@ public:
     if (full_params.device_params.reconstruction == PLM)
     computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);
-    // pressureFix(Unew);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
     tc_functor.applyThermalConduction(Q, Unew, dt);

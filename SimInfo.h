@@ -21,6 +21,21 @@ namespace {
     }
     return map.at(tmp);
   };
+
+  State matvecmul(const Matrix &matrix, const State &vector) {
+    int rows = matrix.extent(0);
+    int cols = matrix.extent(1);
+    State result{};
+    Kokkos::parallel_for("MatrixVectorMultiply", rows,
+                         KOKKOS_LAMBDA(const int i) {
+                             double sum = 0.0;
+                             for (int j = 0; j < cols; ++j) {
+                                 sum += matrix(i, j) * vector(j);
+                             }
+                             result(i) = sum;
+                         });
+    return result;
+  }
 }
 
 using real_t = double;
@@ -35,6 +50,7 @@ using Pos   = Kokkos::Array<real_t, 2>;
 using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
+using Matrix = Kokkos::View<real_t**>;
 
 struct RestartInfo {
   real_t time;

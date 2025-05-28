@@ -511,15 +511,15 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
 
   // Eigenvalues, as defined in eq. (4.74)
   State lambda_hat {
-    q[IU] + cf,
-    q[IU] + ca,
-    q[IU] + cs,
-    q[IU] + ch,
-    q[IU],
-    q[IU] - ch,
-    q[IU] - cs,
-    q[IU] - ca,
-    q[IU] - cf
+    Kokkos::abs(q[IU] + cf),
+    Kokkos::abs(q[IU] + ca),
+    Kokkos::abs(q[IU] + cs),
+    Kokkos::abs(q[IU] + ch),
+    Kokkos::abs(q[IU]),
+    Kokkos::abs(q[IU] - ch),
+    Kokkos::abs(q[IU] - cs),
+    Kokkos::abs(q[IU] - ca),
+    Kokkos::abs(q[IU] - cf)
   };
   // Mean State for the diagonal scaling matrix, eq. (4.70)
   const real_t z1 = 2.0 * params.gamma0 * rho_ln;
@@ -559,6 +559,61 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   // Slow Magnetoacoustic Waves : \lambda_{\pm s}
   State rS_p {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] + cs), rho_ln*(alpha_s*q[IV] + alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] + alpha_f*cf*chi3*sigma(b1)), psi_sp, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
   State rS_m {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] - cs), rho_ln*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+
+  // KEPES Flux - eq. (4.72), disspation term
+  auto matmul = [&](const Matrix &A, const Matrix &B, Matrix &C) {
+      int rows = C.extent(0);
+      int cols = C.extent(1);
+      int inner = A.extent(1); // ou B.extent(0)
+
+      Kokkos::parallel_for("MatrixMultiply", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {rows, cols}),
+                          KOKKOS_LAMBDA(int i, int j) {
+                              real_t sum = 0.0;
+                              for (int k = 0; k < inner; ++k) {
+                                  sum += A(i, k) * B(k, j);
+                              }
+                              C(i, j) = sum;
+                          });
+  }
+
+  //   auto transpose = [&](const Matrix &input, const Matrix &output) {
+  //     int rows = input.extent(0);
+  //     int cols = input.extent(1);
+
+  //     Kokkos::parallel_for("MatrixTranspose", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {rows, cols}),
+  //                         KOKKOS_LAMBDA(int i, int j) {
+  //                             output(j, i) = input(i, j);
+  //                         });
+  // }
+
+  Matrix R("R", Nfields, Nfields);
+  Matrix RT("RTranspose", Nfields, Nfields);
+  Matrix D("D", Nfields, Nfields);
+  Matrix AllDissipation("AllDissipation", Nfields, Nfields);
+  for (int i = 0; i < Nf; ++i) {
+    R(i, 0) = rF_p[i] - lambda_hat[0]*Z[0];
+    R(i, 1) = rA_p[i] - lambda_hat[1]*Z[1];
+    R(i, 2) = rS_p[i] - lambda_hat[2]*Z[2];
+    R(i, 3) = rpsi_p[i] - lambda_hat[3]*Z[3];
+    R(i, 4) = rE[i] - lambda_hat[4]*Z[4];
+    R(i, 5) = rpsi_m[i] - lambda_hat[5]*Z[5];
+    R(i, 6) = rS_m[i] - lambda_hat[6]*Z[6];
+    R(i, 7) = rA_m[i] - lambda_hat[7]*Z[7];
+    R(i, 8) = rF_m[i] - lambda_hat[8]*Z[8];
+    // Fill the transpose matrix
+    RT(0, i) = rF_p[i];
+    RT(1, i) = rA_p[i];
+    RT(2, i) = rS_p[i];
+    RT(3, i) = rpsi_p[i];
+    RT(4, i) = rE[i];
+    RT(5, i) = rpsi_m[i];
+    RT(6, i) = rS_m[i];
+    RT(7, i) = rA_m[i];
+    RT(8, i) = rF_m[i];
+    }
+    matmul(R, RT, D); // D = R |LAMBDA| Z R^T
+    //TODO : ajouter le vecteur v des variables d'entropies
+    State disspativeTerm = matvecmul(D, q); // D * q
 
 }
 #endif

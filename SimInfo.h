@@ -22,20 +22,6 @@ namespace {
     return map.at(tmp);
   };
 
-  State matvecmul(const Matrix &matrix, const State &vector) {
-    int rows = matrix.extent(0);
-    int cols = matrix.extent(1);
-    State result{};
-    Kokkos::parallel_for("MatrixVectorMultiply", rows,
-                         KOKKOS_LAMBDA(const int i) {
-                             double sum = 0.0;
-                             for (int j = 0; j < cols; ++j) {
-                                 sum += matrix(i, j) * vector(j);
-                             }
-                             result(i) = sum;
-                         });
-    return result;
-  }
 }
 
 using real_t = double;
@@ -47,6 +33,7 @@ constexpr int Nfields = 4;
 #endif
 
 using Pos   = Kokkos::Array<real_t, 2>;
+using Vect  = Kokkos::Array<real_t, 3>;
 using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
@@ -522,4 +509,17 @@ void checkNegatives(Array &Q, const Params &full_params) {
       std::cout << "--> NaN detected." << std::endl;
 }
 
-}
+State matvecmul(const Matrix& matrix, const State& vector) {
+  int rows = matrix.extent(0);
+  int cols = matrix.extent(1);
+  State res;
+  for (int i=0; i<rows; ++i){
+    real_t sum = 0.0;
+    for (int j = 0; j < cols; ++j) {
+        sum += matrix(i, j) * vector[j];
+    }
+    res[i] = sum;
+  }
+  return res;
+  }
+} // namespace fv2d

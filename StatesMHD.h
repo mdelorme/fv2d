@@ -15,10 +15,11 @@ State getStateFromArray(Array arr, int i, int j) {
           arr(j, i, IPSI)};
 } 
 
+
 KOKKOS_INLINE_FUNCTION
 void setStateInArray(Array arr, int i, int j, State st) {
   for (int ivar=0; ivar < Nfields; ++ivar)
-    arr(j, i, ivar) = st[ivar];
+  arr(j, i, ivar) = st[ivar];
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -28,7 +29,7 @@ State primToCons(State &q, const DeviceParams &params) {
   res[IU] = q[IR]*q[IU];
   res[IV] = q[IR]*q[IV];
   res[IW] = q[IR]*q[IW];
-
+  
   real_t Ek = 0.5 * q[IR] * (q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]);
   real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
   real_t Epsi = (params.riemann_solver==IDEALGLM ? 0.5*q[IPSI]*q[IPSI] : 0.0);
@@ -49,11 +50,11 @@ State consToPrim(State &u, const DeviceParams &params) {
   res[IV] = u[IV] / u[IR];
   res[IW] = u[IW] / u[IR];
   
-
+  
   real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV] + res[IW]*res[IW]);
   real_t Em = 0.5 * (u[IBX]*u[IBX] + u[IBY]*u[IBY] + u[IBZ]*u[IBZ]);
   real_t Epsi = (params.riemann_solver==IDEALGLM ? 0.5*u[IPSI]*u[IPSI] : 0.0);
- 
+  
   res[IP] = (u[IE] - Ek - Em - Epsi) * (params.gamma0-1.0);
   res[IBX] = u[IBX];
   res[IBY] = u[IBY];
@@ -84,23 +85,40 @@ real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
   real_t u_max = 0.0;
   real_t lambda_max = 0.0;
   Kokkos::parallel_reduce("Compute Global Divergece Speed",
-                          full_params.range_dom,
-                          KOKKOS_LAMBDA(int i, int j, real_t& u_max, real_t& lamba_max) {
-                              State q = getStateFromArray(Q, i, j);
-                              real_t umax_loc = Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])});
-                              real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
-                              real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
-                              real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
-                              u_max = Kokkos::max(u_max, umax_loc);
-                              lamba_max = Kokkos::max(lamba_max, lambda_loc);
-                          },
-                          Kokkos::Max<real_t>(u_max),
-                          Kokkos::Max<real_t>(lambda_max));
-  return lambda_max - u_max;
-};
-
+    full_params.range_dom,
+    KOKKOS_LAMBDA(int i, int j, real_t& u_max, real_t& lamba_max) {
+      State q = getStateFromArray(Q, i, j);
+      real_t umax_loc = Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])});
+      real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
+      real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
+      real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
+      u_max = Kokkos::max(u_max, umax_loc);
+      lamba_max = Kokkos::max(lamba_max, lambda_loc);
+    },
+    Kokkos::Max<real_t>(u_max),
+    Kokkos::Max<real_t>(lambda_max));
+    return lambda_max - u_max;
+  };
+  
 KOKKOS_INLINE_FUNCTION
-real_t logMean(const real_t xl, const real_t xr, const real_t epsilon = 1e-2){
+real_t ComputeLambdaMax(Array Q, const Params &full_params) {
+  auto params = full_params.device_params;
+  real_t lambda_max = 0.0;
+  Kokkos::parallel_reduce("Compute Lambda Max",
+    full_params.range_dom,
+    KOKKOS_LAMBDA(int i, int j, real_t& lamba_max) {
+      State q = getStateFromArray(Q, i, j);
+      real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
+      real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
+      real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
+      lamba_max = Kokkos::max(lamba_max, lambda_loc);
+    },
+    Kokkos::Max<real_t>(lambda_max));
+    return lambda_max;
+  };
+
+  KOKKOS_INLINE_FUNCTION
+  real_t logMean(const real_t xl, const real_t xr, const real_t epsilon = 1e-2){
     const real_t zeta = xl/xr;
     const real_t f = (zeta - 1.0) / (zeta + 1.0);
     const real_t u = f * f;
@@ -113,78 +131,101 @@ real_t logMean(const real_t xl, const real_t xr, const real_t epsilon = 1e-2){
     }
     return (xr + xl) / (2 * F);
   };
-
-KOKKOS_INLINE_FUNCTION
-State& operator+=(State &a, State b) {
-  for (int i=0; i < Nfields; ++i)
+  
+  KOKKOS_INLINE_FUNCTION
+  State& operator+=(State &a, State b) {
+    for (int i=0; i < Nfields; ++i)
     a[i] += b[i];
-  return a;
-}
-
-KOKKOS_INLINE_FUNCTION
-State& operator-=(State &a, State b) {
-  for (int i=0; i < Nfields; ++i)
+    return a;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State& operator-=(State &a, State b) {
+    for (int i=0; i < Nfields; ++i)
     a[i] -= b[i];
-  return a;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator*(const State &a, real_t q) {
-  State res;
-  for (int i=0; i < Nfields; ++i)
+    return a;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator*(const State &a, real_t q) {
+    State res;
+    for (int i=0; i < Nfields; ++i)
     res[i] = a[i]*q;
-  return res;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator*(const State &a, const State &b) {
-  State res;
-  for (int i=0; i < Nfields; ++i)
+    return res;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator*(const State &a, const State &b) {
+    State res;
+    for (int i=0; i < Nfields; ++i)
     res[i] = a[i]*b[i];
-  return res;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator*=(State &a, real_t q) {
-  for (int i=0; i < Nfields; ++i)
+    return res;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator*=(State &a, real_t q) {
+    for (int i=0; i < Nfields; ++i)
     a[i] *= q;
-  return a;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator/(const State &a, real_t q) {
-  State res;
-  for (int i=0; i < Nfields; ++i)
+    return a;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator/(const State &a, real_t q) {
+    State res;
+    for (int i=0; i < Nfields; ++i)
     res[i] = a[i]/q;
-  return res;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator*(real_t q, const State &a) {
-  return a*q;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator+(const State &a, const State &b) {
-  State res;
-  for (int i=0; i < Nfields; ++i)
+    return res;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator*(real_t q, const State &a) {
+    return a*q;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator+(const State &a, const State &b) {
+    State res;
+    for (int i=0; i < Nfields; ++i)
     res[i] = a[i]+b[i];
-  return res;
-}
-
-KOKKOS_INLINE_FUNCTION
-State operator-(const State &a, const State &b) {
-  State res;
-  for (int i=0; i < Nfields; ++i)
+    return res;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State operator-(const State &a, const State &b) {
+    State res;
+    for (int i=0; i < Nfields; ++i)
     res[i] = a[i]-b[i];
-  return res;
-}
+    return res;
+  }
+  
+  KOKKOS_INLINE_FUNCTION
+  State swap_component(State &q, IDir dir) {
+    if (dir == IX)
+    return q;
+    else
+    return {q[IR], q[IV], q[IU], q[IW], q[IP], q[IBY], q[IBX], q[IBZ], q[IPSI]};
+  }
 
 KOKKOS_INLINE_FUNCTION
-State swap_component(State &q, IDir dir) {
-  if (dir == IX)
-    return q;
-  else
-    return {q[IR], q[IV], q[IU], q[IW], q[IP], q[IBY], q[IBX], q[IBZ], q[IPSI]};
+State getEntropyStateFromConsStates(State &qL, State &qR, const DeviceParams &params) {
+  const State qJump = qR - qL;
+  const State qAvg = 0.5 * (qL + qR);
+  const real_t betaL = 0.5 * qL[IR]/qL[IP], betaR = 0.5 * qR[IR]/qR[IP];
+  const real_t betaJump = betaR - betaL;
+  const real_t betaAvg = 0.5 * (betaL + betaR);
+  const real_t betaLn = logMean(betaL, betaR);
+  const real_t rhoLn = logMean(qL[IR], qR[IR]);
+  const real_t v2Avg = 0.5 * (qL[IU]*qL[IU]+qR[IU]*qR[IU] + qL[IV]*qL[IV]+qR[IV]*qR[IV] + qL[IW]*qL[IW]+qR[IW]*qR[IW]);
+  return {
+    qJump[IR]/rhoLn + betaJump/(betaLn*(params.gamma0-1.0)) - v2Avg*betaJump -2.0*betaAvg*(qAvg[IU]*qJump[IU] + qAvg[IV]*qJump[IV] + qAvg[IW]*qJump[IW]),
+    2.0 * (betaAvg * qJump[IU] + qAvg[IU]*betaJump),
+    2.0 * (betaAvg * qJump[IV] + qAvg[IV]*betaJump),
+    2.0 * (betaAvg * qJump[IW] + qAvg[IW]*betaJump),
+    -2.0 * betaJump,
+    2.0 * (betaAvg * qJump[IBX] + qAvg[IBX]*betaJump),
+    2.0 * (betaAvg * qJump[IBY] + qAvg[IBY]*betaJump),
+    2.0 * (betaAvg * qJump[IBZ] + qAvg[IBZ]*betaJump),
+    2.0 * (betaAvg * qJump[IPSI] + qAvg[IPSI]*betaJump)
+  };
 }
 }

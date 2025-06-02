@@ -90,7 +90,7 @@ public:
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
     real_t ch_global;
-    real_t lambda_max = 0.0;
+    real_t lambda_max = ComputeLambdaMax(Q, full_params);
     if (params.riemann_solver == IDEALGLM)
       ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
     
@@ -99,9 +99,7 @@ public:
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        real_t ch;
-        if (mhd_run && params.div_cleaning == DEDNER)
-          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+        real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);

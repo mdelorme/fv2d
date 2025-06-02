@@ -343,17 +343,16 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
 KOKKOS_INLINE_FUNCTION
 void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params) {
   const uint IZ = 2;
-  using vec_t = Kokkos::Array<real_t, 3>;
   constexpr real_t epsilon = 1.0e-16;
   const real_t B2L = qL[IBX]*qL[IBX] + qL[IBY]*qL[IBY] + qL[IBZ]*qL[IBZ];
   const real_t B2R = qR[IBX]*qR[IBX] + qR[IBY]*qR[IBY] + qR[IBZ]*qR[IBZ];
-  const vec_t pL {
+  const Vect pL {
     -qL[IBX]*qL[IBX] + qL[IP] + B2L/2,
     -qL[IBX]*qL[IBY],
     -qL[IBX]*qL[IBZ]
   };
 
-  const vec_t pR {
+  const Vect pR {
     -qR[IBX]*qR[IBX] + qR[IP] + B2R/2,
     -qR[IBX]*qR[IBY],
     -qR[IBX]*qR[IBZ]
@@ -389,14 +388,14 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
     cbR = c;
   }
   
-  const vec_t cL {cbL, caL, caL};
-  const vec_t cR {cbR, caR, caR};
+  const Vect cL {cbL, caL, caL};
+  const Vect cR {cbR, caR, caR};
 
   // // 2. Compute star zone
-  const vec_t vL {qL[IU], qL[IV], qL[IW]};
-  const vec_t vR {qR[IU], qR[IV], qR[IW]};
+  const Vect vL {qL[IU], qL[IV], qL[IW]};
+  const Vect vR {qR[IU], qR[IV], qR[IW]};
 
-  vec_t Ustar{}, Pstar{};
+  Vect Ustar{}, Pstar{};
   for (size_t i=0; i<3; ++i) {
     Ustar[i] = (cL[i]*vL[i] + cR[i]*vR[i] + pL[i] - pR[i])/(cL[i]+cR[i]);
     Pstar[i] = (cR[i]*pL[i] + cL[i]*pR[i] + cL[i]*cR[i]*(vL[i]-vR[i]))/(cL[i]+cR[i]);
@@ -439,8 +438,6 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
 
 KOKKOS_INLINE_FUNCTION
 void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params){
-  using vec_t = Kokkos::Array<real_t, 3>;
-  
   auto average = [&](const real_t xL, const real_t xR){
     return 0.5 * (xL + xR);
   };
@@ -450,7 +447,7 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
   const real_t beta_avg = 0.5 * (betaL + betaR);
   const real_t beta_ln = logMean(betaL, betaR);
   
-  vec_t vL{}, vR{}, bL{}, bR{};
+  Vect vL{}, vR{}, bL{}, bR{};
   for (int i=0; i<3; ++i) {
         vL[i] = qL[IU+i]; vR[i] = qR[IU+i];
         bL[i] = qL[IBX+i]; bR[i] = qR[IBX+i];
@@ -476,17 +473,33 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
   flux[IBZ] = q[IU]*q[IBZ] - q[IW]*q[IBX];
   flux[IPSI] = ch * q[IBX];
   flux[IE] = flux[IR] * (1.0/(2.0*beta_ln*(params.gamma0-1.0)) - 0.5 * v2_avg) + flux[IU]*q[IU]  + flux[IV]*q[IV]  + flux[IW]*q[IW] 
-                                                                               + flux[IBX]*q[IBX] + flux[IBY]*q[IBY] + flux[IBZ]*q[IBZ] 
-                                                                               + flux[IPSI]*q[IPSI] - 0.5 * uB2_avg + q[IBX] * uB_avg - ch * average(qL[IBX]*qL[IPSI], qR[IBX]*qR[IPSI]);
+  + flux[IBX]*q[IBX] + flux[IBY]*q[IBY] + flux[IBZ]*q[IBZ] 
+  + flux[IPSI]*q[IPSI] - 0.5 * uB2_avg + q[IBX] * uB_avg - ch * average(qL[IBX]*qL[IPSI], qR[IBX]*qR[IPSI]);
   pout = ptot;
 }
 
 KOKKOS_INLINE_FUNCTION
 void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max, real_t ch, const DeviceParams &params){
   // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
-  using vec_t = Kokkos::Array<real_t, 3>;
-  
+  // Compute KEPEC Flux
   FluxKEPEC(qL, qR, flux, pout, ch, params);
+  State Lmax = {Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max)};
+  State qJump (qR - qL);
+  State qAvg = 0.5 * (qL + qR);
+  const real_t u2bar = 2*(q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]) - (q2[IU] + q2[IV] + q2[IW]);
+  State q {
+    qJump[IR],
+    qAvg[IR]*qJump[IU] + qAvg[IU]*qJump[IR],
+    qAvg[IR]*qJump[IV] + qAvg[IV]*qJump[IR],
+    qAvg[IR]*qJump[IW] + qAvg[IW]*qJump[IR],
+    ...,
+    qJump[IBX],
+    qJump[IBY],
+    qJump[IBZ],
+    qJump[IPSI]
+  }
+  flux -= 0.5 *  * ;
+  return; // To test the KEPEC flux only
   const real_t betaL = 0.5 * qL[IR]/qL[IP];
   const real_t betaR = 0.5 * qR[IR]/qR[IP];
   const real_t beta_avg = 0.5 * (betaL + betaR);
@@ -529,7 +542,6 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   State Z {1.0/z1, 1.0/z2, 1.0/z1, 1.0/z4, z5, 1.0/z4, 1.0/z1, 1.0/z2, 1.0/z1};
 
   // Discrete eigenvectors, eqs. (4.67)-(4.69)
-  const real_t u2bar = 2*(q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]) - (q2[IU] + q2[IV] + q2[IW]);
   // GLM Waves: \lambda +/- \psi
   State rpsi_p {0.0, 0.0, 0.0, 0.0, q[IBX] + q[IPSI], 1.0, 0.0, 0.0, 1.0}; // r\lambda_{+ \psi}
   State rpsi_m {0.0, 0.0, 0.0, 0.0, q[IBX] - q[IPSI], 1.0, 0.0, 0.0, -1.0}; // r\lambda_{- \psi}  
@@ -561,36 +573,26 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   State rS_m {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] - cs), rho_ln*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
 
   // KEPES Flux - eq. (4.72), disspation term
-  auto matmul = [&](const Matrix &A, const Matrix &B, Matrix &C) {
-      int rows = C.extent(0);
-      int cols = C.extent(1);
-      int inner = A.extent(1); // ou B.extent(0)
+auto matmul = [&](const Matrix &A, const Matrix &B, Matrix &C) {
+    int rows = C.extent(0);
+    int cols = C.extent(1);
+    int inner = A.extent(1); // ou B.extent(0)
 
-      Kokkos::parallel_for("MatrixMultiply", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {rows, cols}),
-                          KOKKOS_LAMBDA(int i, int j) {
-                              real_t sum = 0.0;
-                              for (int k = 0; k < inner; ++k) {
-                                  sum += A(i, k) * B(k, j);
-                              }
-                              C(i, j) = sum;
-                          });
-  }
-
-  //   auto transpose = [&](const Matrix &input, const Matrix &output) {
-  //     int rows = input.extent(0);
-  //     int cols = input.extent(1);
-
-  //     Kokkos::parallel_for("MatrixTranspose", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {rows, cols}),
-  //                         KOKKOS_LAMBDA(int i, int j) {
-  //                             output(j, i) = input(i, j);
-  //                         });
-  // }
+    Kokkos::parallel_for("MatrixMultiply", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {rows, cols}),
+                        KOKKOS_LAMBDA(int i, int j) {
+                            real_t sum = 0.0;
+                            for (int k = 0; k < inner; ++k) {
+                                sum += A(i, k) * B(k, j);
+                            }
+                            C(i, j) = sum;
+                        });
+  };
 
   Matrix R("R", Nfields, Nfields);
   Matrix RT("RTranspose", Nfields, Nfields);
   Matrix D("D", Nfields, Nfields);
   Matrix AllDissipation("AllDissipation", Nfields, Nfields);
-  for (int i = 0; i < Nf; ++i) {
+  for (int i = 0; i < Nfields; ++i) {
     R(i, 0) = rF_p[i] - lambda_hat[0]*Z[0];
     R(i, 1) = rA_p[i] - lambda_hat[1]*Z[1];
     R(i, 2) = rS_p[i] - lambda_hat[2]*Z[2];
@@ -610,11 +612,12 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
     RT(6, i) = rS_m[i];
     RT(7, i) = rA_m[i];
     RT(8, i) = rF_m[i];
-    }
-    matmul(R, RT, D); // D = R |LAMBDA| Z R^T
-    //TODO : ajouter le vecteur v des variables d'entropies
-    State disspativeTerm = matvecmul(D, q); // D * q
-
+  }
+  matmul(R, RT, D); // D = R |LAMBDA| Z R^T
+  const State VState = getEntropyStateFromConsStates(qL, qR, params);
+  State dissipativeTerm = matvecmul(D, VState); // D * q
+  flux -= 0.5*dissipativeTerm;
 }
+
 #endif
 }

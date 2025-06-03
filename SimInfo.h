@@ -261,6 +261,7 @@ struct DeviceParams {
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+    cr      = reader.GetFloat("physics", "cr", 0.18);
     
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -509,17 +510,4 @@ void checkNegatives(Array &Q, const Params &full_params) {
       std::cout << "--> NaN detected." << std::endl;
 }
 
-State matvecmul(const Matrix& matrix, const State& vector) {
-  int rows = matrix.extent(0);
-  int cols = matrix.extent(1);
-  State res;
-  for (int i=0; i<rows; ++i){
-    real_t sum = 0.0;
-    for (int j = 0; j < cols; ++j) {
-        sum += matrix(i, j) * vector[j];
-    }
-    res[i] = sum;
-  }
-  return res;
-  }
 } // namespace fv2d

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "LinAlg.h"
+
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
@@ -14,7 +16,6 @@ State getStateFromArray(Array arr, int i, int j) {
           arr(j, i, IBZ),
           arr(j, i, IPSI)};
 } 
-
 
 KOKKOS_INLINE_FUNCTION
 void setStateInArray(Array arr, int i, int j, State st) {
@@ -116,21 +117,6 @@ real_t ComputeLambdaMax(Array Q, const Params &full_params) {
     Kokkos::Max<real_t>(lambda_max));
     return lambda_max;
   };
-
-  KOKKOS_INLINE_FUNCTION
-  real_t logMean(const real_t xl, const real_t xr, const real_t epsilon = 1e-2){
-    const real_t zeta = xl/xr;
-    const real_t f = (zeta - 1.0) / (zeta + 1.0);
-    const real_t u = f * f;
-    real_t F;
-    if (u < epsilon){
-      F = 1.0 + u/3.0 + u*u/5.0 + u*u*u/7.0;
-    }
-    else{
-      F = Kokkos::log(zeta) / 2.0 / f;
-    }
-    return (xr + xl) / (2 * F);
-  };
   
   KOKKOS_INLINE_FUNCTION
   State& operator+=(State &a, State b) {
@@ -207,8 +193,32 @@ real_t ComputeLambdaMax(Array Q, const Params &full_params) {
   }
 
 KOKKOS_INLINE_FUNCTION
-State getEntropyStateFromConsStates(State &qL, State &qR, const DeviceParams &params) {
-  const State qJump = qR - qL;
+State getConsJumpState(const State &qL, const State &qR, const DeviceParams &params) {
+  State qJump = qR - qL;
+  State qMixed = 0.5 * (qR*qR - qL*qL); //{{q}}[[q]]
+  const real_t betaL = 0.5 * qL[IR]/qL[IP], betaR = 0.5 * qR[IR]/qR[IP];
+  const real_t betaJump = betaR - betaL;
+  const real_t betaAvg = 0.5 * (betaL + betaR);
+  const real_t betaLn = logMean(betaL, betaR);
+  const real_t beta2bar = 2.0*betaAvg*betaAvg - 0.5*(betaL*betaL + betaR*betaR);
+  const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
+  real_t E = qJump[IR]/(2.0*(params.gamma0-1.0)*betaLn) + 0.5*u2bar*qJump[IR] + 0.5*(qL[IR]+qR[IR])*(qMixed[IU] + qMixed[IV] + qMixed[IW]) - 0.25*(qL[IR]+qR[IR])/((params.gamma0-1.0)*beta2bar)*betaJump + qMixed[IBX] + qMixed[IBY] + qMixed[IBZ] + qMixed[IPSI];
+  return {
+    qJump[IR], 
+    qR[IR]*qR[IU]-qL[IR]*qL[IU], 
+    qR[IR]*qR[IV]-qL[IR]*qL[IV],
+    qR[IR]*qR[IW]-qL[IR]*qL[IW],
+    E,
+    qJump[IBX],
+    qJump[IBY],
+    qJump[IBZ],
+    qJump[IPSI]
+  };
+}
+
+KOKKOS_INLINE_FUNCTION
+State getEntropyJumpStateFromConsStates(State &qL, State &qR, const DeviceParams &params) {
+  const State qJump = qR - qL; 
   const State qAvg = 0.5 * (qL + qR);
   const real_t betaL = 0.5 * qL[IR]/qL[IP], betaR = 0.5 * qR[IR]/qR[IP];
   const real_t betaJump = betaR - betaL;
@@ -217,7 +227,7 @@ State getEntropyStateFromConsStates(State &qL, State &qR, const DeviceParams &pa
   const real_t rhoLn = logMean(qL[IR], qR[IR]);
   const real_t v2Avg = 0.5 * (qL[IU]*qL[IU]+qR[IU]*qR[IU] + qL[IV]*qL[IV]+qR[IV]*qR[IV] + qL[IW]*qL[IW]+qR[IW]*qR[IW]);
   return {
-    qJump[IR]/rhoLn + betaJump/(betaLn*(params.gamma0-1.0)) - v2Avg*betaJump -2.0*betaAvg*(qAvg[IU]*qJump[IU] + qAvg[IV]*qJump[IV] + qAvg[IW]*qJump[IW]),
+    qJump[IR]/rhoLn + betaJump/(betaLn*(params.gamma0-1.0)) - v2Avg*betaJump - 2.0*betaAvg*(qAvg[IU]*qJump[IU] + qAvg[IV]*qJump[IV] + qAvg[IW]*qJump[IW]),
     2.0 * (betaAvg * qJump[IU] + qAvg[IU]*betaJump),
     2.0 * (betaAvg * qJump[IV] + qAvg[IV]*betaJump),
     2.0 * (betaAvg * qJump[IW] + qAvg[IW]*betaJump),

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "LinAlg.h"
+
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
@@ -438,82 +440,73 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
 
 KOKKOS_INLINE_FUNCTION
 void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params){
-  auto average = [&](const real_t xL, const real_t xR){
-    return 0.5 * (xL + xR);
-  };
 
   const real_t betaL = 0.5 * qL[IR]/qL[IP];
   const real_t betaR = 0.5 * qR[IR]/qR[IP];
-  const real_t beta_avg = 0.5 * (betaL + betaR);
-  const real_t beta_ln = logMean(betaL, betaR);
-  
-  Vect vL{}, vR{}, bL{}, bR{};
-  for (int i=0; i<3; ++i) {
-        vL[i] = qL[IU+i]; vR[i] = qR[IU+i];
-        bL[i] = qL[IBX+i]; bR[i] = qR[IBX+i];
-        }
-  // Compute average values
-  // TODO: voir si peut être simplifié avec StateMHD
-  real_t v2_avg=0.0, B2_avg=0.0, uB_avg=0.0, uB2_avg=0.0;
-  for (int i=0; i<3; ++i){
-    v2_avg += average(vL[i]*vL[i], vR[i]*vR[i]);
-    B2_avg += average(bL[i]*bL[i], bR[i]*bR[i]);
-    uB_avg += average(vL[i]*bL[i], vR[i]*bR[i]);
-    uB2_avg += average(vL[0]*bL[i]*bL[i], vR[0]*bR[i]*bR[i]);
-  }
+  const real_t betaAvg = 0.5 * (betaL + betaR);
+  const real_t betaLn = logMean(betaL, betaR);
+
+  const State qAvg = 0.5 * (qL + qR);
+  const real_t rhoLn = logMean(qL[IR], qR[IR]);
+  // sum_i {{Bi^2}}
+  const real_t B2Avg = 0.5 * (qL[IBX]*qL[IBX]+qR[IBX]*qR[IBX] + 
+  qL[IBY]*qL[IBY]+qR[IBY]*qR[IBY] + 
+  qL[IBZ]*qL[IBZ]+qR[IBZ]*qR[IBZ]);
+  //sum_i {{vi^2}}
+  const real_t v2Avg = 0.5 * (qL[IU]*qL[IU] + qR[IU]*qR[IU] +
+  qL[IV]*qL[IV] + qR[IV]*qR[IV] +
+  qL[IW]*qL[IW] + qR[IW]*qR[IW]);
+  // sum_i {{vi*Bi^2}}
+  const real_t uB2Avg = 0.5 * (qL[IU]*qL[IBX]*qL[IBX] + qR[IU]*qR[IBX]*qR[IBX] +
+  qL[IU]*qL[IBY]*qL[IBY] + qR[IU]*qR[IBY]*qR[IBY] +
+  qL[IU]*qL[IBZ]*qL[IBZ] + qR[IU]*qR[IBZ]*qR[IBZ]);
+  // sum_i {{vi*Bi}}
+  const real_t uBAvg = 0.5 * (qL[IU]*qL[IBX] + qR[IU]*qR[IBX] +
+  qL[IV]*qL[IBY] + qR[IV]*qR[IBY] +
+  qL[IW]*qL[IBZ] + qR[IW]*qR[IBZ]);
+        
+  const real_t ptot = 0.5 * qAvg[IR]/betaAvg + 0.5*B2Avg;
+          
   // Flux components
-  State q = 0.5 * (qL + qR);
-  real_t ptot = 0.5 * q[IR]/beta_avg + 0.5 * B2_avg;
-  flux[IR] = logMean(qL[IR], qR[IR]) * q[IU];
-  flux[IU] = flux[IR] * q[IU] - q[IBX]*q[IBX] + ptot;
-  flux[IV] = flux[IR] * q[IV] - q[IBX]*q[IBY];
-  flux[IW] = flux[IR] * q[IW] - q[IBX]*q[IBZ];
-  flux[IBX] = ch * q[IPSI];
-  flux[IBY] = q[IU]*q[IBY] - q[IV]*q[IBX];
-  flux[IBZ] = q[IU]*q[IBZ] - q[IW]*q[IBX];
-  flux[IPSI] = ch * q[IBX];
-  flux[IE] = flux[IR] * (1.0/(2.0*beta_ln*(params.gamma0-1.0)) - 0.5 * v2_avg) + flux[IU]*q[IU]  + flux[IV]*q[IV]  + flux[IW]*q[IW] 
-  + flux[IBX]*q[IBX] + flux[IBY]*q[IBY] + flux[IBZ]*q[IBZ] 
-  + flux[IPSI]*q[IPSI] - 0.5 * uB2_avg + q[IBX] * uB_avg - ch * average(qL[IBX]*qL[IPSI], qR[IBX]*qR[IPSI]);
-  pout = ptot;
+  flux[IR] = rhoLn * qAvg[IU];
+  flux[IU] = rhoLn * qAvg[IU]*qAvg[IU] - qAvg[IBX]*qAvg[IBX] + ptot;
+  flux[IV] = rhoLn * qAvg[IU]*qAvg[IV] - qAvg[IBX]*qAvg[IBY];
+  flux[IW] = rhoLn * qAvg[IU]*qAvg[IW] - qAvg[IBX]*qAvg[IBZ];
+  flux[IBX] = ch * qAvg[IPSI];
+  flux[IBY] = qAvg[IU]*qAvg[IBY] - qAvg[IV]*qAvg[IBX];
+  flux[IBZ] = qAvg[IU]*qAvg[IBZ] - qAvg[IW]*qAvg[IBX];
+  flux[IPSI] = ch * qAvg[IBX];
+  
+  const real_t f5 = flux[IR] * (0.5/((params.gamma0-1.0)*betaLn) - 0.5*v2Avg) + 
+                    flux[IU] * qAvg[IU] +
+                    flux[IV] * qAvg[IV] +
+                    flux[IW] * qAvg[IW] +
+                    flux[IBX] * qAvg[IBX] +
+                    flux[IBY] * qAvg[IBY] +
+                    flux[IBZ] * qAvg[IBZ] +
+                    flux[IPSI] * qAvg[IPSI] - 0.5*uB2Avg + qAvg[IBX]*uBAvg - ch * 0.5*(qL[IBX]*qL[IPSI] + qR[IBX]*qR[IPSI]);
+
+  flux[IE] = f5;
+  pout = qAvg[IP];
 }
 
 KOKKOS_INLINE_FUNCTION
-void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max, real_t ch, const DeviceParams &params){
-  // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
-  // Compute KEPEC Flux
-  FluxKEPEC(qL, qR, flux, pout, ch, params);
-  State Lmax = {Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max), Kokkos::abs(lambda_max)};
-  State qJump (qR - qL);
-  State qAvg = 0.5 * (qL + qR);
-  const real_t u2bar = 2*(q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]) - (q2[IU] + q2[IV] + q2[IW]);
-  State q {
-    qJump[IR],
-    qAvg[IR]*qJump[IU] + qAvg[IU]*qJump[IR],
-    qAvg[IR]*qJump[IV] + qAvg[IV]*qJump[IR],
-    qAvg[IR]*qJump[IW] + qAvg[IW]*qJump[IR],
-    ...,
-    qJump[IBX],
-    qJump[IBY],
-    qJump[IBZ],
-    qJump[IPSI]
-  }
-  flux -= 0.5 *  * ;
-  return; // To test the KEPEC flux only
+State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &params) {
   const real_t betaL = 0.5 * qL[IR]/qL[IP];
   const real_t betaR = 0.5 * qR[IR]/qR[IP];
-  const real_t beta_avg = 0.5 * (betaL + betaR);
-  const real_t beta_ln = logMean(betaL, betaR);
-  const real_t rho_ln = logMean(qL[IR], qR[IR]);
+  const real_t betaAvg = 0.5 * (betaL + betaR);
+  const real_t betaLn = logMean(betaL, betaR);
+  const real_t rhoLn = logMean(qL[IR], qR[IR]);
   State q = 0.5 * (qL + qR); //{{q}}
   State q2 = 0.5 * (qL*qL + qR*qR); //{{q^2}}
-  // Some useful constants defined in eq. (4.63)
-  const real_t b1 = q[IBX]/ rho_ln;
-  const real_t b2 = q[IBY]/ rho_ln;
-  const real_t b3 = q[IBZ]/ rho_ln;
-  const real_t B2 = b1*q[IBX] + b2*q[IBY] + b3*q[IBZ];
-  const real_t p_tilde = 0.5 * q[IR]/beta_avg;
-  const real_t a2 = params.gamma0 * p_tilde / rho_ln;
+    // Some useful constants defined in eq. (4.63)
+  const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
+  const real_t b1 = q[IBX]/ Kokkos::sqrt(rhoLn);
+  const real_t b2 = q[IBY]/ Kokkos::sqrt(rhoLn);
+  const real_t b3 = q[IBZ]/ Kokkos::sqrt(rhoLn);
+  const real_t B2 = b1*b1 + b2*b2 + b3*b3;
+  const real_t p_tilde = 0.5 * q[IR]/betaAvg;
+  const real_t a2 = params.gamma0 * p_tilde / rhoLn;
 
   // Compute the discrete wave speeds
   const real_t ca = Kokkos::abs(b1);
@@ -535,10 +528,10 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
     Kokkos::abs(q[IU] - cf)
   };
   // Mean State for the diagonal scaling matrix, eq. (4.70)
-  const real_t z1 = 2.0 * params.gamma0 * rho_ln;
-  const real_t z2 = 4.0 * beta_avg * rho_ln * rho_ln;
-  const real_t z4 = 4.0 * beta_avg;
-  const real_t z5 = rho_ln * (params.gamma0 - 1.0) / params.gamma0;
+  const real_t z1 = 2.0 * params.gamma0 * rhoLn;
+  const real_t z2 = 4.0 * betaAvg * rhoLn * rhoLn;
+  const real_t z4 = 4.0 * betaAvg;
+  const real_t z5 = rhoLn * (params.gamma0 - 1.0) / params.gamma0;
   State Z {1.0/z1, 1.0/z2, 1.0/z1, 1.0/z4, z5, 1.0/z4, 1.0/z1, 1.0/z2, 1.0/z1};
 
   // Discrete eigenvectors, eqs. (4.67)-(4.69)
@@ -548,75 +541,111 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   // Entropy wave : \lambda_E
   State rE {1.0, q[IU], q[IV], q[IW], 0.5*u2bar, 0.0, 0.0, 0.0, 0.0};
   // Alfvén Waves : \lambda_{\pma}
-  const real_t bTrans = b2*q[IBY] + b3*q[IBZ];
+  const real_t bTrans = b2*b2 + b3*b3;
   const real_t chi2 = b2 / bTrans;
   const real_t chi3 = b3 / bTrans;
-  const real_t rhoSrho = rho_ln*Kokkos::sqrt(q[IR]);
-  State rA_p {0.0, 0.0, rhoSrho*chi3, -rhoSrho*chi2, -rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rho_ln*chi3, rho_ln*chi2, 0.0}; // r\lambda_{+a}
-  State rA_m {0.0, 0.0, -rhoSrho*chi3, rhoSrho*chi2,  rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rho_ln*chi3, rho_ln*chi2, 0.0}; // r\lambda_{-a}
+  const real_t rhoSrho = rhoLn*Kokkos::sqrt(q[IR]);
+  State rA_p {0.0, 0.0, rhoSrho*chi3, -rhoSrho*chi2, -rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rhoLn*chi3, rhoLn*chi2, 0.0}; // r\lambda_{+a}
+  State rA_m {0.0, 0.0, -rhoSrho*chi3, rhoSrho*chi2,  rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rhoLn*chi3, rhoLn*chi2, 0.0}; // r\lambda_{-a}
   // Fast Magnetoacoustic Waves : \lambda_{\pm f}
   auto sigma = [&](const real_t omega) {
     return (omega >= 0.0 ? 1.0 : -1.0);
   };
   const real_t alpha_f = Kokkos::sqrt((a2 - cs2) / (cf2 - cs2));
   const real_t alpha_s = Kokkos::sqrt((cf2 - a2) / (cf2 - cs2));
-  const real_t a_ln2 = params.gamma0 / (2.0 * beta_ln);
-  const real_t a_beta = Kokkos::sqrt(params.gamma0 / (2.0 * beta_avg));
-  const real_t psi_sp = 0.5*alpha_s*rho_ln*u2bar - a_beta*alpha_f*rho_ln*bTrans + (alpha_s*rho_ln*a_ln2)/(params.gamma0 - 1.0) + alpha_s*cs*rho_ln*q[IU] + alpha_f*cf*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+s}
-  const real_t psi_sm = 0.5*alpha_s*rho_ln*u2bar + a_beta*alpha_f*rho_ln*bTrans + (alpha_s*rho_ln*a_ln2)/(params.gamma0 - 1.0) - alpha_s*cs*rho_ln*q[IU] - alpha_f*cf*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{-s}
-  const real_t psi_fp = 0.5*alpha_f*rho_ln*u2bar + a_beta*alpha_s*rho_ln*bTrans + (alpha_f*rho_ln*a_ln2)/(params.gamma0 - 1.0) + alpha_f*cf*rho_ln*q[IU] - alpha_s*cs*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+f}
-  const real_t psi_fm = 0.5*alpha_f*rho_ln*u2bar + a_beta*alpha_s*rho_ln*bTrans + (alpha_f*rho_ln*a_ln2)/(params.gamma0 - 1.0) - alpha_f*cf*rho_ln*q[IU] + alpha_s*cs*rho_ln*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+f}
-  State rF_p {alpha_f*rho_ln, alpha_f*rho_ln*(q[IU] + cf), rho_ln*(alpha_f*q[IV] - alpha_s*cs*chi2*sigma(b1)), rho_ln*(alpha_f*q[IW] - alpha_s*cs*chi3*sigma(b1)), psi_fp, 0.0, alpha_s*a_beta*chi2*Kokkos::sqrt(rho_ln), alpha_s*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
-  State rF_m {alpha_f*rho_ln, alpha_f*rho_ln*(q[IU] - cf), rho_ln*(alpha_f*q[IV] + alpha_s*cs*chi2*sigma(b1)), rho_ln*(alpha_f*q[IW] + alpha_s*cs*chi3*sigma(b1)), psi_fm, 0.0, alpha_s*a_beta*chi2*Kokkos::sqrt(rho_ln), alpha_s*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+  const real_t a_ln2 = params.gamma0 / (2.0 * betaLn);
+  // const real_t a_ln2 = params.gamma0*(0.5*rhoLn/betaLn)/rhoLn;
+  const real_t a_beta = Kokkos::sqrt(0.5 * params.gamma0 / betaAvg);
+  const real_t psi_sp = 0.5*alpha_s*rhoLn*u2bar - a_beta*alpha_f*rhoLn*bTrans + (alpha_s*rhoLn*a_ln2)/(params.gamma0 - 1.0) + alpha_s*cs*rhoLn*q[IU] + alpha_f*cf*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+s}
+  const real_t psi_sm = 0.5*alpha_s*rhoLn*u2bar - a_beta*alpha_f*rhoLn*bTrans + (alpha_s*rhoLn*a_ln2)/(params.gamma0 - 1.0) - alpha_s*cs*rhoLn*q[IU] - alpha_f*cf*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{-s}
+  const real_t psi_fp = 0.5*alpha_f*rhoLn*u2bar + a_beta*alpha_s*rhoLn*bTrans + (alpha_f*rhoLn*a_ln2)/(params.gamma0 - 1.0) + alpha_f*cf*rhoLn*q[IU] - alpha_s*cs*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+f}
+  const real_t psi_fm = 0.5*alpha_f*rhoLn*u2bar + a_beta*alpha_s*rhoLn*bTrans + (alpha_f*rhoLn*a_ln2)/(params.gamma0 - 1.0) - alpha_f*cf*rhoLn*q[IU] + alpha_s*cs*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{-f}
+  State rF_p {alpha_f*rhoLn, alpha_f*rhoLn*(q[IU] + cf), rhoLn*(alpha_f*q[IV] - alpha_s*cs*chi2*sigma(b1)), rhoLn*(alpha_f*q[IW] - alpha_s*cs*chi3*sigma(b1)), psi_fp, 0.0, alpha_s*a_beta*chi2*Kokkos::sqrt(rhoLn), alpha_s*a_beta*chi3*Kokkos::sqrt(rhoLn), 0.0};
+  State rF_m {alpha_f*rhoLn, alpha_f*rhoLn*(q[IU] - cf), rhoLn*(alpha_f*q[IV] + alpha_s*cs*chi2*sigma(b1)), rhoLn*(alpha_f*q[IW] + alpha_s*cs*chi3*sigma(b1)), psi_fm, 0.0, alpha_s*a_beta*chi2*Kokkos::sqrt(rhoLn), alpha_s*a_beta*chi3*Kokkos::sqrt(rhoLn), 0.0};
   // Slow Magnetoacoustic Waves : \lambda_{\pm s}
-  State rS_p {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] + cs), rho_ln*(alpha_s*q[IV] + alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] + alpha_f*cf*chi3*sigma(b1)), psi_sp, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
-  State rS_m {alpha_s*rho_ln, alpha_s*rho_ln*(q[IU] - cs), rho_ln*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rho_ln*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rho_ln), -alpha_f*a_beta*chi3*Kokkos::sqrt(rho_ln), 0.0};
+  State rS_p {alpha_s*rhoLn, alpha_s*rhoLn*(q[IU] + cs), rhoLn*(alpha_s*q[IV] + alpha_f*cf*chi2*sigma(b1)), rhoLn*(alpha_s*q[IW] + alpha_f*cf*chi3*sigma(b1)), psi_sp, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rhoLn), -alpha_f*a_beta*chi3*Kokkos::sqrt(rhoLn), 0.0};
+  State rS_m {alpha_s*rhoLn, alpha_s*rhoLn*(q[IU] - cs), rhoLn*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rhoLn*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rhoLn), -alpha_f*a_beta*chi3*Kokkos::sqrt(rhoLn), 0.0};
 
   // KEPES Flux - eq. (4.72), disspation term
-auto matmul = [&](const Matrix &A, const Matrix &B, Matrix &C) {
-    int rows = C.extent(0);
-    int cols = C.extent(1);
-    int inner = A.extent(1); // ou B.extent(0)
-
-    Kokkos::parallel_for("MatrixMultiply", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {rows, cols}),
-                        KOKKOS_LAMBDA(int i, int j) {
-                            real_t sum = 0.0;
-                            for (int k = 0; k < inner; ++k) {
-                                sum += A(i, k) * B(k, j);
-                            }
-                            C(i, j) = sum;
-                        });
-  };
-
   Matrix R("R", Nfields, Nfields);
   Matrix RT("RTranspose", Nfields, Nfields);
-  Matrix D("D", Nfields, Nfields);
-  Matrix AllDissipation("AllDissipation", Nfields, Nfields);
+  Matrix LZ("LambdaxZ", Nfields, Nfields);
+
   for (int i = 0; i < Nfields; ++i) {
-    R(i, 0) = rF_p[i] - lambda_hat[0]*Z[0];
-    R(i, 1) = rA_p[i] - lambda_hat[1]*Z[1];
-    R(i, 2) = rS_p[i] - lambda_hat[2]*Z[2];
-    R(i, 3) = rpsi_p[i] - lambda_hat[3]*Z[3];
-    R(i, 4) = rE[i] - lambda_hat[4]*Z[4];
-    R(i, 5) = rpsi_m[i] - lambda_hat[5]*Z[5];
-    R(i, 6) = rS_m[i] - lambda_hat[6]*Z[6];
-    R(i, 7) = rA_m[i] - lambda_hat[7]*Z[7];
-    R(i, 8) = rF_m[i] - lambda_hat[8]*Z[8];
+    R(i, 0) = rF_p[i]; //- lambda_hat[0]*Z[0];
+    R(i, 1) = rA_p[i]; //- lambda_hat[1]*Z[1];
+    R(i, 2) = rS_p[i]; //- lambda_hat[2]*Z[2];
+    R(i, 3) = rpsi_p[i]; //- lambda_hat[3]*Z[3];
+    R(i, 4) = rE[i]; //- lambda_hat[4]*Z[4];
+    R(i, 5) = rpsi_m[i]; //- lambda_hat[5]*Z[5];
+    R(i, 6) = rS_m[i]; //- lambda_hat[6]*Z[6];
+    R(i, 7) = rA_m[i]; //- lambda_hat[7]*Z[7];
+    R(i, 8) = rF_m[i]; //- lambda_hat[8]*Z[8];
     // Fill the transpose matrix
-    RT(0, i) = rF_p[i];
-    RT(1, i) = rA_p[i];
-    RT(2, i) = rS_p[i];
-    RT(3, i) = rpsi_p[i];
-    RT(4, i) = rE[i];
-    RT(5, i) = rpsi_m[i];
-    RT(6, i) = rS_m[i];
-    RT(7, i) = rA_m[i];
-    RT(8, i) = rF_m[i];
+    // RT(0, i) = rF_p[i];
+    // RT(1, i) = rA_p[i];
+    // RT(2, i) = rS_p[i];
+    // RT(3, i) = rpsi_p[i];
+    // RT(4, i) = rE[i];
+    // RT(5, i) = rpsi_m[i];
+    // RT(6, i) = rS_m[i];
+    // RT(7, i) = rA_m[i];
+    // RT(8, i) = rF_m[i];
+    for (int j = 0; j < Nfields; ++j) {
+      if (i == j) {
+        LZ(i, j) = lambda_hat[j] * Z[i]; // Diagonal matrix
+      } else {
+        LZ(i, j) = 0.0; // Off-diagonal elements are zero
+      }
+    }
   }
-  matmul(R, RT, D); // D = R |LAMBDA| Z R^T
-  const State VState = getEntropyStateFromConsStates(qL, qR, params);
-  State dissipativeTerm = matvecmul(D, VState); // D * q
-  flux -= 0.5*dissipativeTerm;
+  // auto computeFinalVector = [&] (const Matrix& R, const State& lambda, const State& v, const State& z) {
+  //   State finalVector {};
+
+  //   for (int i = 0; i < Nfields; ++i) {
+  //       real_t sum = 0.0;
+  //       for (int j = 0; j < Nfields; ++j) {
+  //           for (int k = 0; k < Nfields; ++k) {
+  //               sum += v[j] * R(j, k) * R(i, k) * lambda[k] * z[k];
+  //           }
+  //       }
+  //       finalVector[i] = sum;
+  //   }
+
+  //   return finalVector;
+  // };
+  // D = matmul(R, LZ); // D = R |LAMBDA| Z R^T
+  // tmp = matmul(D, RT); // tmp = R^T D
+  for (int i = 0; i < Nfields; ++i){
+    for (int j = 0; j < Nfields; ++j) {
+      RT(j,i) = R(i,j);
+      }
+  }
+  Matrix tmp("tmp", Nfields, Nfields);
+  tmp = matmul(R, LZ);
+  Matrix tmp2("tmp2", Nfields, Nfields);
+  tmp2 = matmul(tmp, RT); // tmp2 = D * R^T
+  const State VState = getEntropyJumpStateFromConsStates(qL, qR, params);
+  State dissipativeTerm = matvecmul(tmp2, VState); // D * q
+  return 0.5*dissipativeTerm;
+}
+
+KOKKOS_INLINE_FUNCTION
+State getScalarDissipation(State &qL, State &qR, real_t &lambda_max, const DeviceParams &params) {
+  State Lmax = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  Lmax *= Kokkos::abs(lambda_max);
+  State q = getConsJumpState(qL, qR, params);
+  return 0.5 * Lmax * q;
+}
+
+KOKKOS_INLINE_FUNCTION
+void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max, real_t ch, const DeviceParams &params){
+  // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
+  // Compute KEPEC Flux
+  FluxKEPEC(qL, qR, flux, pout, ch, params);
+  // State dissipative_term = getScalarDissipation(qL, qR, lambda_max, params);
+  State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
+  flux -= dissipative_term; // Subtract the dissipation term
 }
 
 #endif

@@ -65,11 +65,13 @@ namespace {
     if (r < 0.2) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
       Q(j, i, IP) = 10.0;
     }
     else {
       Q(j, i, IR) = 1.2;
       Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
       Q(j, i, IP) = 0.1;
     }
   }

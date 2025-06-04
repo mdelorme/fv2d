@@ -87,14 +87,14 @@ real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
   real_t lambda_max = 0.0;
   Kokkos::parallel_reduce("Compute Global Divergece Speed",
     full_params.range_dom,
-    KOKKOS_LAMBDA(int i, int j, real_t& u_max, real_t& lamba_max) {
+    KOKKOS_LAMBDA(int i, int j, real_t& u_max, real_t& lambda_max) {
       State q = getStateFromArray(Q, i, j);
       real_t umax_loc = Kokkos::max({Kokkos::abs(q[IU]), Kokkos::abs(q[IV]), Kokkos::abs(q[IW])});
       real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
       real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
       real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
       u_max = Kokkos::max(u_max, umax_loc);
-      lamba_max = Kokkos::max(lamba_max, lambda_loc);
+      lambda_max = Kokkos::max(lambda_max, lambda_loc);
     },
     Kokkos::Max<real_t>(u_max),
     Kokkos::Max<real_t>(lambda_max));
@@ -217,8 +217,8 @@ State getConsJumpState(const State &qL, const State &qR, const DeviceParams &par
 }
 
 KOKKOS_INLINE_FUNCTION
-State getEntropyJumpStateFromConsStates(State &qL, State &qR, const DeviceParams &params) {
-  const State qJump = qR - qL; 
+State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params) {
+  const State qJump = qR - qL;
   const State qAvg = 0.5 * (qL + qR);
   const real_t betaL = 0.5 * qL[IR]/qL[IP], betaR = 0.5 * qR[IR]/qR[IP];
   const real_t betaJump = betaR - betaL;

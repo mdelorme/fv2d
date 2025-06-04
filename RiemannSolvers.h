@@ -567,67 +567,35 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   State rS_m {alpha_s*rhoLn, alpha_s*rhoLn*(q[IU] - cs), rhoLn*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rhoLn*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rhoLn), -alpha_f*a_beta*chi3*Kokkos::sqrt(rhoLn), 0.0};
 
   // KEPES Flux - eq. (4.72), disspation term
-  Matrix R("R", Nfields, Nfields);
-  Matrix RT("RTranspose", Nfields, Nfields);
-  Matrix LZ("LambdaxZ", Nfields, Nfields);
+  Matrix R = Matrix("R", Nfields, Nfields);
 
   for (int i = 0; i < Nfields; ++i) {
-    R(i, 0) = rF_p[i]; //- lambda_hat[0]*Z[0];
-    R(i, 1) = rA_p[i]; //- lambda_hat[1]*Z[1];
-    R(i, 2) = rS_p[i]; //- lambda_hat[2]*Z[2];
-    R(i, 3) = rpsi_p[i]; //- lambda_hat[3]*Z[3];
-    R(i, 4) = rE[i]; //- lambda_hat[4]*Z[4];
-    R(i, 5) = rpsi_m[i]; //- lambda_hat[5]*Z[5];
-    R(i, 6) = rS_m[i]; //- lambda_hat[6]*Z[6];
-    R(i, 7) = rA_m[i]; //- lambda_hat[7]*Z[7];
-    R(i, 8) = rF_m[i]; //- lambda_hat[8]*Z[8];
-    // Fill the transpose matrix
-    // RT(0, i) = rF_p[i];
-    // RT(1, i) = rA_p[i];
-    // RT(2, i) = rS_p[i];
-    // RT(3, i) = rpsi_p[i];
-    // RT(4, i) = rE[i];
-    // RT(5, i) = rpsi_m[i];
-    // RT(6, i) = rS_m[i];
-    // RT(7, i) = rA_m[i];
-    // RT(8, i) = rF_m[i];
-    for (int j = 0; j < Nfields; ++j) {
-      if (i == j) {
-        LZ(i, j) = lambda_hat[j] * Z[i]; // Diagonal matrix
-      } else {
-        LZ(i, j) = 0.0; // Off-diagonal elements are zero
+    R(0, i) = rF_p[i];
+    R(i, 1) = rA_p[i];
+    R(i, 2) = rS_p[i];
+    R(i, 3) = rpsi_p[i];
+    R(i, 4) = rE[i];
+    R(i, 5) = rpsi_m[i];
+    R(i, 6) = rS_m[i];
+    R(i, 7) = rA_m[i];
+    R(i, 8) = rF_m[i];
+  }
+  const State VState = getEntropyJumpState(qL, qR, params);
+  State res {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  real_t jsum, ksum;
+  for (int i=0; i<Nfields; ++i) {
+    jsum = 0.0;
+    for (int j=0; j<Nfields; ++j) {
+      ksum = 0.0;
+      for (int k=0; k<Nfields; ++k) {
+        ksum += lambda_hat[k] * R(i, k) * R(j, k) * Z[k];
       }
+    jsum += VState[j] * ksum;
     }
+  res[i] += jsum;
   }
-  // auto computeFinalVector = [&] (const Matrix& R, const State& lambda, const State& v, const State& z) {
-  //   State finalVector {};
 
-  //   for (int i = 0; i < Nfields; ++i) {
-  //       real_t sum = 0.0;
-  //       for (int j = 0; j < Nfields; ++j) {
-  //           for (int k = 0; k < Nfields; ++k) {
-  //               sum += v[j] * R(j, k) * R(i, k) * lambda[k] * z[k];
-  //           }
-  //       }
-  //       finalVector[i] = sum;
-  //   }
-
-  //   return finalVector;
-  // };
-  // D = matmul(R, LZ); // D = R |LAMBDA| Z R^T
-  // tmp = matmul(D, RT); // tmp = R^T D
-  for (int i = 0; i < Nfields; ++i){
-    for (int j = 0; j < Nfields; ++j) {
-      RT(j,i) = R(i,j);
-      }
-  }
-  Matrix tmp("tmp", Nfields, Nfields);
-  tmp = matmul(R, LZ);
-  Matrix tmp2("tmp2", Nfields, Nfields);
-  tmp2 = matmul(tmp, RT); // tmp2 = D * R^T
-  const State VState = getEntropyJumpStateFromConsStates(qL, qR, params);
-  State dissipativeTerm = matvecmul(tmp2, VState); // D * q
-  return 0.5*dissipativeTerm;
+  return res;
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -645,7 +613,7 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t lambda_max
   FluxKEPEC(qL, qR, flux, pout, ch, params);
   // State dissipative_term = getScalarDissipation(qL, qR, lambda_max, params);
   State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
-  flux -= dissipative_term; // Subtract the dissipation term
+  flux -= 0.5 * dissipative_term; // Subtract the dissipation term
 }
 
 #endif

@@ -341,6 +341,24 @@ struct DeviceParams
   // Gresho vortex
   real_t gresho_density, gresho_Mach;
 
+  // Currie 2020
+  real_t c20_H;
+  real_t c20_heating_fac;
+
+  // Tri-Layer
+  real_t tri_y1, tri_y2;
+  real_t tri_pert;
+  real_t tri_k1, tri_k2;
+  real_t T0, rho0;
+
+  // Isothermal triple layer
+  real_t iso3_dy0, iso3_dy1, iso3_dy2;
+  real_t iso3_theta1, iso3_theta2;
+  real_t iso3_m1, iso3_m2;
+  real_t iso3_pert;
+  real_t iso3_k1, iso3_k2;
+  real_t iso3_T0, iso3_rho0;
+  
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
@@ -460,7 +478,6 @@ struct DeviceParams
 
     // Heating function 
     heating_active = reader.GetBoolean("heating", "active", false);
-    tmp = reader.Get("heating", "mode", "C2020");
     std::map<std::string, HeatingMode> heating_map{
       {"C2020", HM_C2020},
       {"tri_layer", HM_C2020_TRI},
@@ -491,6 +508,36 @@ struct DeviceParams
     // Gresho vortex
     gresho_density = reader.GetFloat("gresho_vortex", "density", 1.0);
     gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach", 0.1);
+    kh_sigma = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
+    kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
+    kh_y1 = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
+    kh_y2 = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
+    // C20
+    c20_H = reader.GetFloat("C20", "H", 0.2);
+    c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
+
+    // Tri-layer
+    tri_y1   = reader.GetFloat("tri_layer", "y1", 1.0);
+    tri_y2   = reader.GetFloat("tri_layer", "y2", 2.0);
+    tri_pert = reader.GetFloat("tri_layer", "perturbation", 1.0e-3);
+    tri_k1   = reader.GetFloat("tri_layer", "kappa1", 0.07);
+    tri_k2   = reader.GetFloat("tri_layer", "kappa2", 1.5);
+    T0       = reader.GetFloat("tri_layer", "T0", 1.0);
+    rho0     = reader.GetFloat("tri_layer", "rho0", 1.0);
+
+    // Isothermal triple layer
+    iso3_dy0    = reader.GetFloat("iso_three_layer", "dy0", 1.0);
+    iso3_dy1    = reader.GetFloat("iso_three_layer", "dy1", 2.0);
+    iso3_dy2    = reader.GetFloat("iso_three_layer", "dy2", 2.0);
+    iso3_theta1 = reader.GetFloat("iso_three_layer", "theta1", 2.0);
+    iso3_theta2 = reader.GetFloat("iso_three_layer", "theta2", 2.0);
+    iso3_pert   = reader.GetFloat("iso_three_layer", "perturbation", 1.0e-3);
+    iso3_k1     = reader.GetFloat("iso_three_layer", "k1", 0.07);
+    iso3_k2     = reader.GetFloat("iso_three_layer", "k2", 1.5);
+    iso3_m1     = reader.GetFloat("iso_three_layer", "m1", 1.0);
+    iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
+    iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
+    iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
   }
 };
 
@@ -519,24 +566,6 @@ struct Params
 
   // All the physics
   DeviceParams device_params;
-
-  // Currie 2020
-  real_t c20_H;
-  real_t c20_heating_fac;
-
-  // Tri-Layer
-  real_t tri_y1, tri_y2;
-  real_t tri_pert;
-  real_t tri_k1, tri_k2;
-  real_t T0, rho0;
-
-  // Isothermal triple layer
-  real_t iso3_dy0, iso3_dy1, iso3_dy2;
-  real_t iso3_theta1, iso3_theta2;
-  real_t iso3_m1, iso3_m2;
-  real_t iso3_pert;
-  real_t iso3_k1, iso3_k2;
-  real_t iso3_T0, iso3_rho0;
 
   // Misc 
   int seed;
@@ -673,34 +702,6 @@ Params readInifile(std::string filename)
   std::map<std::string, TimeStepping> ts_map{{"euler", TS_EULER}, {"RK2", TS_RK2}};
   res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");
   res.problem = reader.Get("physics", "problem", "blast");
-
-  // C20
-  res.c20_H = reader.GetFloat("C20", "H", 0.2);
-  res.c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
-
-  // Tri-layer
-  res.tri_y1   = reader.GetFloat("tri_layer", "y1", 1.0);
-  res.tri_y2   = reader.GetFloat("tri_layer", "y2", 2.0);
-  res.tri_pert = reader.GetFloat("tri_layer", "perturbation", 1.0e-3);
-  res.tri_k1   = reader.GetFloat("tri_layer", "kappa1", 0.07);
-  res.tri_k2   = reader.GetFloat("tri_layer", "kappa2", 1.5);
-  res.T0       = reader.GetFloat("tri_layer", "T0", 1.0);
-  res.rho0     = reader.GetFloat("tri_layer", "rho0", 1.0);
-
-  // Isothermal triple layer
-  res.iso3_dy0    = reader.GetFloat("iso_three_layer", "dy0", 1.0);
-  res.iso3_dy1    = reader.GetFloat("iso_three_layer", "dy1", 2.0);
-  res.iso3_dy2    = reader.GetFloat("iso_three_layer", "dy2", 2.0);
-  res.iso3_theta1 = reader.GetFloat("iso_three_layer", "theta1", 2.0);
-  res.iso3_theta2 = reader.GetFloat("iso_three_layer", "theta2", 2.0);
-  res.iso3_pert   = reader.GetFloat("iso_three_layer", "perturbation", 1.0e-3);
-  res.iso3_k1     = reader.GetFloat("iso_three_layer", "k1", 0.07);
-  res.iso3_k2     = reader.GetFloat("iso_three_layer", "k2", 1.5);
-  res.iso3_m1     = reader.GetFloat("iso_three_layer", "m1", 1.0);
-  res.iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
-  res.iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
-  res.iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
-
 
   // Misc
   res.seed                   = reader.GetInteger("misc", "seed", 12345);

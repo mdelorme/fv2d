@@ -225,7 +225,7 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
    * 
    */
   KOKKOS_INLINE_FUNCTION
-  void initTriLayer(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initTriLayer(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     const real_t y = pos[IY];
 
@@ -275,7 +275,7 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
   }
 
   KOKKOS_INLINE_FUNCTION
-  void initTriLayerSmooth(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initTriLayerSmooth(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
     Pos pos = getPos(params, i, j);
     const real_t y = pos[IY];
 
@@ -338,7 +338,7 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
 
 
   KOKKOS_INLINE_FUNCTION
-  void initIso3(Array Q, int i, int j, const Params &params, const RandomPool &random_pool) {
+  void initIso3(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
 
     const real_t T1   = params.iso3_T0;
     const real_t rho1   = params.iso3_rho0;

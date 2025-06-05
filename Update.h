@@ -189,7 +189,7 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt, ite);
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt, ite);
-    if (params.heating_active)
+    if (full_params.device_params.heating_active)
       heat_functor.applyHeating(Q, Unew, dt, ite);
   }
 

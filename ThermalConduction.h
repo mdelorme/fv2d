@@ -128,7 +128,7 @@ public:
         thermal_contrib += dt/dx * (FR - FL) + dt/dy * (FD - FU);
       }, Kokkos::Sum<real_t>(total_thermal_contrib));
 
-    if (params.log_energy_contributions && ite % params.log_energy_frequency == 0)
+    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
       std::cout << "Total thermal contribution to energy : " << total_thermal_contrib << std::endl;
   }
 };

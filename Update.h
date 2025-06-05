@@ -171,7 +171,7 @@ public:
         Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
       }, Kokkos::Sum<real_t>(total_hydro_contrib));
 
-    if (params.log_energy_contributions && ite % params.log_energy_frequency == 0)
+    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
       std::cout << "Total hydro contribution to energy : " << total_hydro_contrib << std::endl;
   }
 
@@ -189,11 +189,11 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt, ite);
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt, ite);
-    if (params.heating_active)
+    if (full_params.device_params.heating_active)
       heat_functor.applyHeating(Q, Unew, dt, ite);
   }
 
-  void update(Array Q, Array Unew, real_t dt) {
+  void update(Array Q, Array Unew, real_t dt, int ite) {
     if (full_params.time_stepping == TS_EULER)
       euler_step(Q, Unew, dt, ite);
     else if (full_params.time_stepping == TS_RK2) {

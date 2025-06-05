@@ -288,9 +288,6 @@ public:
     
     std::cout << "Restart finished !" << std::endl;
 
-    real_t time = loadAttribute<real_t>(file, "/", "time");
-    int iteration = loadAttribute<int>(file, "/", "iteration");
-
     return {time, iteration};
   }
 };

@@ -393,6 +393,8 @@ public:
       file.~File(); // free the h5 before saving
       saveSolution(Q, iteration, time);
     }
+    real_t time = loadAttribute<real_t>(file, "/", "time");
+    int iteration = loadAttribute<int>(file, "/", "iteration");
 
     return {time, iteration};
   }

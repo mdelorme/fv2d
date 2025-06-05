@@ -49,10 +49,10 @@ int main(int argc, char **argv) {
     if (params.restart_file != "") {
       auto restart_info = ioManager.loadSnapshot(Q);
       t = restart_info.time;
-      ite = restart_info.iteration;
+      save_ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
       next_save = t + params.save_freq;
-      ite++;
+      save_ite++;
     }
     else
       init.init(Q);

@@ -90,7 +90,7 @@ public:
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
     real_t ch_global;
-    real_t lambda_max = ComputeLambdaMax(Q, full_params);
+    // real_t lambda_max = ComputeLambdaMax(Q, full_params);
     if (params.riemann_solver == IDEALGLM)
       ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
     
@@ -136,7 +136,7 @@ public:
                 break;
               }
               case IDEALGLM: {
-                IdealGLM(qL, qR, flux, pout, lambda_max, ch, params);
+                IdealGLM(qL, qR, flux, pout, ch, params);
                 break;
               }
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;

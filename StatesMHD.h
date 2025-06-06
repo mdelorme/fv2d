@@ -99,7 +99,7 @@ real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
     Kokkos::Max<real_t>(u_max),
     Kokkos::Max<real_t>(lambda_max));
     return lambda_max - u_max;
-  };
+  }
   
 KOKKOS_INLINE_FUNCTION
 real_t ComputeLambdaMax(Array Q, const Params &full_params) {
@@ -116,7 +116,7 @@ real_t ComputeLambdaMax(Array Q, const Params &full_params) {
     },
     Kokkos::Max<real_t>(lambda_max));
     return lambda_max;
-  };
+  }
   
   KOKKOS_INLINE_FUNCTION
   State& operator+=(State &a, State b) {

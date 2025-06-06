@@ -55,6 +55,7 @@ enum BoundaryType {
   BC_PERIODIC,
   BC_RADIAL_REFLECTING,
   BC_FIXED_READFILE,
+  BC_ISOTHERMAL_DIRICHLET,
 };
 
 enum TimeStepping {
@@ -109,6 +110,7 @@ enum Mapc2pType {
 enum GravityType { 
   GRAV_NONE,
   GRAV_CONST,
+  GRAV_RADIAL_LIN,
   GRAV_READFILE,
 };
 
@@ -338,6 +340,7 @@ Params readInifile(std::string filename) {
     {"periodic",           BC_PERIODIC},
     {"radial_reflecting",  BC_RADIAL_REFLECTING},
     {"fixed_readfile",     BC_FIXED_READFILE},
+    {"isothermal_dirichlet",     BC_ISOTHERMAL_DIRICHLET},
   };
   res.boundary_x = read_map(bc_map, "run", "boundaries_x", "reflecting");
   res.boundary_y = read_map(bc_map, "run", "boundaries_y", "reflecting");
@@ -415,6 +418,7 @@ Params readInifile(std::string filename) {
     {"false",    GRAV_NONE},
     {"const",    GRAV_CONST},
     {"true",     GRAV_CONST},
+    {"radial_linear", GRAV_RADIAL_LIN},
     {"readfile", GRAV_READFILE},
   };
   res.gravity = read_map(gravity_map, "physics", "gravity", "false");

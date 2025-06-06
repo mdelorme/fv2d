@@ -465,6 +465,26 @@ namespace {
     Q(j, i, IV) = pert * sin(M_PI*y);
   }
 
+  KOKKOS_INLINE_FUNCTION
+  void initIsothermalStatic(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
+    Pos pos = geo.mapc2p_center(i,j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+    
+    real_t rho0 = 1.2;
+    real_t p0 = 1.0;
+    real_t phi = 0.5 * (x*x + y*y) * params.g;
+
+    // auto generator = random_pool.get_state();
+    // real_t pert = params.ring_velocity * (generator.drand(-1.0, 1.0));
+    // random_pool.free_state(generator);
+
+    Q(j, i, IR) = rho0 * exp(-rho0 * phi / p0);
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IP) = p0 * exp(-rho0 * phi / p0);
+  }
+
 
   KOKKOS_INLINE_FUNCTION
   void initReadfile(Array Q, int i, int j, const Params &params, const Geometry &geo, const RandomPool &random_pool) {
@@ -498,6 +518,7 @@ enum InitType {
   BLAST,
   SMOOTHBLAST,
   RAYLEIGH_TAYLOR,
+  ISOTH_STATIC,
   DIFFUSION,
   H84,
   C91,
@@ -531,6 +552,8 @@ public:
       {"diffusion", DIFFUSION},
       {"H84", H84},
       {"C91", C91},
+
+      {"isothermal_static", ISOTH_STATIC},
 
       {"ring_blast", RING_BLAST},
       {"ring_kelvin-helmholtz", RING_KE},
@@ -573,7 +596,8 @@ public:
                               // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;
                               // case C91:             initC91(Q, i, j, params, random_pool); break;
-
+                              case ISOTH_STATIC: initIsothermalStatic(Q, i, j, params, geometry, random_pool); break;
+                              
                               case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
                               case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;
                               case RING_RT:         initRing_RayleighTaylor(Q, i, j, params, geometry, random_pool); break;

@@ -15,6 +15,9 @@ Pos computeGravity(int i, int j, const Params &params, const Geometry &geometry)
       g = params.spl_grav.GetValue(r) / r * pos;
       break;
     }
+    case GRAV_RADIAL_LIN:
+      g = -params.g * geometry.mapc2p_center(i,j);
+      break;
     case GRAV_CONST: default:
       g[IY] = params.g;
       break;
@@ -76,7 +79,7 @@ class CoriolisFunctor {
           #if 0
             real_t rho = Q(j, i, IR);
             const real_t rhouOld = rho * Q(j, i, IU);
-            const real_t rhovOld = rho * Q(j, i, IV);
+            const real_t rhovOld = rho * Q(j, i, IV); 
             const real_t rhouNew = Unew(j, i, IU);
             const real_t rhovNew = Unew(j, i, IV);
             Unew(j, i, IU) += dt * omega * (rhovOld + rhovNew);

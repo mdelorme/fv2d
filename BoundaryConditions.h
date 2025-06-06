@@ -141,6 +141,21 @@ namespace fv2d {
 
     return getStateFromArray(Q, i, j);
   }
+
+  KOKKOS_INLINE_FUNCTION
+  State fillIsothermalDirichlet(Array Q, int i, int j, IDir dir, const Params &params, const Geometry &geo) {
+    State q{0};
+
+    auto [x, y] = geo.mapc2p_center(i,j);
+    real_t rho0 = 1.2;
+    real_t p0 = 1.0;
+    real_t phi = 0.5 * (x*x + y*y) * params.g;
+
+    q[IR] = rho0 * exp(-rho0 * phi / p0);
+    q[IP] = p0 * exp(-rho0 * phi / p0);
+
+    return q;
+  }
 } // anonymous namespace
 
 
@@ -178,6 +193,7 @@ public:
                                 case BC_RADIAL_REFLECTING: return fillRadialReflecting(Q, i, j, iref, j, IX, params, geometry); break;
                                 case BC_FIXED_READFILE:    return fillFixedReadfile(Q, i, j, iref, j, IX, params, geometry); break;
                                 // case BC_FIXED_READFILE:    return fillFixedReadfile(Q, params); break;
+                                case BC_ISOTHERMAL_DIRICHLET: return fillIsothermalDirichlet(Q, i, j, IX, params, geometry); break;
                               }
                             };
 
@@ -203,6 +219,7 @@ public:
                                 case BC_RADIAL_REFLECTING: return fillRadialReflecting(Q, i, j, i, jref, IY, params, geometry); break;
                                 case BC_FIXED_READFILE:    return fillFixedReadfile(Q, i, j, i, jref, IY, params, geometry); break;
                                 // case BC_FIXED_READFILE:    return fillFixedReadfile(Q, params); break;
+                                case BC_ISOTHERMAL_DIRICHLET: return fillIsothermalDirichlet(Q, i, j, IY, params, geometry); break;
                               }
                             };
 

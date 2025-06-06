@@ -100,7 +100,7 @@ namespace {
       case PLM: case PCM_WB: case PCM: // 1d reconstruction
       {
         auto& slopes = (dir == IX ? slopesX : slopesY);
-        auto [dL, dR] = geometry.cellReconsLength(i, j, dir);
+        auto [dL, dR] = geometry.cellReconsLength(iR, jR, dir);
         q[ILEFT]  = reconstruct1D(Q, slopes, iL, jL,  dL, dir, params);
         q[IRIGHT] = reconstruct1D(Q, slopes, iR, jR, -dR, dir, params);
         break;
@@ -193,14 +193,14 @@ public:
           KOKKOS_LAMBDA(const int i, const int j) {
             const real_t dL = geometry.cellReconsLengthSlope(i,  j,  IX);
             const real_t dR = geometry.cellReconsLengthSlope(i+1,j,  IX);
-            const real_t dU = geometry.cellReconsLengthSlope(i,  j,  IY);
-            const real_t dD = geometry.cellReconsLengthSlope(i,  j+1,IY);
+            const real_t dD = geometry.cellReconsLengthSlope(i,  j,  IY);
+            const real_t dU = geometry.cellReconsLengthSlope(i,  j+1,IY);
             
             for (int ivar=0; ivar < Nfields; ++ivar) {
               real_t dqL = (Q(j, i, ivar)   - Q(j, i-1, ivar)) / dL;
               real_t dqR = (Q(j, i+1, ivar) - Q(j, i, ivar)  ) / dR;
-              real_t dqU = (Q(j, i, ivar)   - Q(j-1, i, ivar)) / dU; 
-              real_t dqD = (Q(j+1, i, ivar) - Q(j, i, ivar)  ) / dD; 
+              real_t dqD = (Q(j, i, ivar)   - Q(j-1, i, ivar)) / dD; 
+              real_t dqU = (Q(j+1, i, ivar) - Q(j, i, ivar)  ) / dU; 
 
               auto minmod = [](real_t dqL, real_t dqR) -> real_t {
                 if (dqL*dqR < 0.0)
@@ -212,7 +212,7 @@ public:
               };
 
               slopesX(j, i, ivar) = minmod(dqL, dqR);
-              slopesY(j, i, ivar) = minmod(dqU, dqD);
+              slopesY(j, i, ivar) = minmod(dqD, dqU);
             }
           });
           break;
@@ -313,6 +313,8 @@ public:
     const real_t dt_half = 0.5 * dt;
     const real_t gamma = params.gamma0;
 
+    // not compatible with plm + non-cartesian
+
     Kokkos::parallel_for(
       "MUSCL-Hancock",
       params.range_slopes,
@@ -353,7 +355,7 @@ public:
             if (dir==IX && (i==params.ibeg || i==params.iend-1)) { 
               State &q = (i==params.ibeg) ? qL : qR;
               q[IR] = params.spl_rho.GetValue(params.radial_radius);
-              q[IU] = 0.0;
+              q[IU] = 0.0; // TODO uniquement vr = 0
               q[IV] = 0.0;
               q[IP] = params.spl_prs.GetValue(params.radial_radius);
             }

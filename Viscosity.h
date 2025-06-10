@@ -20,7 +20,7 @@ real_t computeMu(int i, int j, const DeviceParams &params) {
         // res = params.mu * (1.0 * (1.0-tr) + 10.0 * tr);
       // break;
       // }
-    default: return params.mu; break;
+    default: res = params.mu; break;
   }
   return res;
 }

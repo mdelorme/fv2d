@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Time at end is " << t << std::endl;
 
-    ioManager.saveSolution(Q, ite++, t, dt);
+    ioManager.saveSolution(Q, save_ite++, t, dt);
   }
   Kokkos::finalize();
 

@@ -36,26 +36,26 @@ public:
                     State q = getStateFromArray(Q, i, j);
                     real_t alpha = ch_global/params.cr;
                     
-                    // TODO: passer à un ordre 2 en espace pour la PLM
-                    State SMag{}, SPhi{};
+                //     // TODO: passer à un ordre 2 en espace pour la PLM
+                // Déjà inclus dans le flux KEPEC (?)
+                    State SMag{}, SPsi{};
                     
-                    // Magnetic divergence source term
+                    // // Magnetic divergence source term
                     State VMag {0.0, q[IBX], q[IBY], q[IBZ], q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ], q[IU], q[IV], q[IW], 0.0};
                     SMag = (0.5 * (Q(j, i+1, IBX) - Q(j, i-1, IBX)) / dx) * VMag + (0.5 * (Q(j+1, i, IBY) - Q(j-1, i, IBY)) / dy) * VMag;
                     
-                    // Psi correlated non-conservative term
-                    State SPhiX {0.0, 0.0, 0.0, 0.0, q[IU]*q[IPSI], 0.0, 0.0, 0.0, q[IU]};
-                    SPhiX *= 0.5 * (Q(j, i+1, IPSI) - Q(j, i-1, IPSI)) / dx;
-                    State SPhiY {0.0, 0.0, 0.0, 0.0, q[IV]*q[IPSI], 0.0, 0.0, 0.0, q[IV]};
-                    SPhiY *= 0.5 * (Q(j+1, i, IPSI) - Q(j-1, i, IPSI)) / dy;
-                    SPhi = SPhiX + SPhiY;
-                    
-                    // Parabolic source term
-                    State SParabolic {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, alpha*q[IPSI]};
+                    // // Psi correlated non-conservative term
+                    State SPsiX {0.0, 0.0, 0.0, 0.0, q[IU]*q[IPSI], 0.0, 0.0, 0.0, q[IU]};
+                    SPsiX *= 0.5 * (Q(j, i+1, IPSI) - Q(j, i-1, IPSI)) / dx;
+                    State SPsiY {0.0, 0.0, 0.0, 0.0, q[IV]*q[IPSI], 0.0, 0.0, 0.0, q[IV]};
+                    SPsiY *= 0.5 * (Q(j+1, i, IPSI) - Q(j-1, i, IPSI)) / dy;
+                    SPsi = SPsiX + SPsiY;
                     
                     for (int ivar = 0; ivar < Nfields; ++ivar) {
-                        Unew(j, i, ivar) += dt * (SMag[ivar] + SPhi[ivar] + SParabolic[ivar]);
+                        Unew(j, i, ivar) -= dt * (SMag[ivar] + SPsi[ivar]);
                     }
+                    // Parabolic source term
+                    Unew(j, i, IPSI) -= dt * alpha*q[IPSI];
                 }
             });
     }

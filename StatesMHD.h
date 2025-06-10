@@ -196,10 +196,12 @@ KOKKOS_INLINE_FUNCTION
 State getConsJumpState(const State &qL, const State &qR, const DeviceParams &params) {
   State qJump = qR - qL;
   State qMixed = 0.5 * (qR*qR - qL*qL); //{{q}}[[q]]
-  const real_t betaL = 0.5 * qL[IR]/qL[IP], betaR = 0.5 * qR[IR]/qR[IP];
+  const real_t rhoLn = logMean(qL[IR], qR[IR]);
+  const real_t betaL = 0.5 * qL[IR]/qL[IP];
+  const real_t betaR = 0.5 * qR[IR]/qR[IP];
   const real_t betaJump = betaR - betaL;
-  const real_t betaAvg = 0.5 * (betaL + betaR);
-  const real_t betaLn = logMean(betaL, betaR);
+  const real_t betaAvg = 0.5 * (qL[IR]+qR[IR])/(qL[IP]+qR[IP]);
+  const real_t betaLn = 0.5 * rhoLn / logMean(qL[IP], qR[IP]);
   const real_t beta2bar = 2.0*betaAvg*betaAvg - 0.5*(betaL*betaL + betaR*betaR);
   const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
   real_t E = qJump[IR]/(2.0*(params.gamma0-1.0)*betaLn) + 0.5*u2bar*qJump[IR] + 0.5*(qL[IR]+qR[IR])*(qMixed[IU] + qMixed[IV] + qMixed[IW]) - 0.25*(qL[IR]+qR[IR])/((params.gamma0-1.0)*beta2bar)*betaJump + qMixed[IBX] + qMixed[IBY] + qMixed[IBZ] + qMixed[IPSI];

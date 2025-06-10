@@ -89,7 +89,7 @@ public:
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    real_t ch_global;
+    real_t ch_global = 0.0;
     // real_t lambda_max = ComputeLambdaMax(Q, full_params);
     if (params.riemann_solver == IDEALGLM)
       ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);

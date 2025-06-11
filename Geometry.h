@@ -110,9 +110,9 @@ namespace fv2d {
 class Geometry{
   
 public:
-  Params params;
+  DeviceParams params;
 
-  Geometry(const Params &params) 
+  Geometry(const DeviceParams &params) 
     : params(params) {};
   ~Geometry() = default;
 

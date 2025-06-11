@@ -12,7 +12,7 @@ namespace fv2d {
 
 namespace {
   KOKKOS_INLINE_FUNCTION
-  State reconstruct1D(Array Q, Array slopes, int i, int j, real_t length, IDir dir, const Params &params) {
+  State reconstruct1D(Array Q, Array slopes, int i, int j, real_t length, IDir dir, const DeviceParams &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
     
@@ -32,7 +32,7 @@ namespace {
 
   // Gradient based reconstruction with Bruner's limiter
   KOKKOS_INLINE_FUNCTION
-  Kokkos::Array<State, 2> reconstructBruner(Array Q, Array slopesX, Array slopesY, int iL, int jL, int iR, int jR, const Geometry& geometry, const Params &params) {
+  Kokkos::Array<State, 2> reconstructBruner(Array Q, Array slopesX, Array slopesY, int iL, int jL, int iR, int jR, const Geometry& geometry, const DeviceParams &params) {
     State qL = getStateFromArray(Q, iL, jL);
     State qR = getStateFromArray(Q, iR, jR);
     State gradL[2] = {getStateFromArray(slopesX, iL, jL), getStateFromArray(slopesY, iL, jL)};
@@ -64,7 +64,7 @@ namespace {
 
   // Gradient based reconstruction with Barth and Jesperson scheme
   KOKKOS_INLINE_FUNCTION
-  State reconstructBJ(Array Q, Array slopesX, Array slopesY, Array psi_in, int i, int j, IDir dir, ISide side, const Geometry& geometry, const Params &params) {
+  State reconstructBJ(Array Q, Array slopesX, Array slopesY, Array psi_in, int i, int j, IDir dir, ISide side, const Geometry& geometry, const DeviceParams &params) {
     State q = getStateFromArray(Q, i, j);
     State psi = getStateFromArray(psi_in, i, j);
     State grad[2] = {getStateFromArray(slopesX, i, j), getStateFromArray(slopesY, i, j)};
@@ -74,7 +74,7 @@ namespace {
 
   // Gradient based naïve reconstruction
   KOKKOS_INLINE_FUNCTION
-  State reconstructNaive(Array Q, Array slopesX, Array slopesY, int i, int j, IDir dir, ISide side, const Geometry& geometry, const Params &params) {
+  State reconstructNaive(Array Q, Array slopesX, Array slopesY, int i, int j, IDir dir, ISide side, const Geometry& geometry, const DeviceParams &params) {
     State q = getStateFromArray(Q, i, j);
     State grad[2] = {getStateFromArray(slopesX, i, j), getStateFromArray(slopesY, i, j)};
     Pos cf = geometry.centerToFace(i, j, dir, side);
@@ -82,7 +82,7 @@ namespace {
   }
 
   KOKKOS_INLINE_FUNCTION
-  Kokkos::Array<State, 2> reconstruct(Array Q, Array slopesX, Array slopesY, Array psi, int i, int j, IDir dir, ISide side, const Geometry& geometry, const Params &params) {
+  Kokkos::Array<State, 2> reconstruct(Array Q, Array slopesX, Array slopesY, Array psi, int i, int j, IDir dir, ISide side, const Geometry& geometry, const DeviceParams &params) {
     // int sx = (dir == IX ? 1 : 0);
     // int sy = (dir == IY ? 1 : 0);
     // int iL = i - (side == ILEFT ? sx : 0 );
@@ -154,7 +154,7 @@ namespace {
 
 class UpdateFunctor {
 public:
-  Params params;
+  Params full_params;
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
@@ -165,22 +165,24 @@ public:
   Array slopesX, slopesY;
   Array psi;
 
-  UpdateFunctor(const Params &params)
-    : params(params), bc_manager(params),
-      tc_functor(params), visc_functor(params), grav_functor(params), coriolis_functor(params),
-      geometry(params) {
+  UpdateFunctor(const Params &full_params)
+    : full_params(full_params), bc_manager(full_params),
+      tc_functor(full_params), visc_functor(full_params), grav_functor(full_params), coriolis_functor(full_params),
+      geometry(full_params.device_params) {
       
-      slopesX = Array("SlopesX", params.Nty, params.Ntx, Nfields);
-      slopesY = Array("SlopesY", params.Nty, params.Ntx, Nfields);
-      if (params.reconstruction == RECONS_BJ)
-        psi = Array("psi(BJ limiter)", params.Nty, params.Ntx, Nfields);
+      auto device_params = full_params.device_params;
+      slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
+      slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
+      if (device_params.reconstruction == RECONS_BJ)
+        psi = Array("psi(BJ limiter)", device_params.Nty, device_params.Ntx, Nfields);
     };
   ~UpdateFunctor() = default;
 
   void computeSlopes(const Array &Q) const {
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    auto params  = this->params;
+    auto full_params  = this->full_params;
+    auto params  = full_params.device_params;
     auto &geometry = this->geometry;
     
     switch (params.reconstruction) {
@@ -189,7 +191,7 @@ public:
       case PLM: case PCM_WB: // 1d slopes
         Kokkos::parallel_for(
           "Slopes",
-          params.range_slopes,
+          full_params.range_slopes,
           KOKKOS_LAMBDA(const int i, const int j) {
             const real_t dL = geometry.cellReconsLengthSlope(i,  j,  IX);
             const real_t dR = geometry.cellReconsLengthSlope(i+1,j,  IX);
@@ -220,7 +222,7 @@ public:
           case RECONS_NAIVE: case RECONS_BRUNER: case RECONS_BJ:  
           Kokkos::parallel_for(
             "Slopes(gradient)",
-            params.range_slopes,
+            full_params.range_slopes,
             KOKKOS_LAMBDA(const int i, const int j) {
               auto grad = computeGradient(Q, getStateFromArray, i, j, geometry, params.gradient_type);
               setStateInArray(slopesX, i, j, grad[IX]);
@@ -237,12 +239,13 @@ public:
   void computeLimiterBJ(const Array &Q) {
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
+    auto full_params  = this->full_params;
     auto psi_glob = this->psi;
     auto &geometry = this->geometry;
 
     Kokkos::parallel_for(
       "BJ limiter",
-      params.range_dom,
+      full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         State q = getStateFromArray(Q, i, j);
         State grad[2] = {getStateFromArray(slopesX, i, j), getStateFromArray(slopesY, i, j)};
@@ -306,18 +309,18 @@ public:
   }
 
   void computeHancockStep(const Array &Q, real_t dt) const {
-    auto params  = this->params;
+    auto full_params  = this->full_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
 
     const real_t dt_half = 0.5 * dt;
-    const real_t gamma = params.gamma0;
+    const real_t gamma = full_params.device_params.gamma0;
 
     // not compatible with plm + non-cartesian
 
     Kokkos::parallel_for(
       "MUSCL-Hancock",
-      params.range_slopes,
+      full_params.range_slopes,
       KOKKOS_LAMBDA(const int i, const int j) {
         auto [ r,   u,   v,   p ] = getStateFromArray(Q, i, j);
         auto [drx, dux, dvx, dpx] = getStateFromArray(slopesX, i, j);
@@ -331,7 +334,7 @@ public:
   }
   
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
-    auto params = this->params;
+    auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
     auto psi = this->psi;
@@ -339,7 +342,7 @@ public:
 
     Kokkos::parallel_for(
       "Update", 
-      params.range_dom,
+      full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         const real_t cellArea = geometry.cellArea(i,j);
         // Lambda to update the cell along a direction
@@ -429,6 +432,10 @@ public:
           setStateInArray(Unew, i, j, un_loc);
         };
         
+        #if 1
+        updateAlongDir(i, j, IX);
+        updateAlongDir(i, j, IY);
+        #else
         if (norm(geometry.mapc2p_center(i,j)) < params.radial_radius) {
           updateAlongDir(i, j, IX);
           updateAlongDir(i, j, IY);
@@ -438,6 +445,7 @@ public:
           State q = {params.spl_rho(r), 0, 0, params.spl_prs(r)};
           setStateInArray(Unew, i, j, primToCons(q, params));
         }
+        #endif
 
         if (params.use_pressure_gradient) // crash imédiatement avec HLLC, ~ok avec HLL
         {
@@ -587,7 +595,8 @@ public:
 #endif
 
   void computeFluxesAndUpdate_CTU(Array Q, Array Unew, real_t dt) const {
-    auto params = this->params;
+    auto full_params = this->full_params;
+    auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
     auto psi = this->psi;
@@ -599,7 +608,7 @@ public:
     // predictor
     Kokkos::parallel_for(
       "Update CTU predictor", 
-      params.range_fluxes,
+      full_params.range_slopes,
       KOKKOS_LAMBDA(const int i, const int j) {
 
         // Calling the right Riemann solver
@@ -635,7 +644,7 @@ public:
     // corrector
     Kokkos::parallel_for(
       "Update CTU corrector", 
-      params.range_dom,
+      full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         State un_loc = getStateFromArray(Unew, i, j);
 
@@ -733,33 +742,34 @@ public:
     bc_manager.fillBoundaries(Q);
     
     computeSlopes(Q);
-    if (params.reconstruction == RECONS_BJ)
+    if (full_params.device_params.reconstruction == RECONS_BJ)
       computeLimiterBJ(Q);
-    if (params.hancock_ts)
+    if (full_params.device_params.hancock_ts)
       computeHancockStep(Q, dt);
 
     // Hyperbolic udpate
-    switch(params.flux_solver) { 
+    switch(full_params.device_params.flux_solver) { 
       case FLUX_GODOUNOV: computeFluxesAndUpdate(Q, Unew, dt); break;
       case FLUX_CTU:      computeFluxesAndUpdate_CTU(Q, Unew, dt); break;
     }
 
     // Splitted terms
-    if (params.thermal_conductivity_active)
+    if (full_params.device_params.thermal_conductivity_active)
       tc_functor.applyThermalConduction(Q, Unew, dt);
-    if (params.viscosity_active)
+    if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
-    if (params.gravity != GRAV_NONE)
+    if (full_params.device_params.gravity != GRAV_NONE)
       grav_functor.applyGravity(Q, Unew, dt);
-    if (params.coriolis_active)
+    if (full_params.device_params.coriolis_active)
       coriolis_functor.applyCoriolis(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt) {
-    if (params.time_stepping == TS_EULER)
+    if (full_params.time_stepping == TS_EULER)
       euler_step(Q, Unew, dt);
-    else if (params.time_stepping == TS_RK2) {
-      Array U0    = Array("U0",    params.Nty, params.Ntx, Nfields);
+    else if (full_params.time_stepping == TS_RK2) {
+      auto params = full_params.device_params;
+      Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
       Array Ustar = Array("Ustar", params.Nty, params.Ntx, Nfields);
       
       // Step 1
@@ -769,13 +779,13 @@ public:
       
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
-      consToPrim(Ustar, Q, params);
+      consToPrim(Ustar, Q, full_params);
       euler_step(Q, Unew, dt);
 
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 
-        params.range_dom,
+        full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           for (int ivar=0; ivar < Nfields; ++ivar)
             Unew(j, i, ivar) = 0.5 * (U0(j, i, ivar) + Unew(j, i, ivar));

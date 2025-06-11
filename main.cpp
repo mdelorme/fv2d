@@ -25,11 +25,15 @@ int main(int argc, char **argv) {
     std::cout << "███████████████████████████████████████████████" << std::endl;
 
     // Reading parameters from .ini file
-    Params params = readInifile(argv[1]);
+    auto params = readInifile(argv[1]);
+    std::ofstream out_ini("last.ini");
+    params.outputValues(out_ini);
+    auto device_params = params.device_params;
 
     // Allocating main views
-    Array U    = Array("U",    params.Nty, params.Ntx, Nfields);
-    Array Q    = Array("Q",    params.Nty, params.Ntx, Nfields);
+    Array U    = Array("U", device_params.Nty, device_params.Ntx, Nfields);
+    Array Q    = Array("Q", device_params.Nty, device_params.Ntx, Nfields);
+
 
     // Misc vars for iteration
     real_t t = 0.0;
@@ -57,8 +61,8 @@ int main(int argc, char **argv) {
     real_t dt;
     int next_log = 0;
 
-    while (t + params.epsilon < params.tend) {
-      bool save_needed = (t + params.epsilon > next_save);
+    while (t + device_params.epsilon < params.tend) {
+      bool save_needed = (t + device_params.epsilon > next_save);
 
       dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
       if (next_log == 0)

@@ -8,18 +8,16 @@ namespace fv2d {
 
 class ComputeDtFunctor {
 public:
-  Params params;
+  Params full_params;
   Geometry geometry;
 
-  ComputeDtFunctor(const Params &params)
-    : params(params), geometry(params) {};
+  ComputeDtFunctor(const Params &full_params)
+    : full_params(full_params), 
+    geometry(full_params.device_params) {};
   ~ComputeDtFunctor() = default;
 
   real_t computeDt(Array Q, real_t max_dt, real_t t, bool diag) const {
-    // using DtArray = Kokkos::Array<real_t, 3>;
-    // DtArray inv_dts {0,0,0};
-
-    auto params = this->params;
+    auto params = full_params.device_params;
     auto &geometry = this->geometry;
 
     real_t inv_dt_hyp = 0.0;
@@ -27,7 +25,7 @@ public:
     real_t inv_dt_par_visc = 0.0;
 
     Kokkos::parallel_reduce("Computing DT",
-                            params.range_dom,
+                            full_params.range_dom,
                             KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
                               real_t dx = geometry.cellLength(i,j,IX);
                               real_t dy = geometry.cellLength(i,j,IY);
@@ -39,7 +37,7 @@ public:
                               
                               real_t inv_dt_hyp_loc;
                               if (params.geometry_type == GEO_CARTESIAN)
-                                inv_dt_hyp_loc = (cs + fabs(q[IU]))/dx + (cs + fabs(q[IV]))/dy;
+                                inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dy;
                               else
                                 inv_dt_hyp_loc = (cs + sqrt(q[IU]*q[IU] + q[IV]*q[IV]))/dl;
 
@@ -72,7 +70,7 @@ public:
     if (inv_dt_hyp < 0 || inv_dt_par_tc < 0 || inv_dt_par_visc < 0)
       std::cout << "invalid dt. " << std::endl;
 
-    return params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
+    return full_params.device_params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
   }
 };
 

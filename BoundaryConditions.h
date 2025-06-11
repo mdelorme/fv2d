@@ -20,7 +20,7 @@ namespace fv2d {
    * @brief Reflecting boundary conditions
    */
   KOKKOS_INLINE_FUNCTION
-  State fillReflecting(Array Q, int i, int j, int iref, int jref, IDir dir, const Params &params) {
+  State fillReflecting(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params) {
     int isym, jsym;
     if (dir == IX) {
       int ipiv = (i < iref ? params.ibeg : params.iend);
@@ -47,7 +47,7 @@ namespace fv2d {
    * @brief Geometry radial reflecting
    */
   KOKKOS_INLINE_FUNCTION
-  State fillRadialReflecting(Array Q, int i, int j, int iref, int jref, IDir dir, const Params &params, const Geometry &geo) {
+  State fillRadialReflecting(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params, const Geometry &geo) {
     int isym, jsym;
     if (dir == IX) {
       int ipiv = (i < iref ? params.ibeg : params.iend);
@@ -86,7 +86,7 @@ namespace fv2d {
    * @brief Fixed boudary for radial grid by reading value from spline file, and set radial velocity to 0
    */
   KOKKOS_INLINE_FUNCTION
-  State fillFixedReadfile(Array Q, int i, int j, int iref, int jref, IDir dir, const Params &params, const Geometry &geo) {
+  State fillFixedReadfile(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params, const Geometry &geo) {
     int isym, jsym;
     if (dir == IX) {
       int ipiv = (i < iref ? params.ibeg : params.iend);
@@ -125,7 +125,7 @@ namespace fv2d {
    * 
    */
   KOKKOS_INLINE_FUNCTION
-  State fillPeriodic(Array Q, int i, int j, IDir dir, const Params &params) {
+  State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
     if (dir == IX) {
       if (i < params.ibeg)
         i += params.Nx;
@@ -143,7 +143,7 @@ namespace fv2d {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State fillIsothermalDirichlet(Array Q, int i, int j, IDir dir, const Params &params, const Geometry &geo) {
+  State fillIsothermalDirichlet(Array Q, int i, int j, IDir dir, const DeviceParams &params, const Geometry &geo) {
     State q{0};
 
     auto [x, y] = geo.mapc2p_center(i,j);
@@ -161,22 +161,22 @@ namespace fv2d {
 
 class BoundaryManager {
 public:
-  Params params;
+  Params full_params;
   Geometry geometry;
 
-  BoundaryManager(const Params &params) 
-    : params(params),
-      geometry(params) {};
+  BoundaryManager(const Params &full_params) 
+    : full_params(full_params),
+      geometry(full_params.device_params) {};
   ~BoundaryManager() = default;
 
   void fillBoundaries(Array Q) {
+    auto params = full_params.device_params;
     auto bc_x = params.boundary_x;
     auto bc_y = params.boundary_y;
-    auto params = this->params;
     auto geometry = this->geometry;
 
     Kokkos::parallel_for( "Filling X-boundary",
-                          params.range_xbound,
+                          full_params.range_xbound,
                           KOKKOS_LAMBDA(int i, int j) {
 
                             int ileft     = i;
@@ -202,7 +202,7 @@ public:
                           });
 
     Kokkos::parallel_for( "Filling Y-boundary",
-                          params.range_ybound,
+                          full_params.range_ybound,
                           KOKKOS_LAMBDA(int i, int j) {
 
                             int jtop     = j;

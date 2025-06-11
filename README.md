@@ -1,11 +1,28 @@
 # FV2D
 2D finite volume code with Kokkos for experimentation/prototyping purposes
 
+Check the [change log](CHANGELOG.md) for the latest updates.
+
 ## Dependencies
 
 * HDF5 (1.8+)
 * A C++ compiler compatible with C++17
 * CMake (3.16+)
+
+## Cloning the repo
+
+To clone FV2D, you need to clone the repository and the submodules. To do so from scratch: 
+
+```bash
+git clone --recurse-submodules git@github.com:mdelorme/fv2d.git
+```
+
+If you have already cloned the repo but forgot to add the `--recurse-submodules`, you can still get the submodules by typing at the root of fv2d the following commands: 
+
+```bash
+git submodule init
+git submodule update
+```
 
 ## Building
 
@@ -131,3 +148,10 @@ f.close()
 
 
 More example of post-treatment scripts can be found in the `python` folder at the root of FV2D.
+
+## Contributors
+
+* Maxime Delorme
+* Grégoire Doebele
+* Lucas Barbier
+* Adam Finley

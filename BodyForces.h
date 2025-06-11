@@ -5,7 +5,7 @@
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
-Pos computeGravity(int i, int j, const Params &params, const Geometry &geometry) {
+Pos computeGravity(int i, int j, const DeviceParams &params, const Geometry &geometry) {
   Pos g{0};
   switch (params.gravity) {
     case GRAV_READFILE:
@@ -28,20 +28,21 @@ Pos computeGravity(int i, int j, const Params &params, const Geometry &geometry)
 
 class GravityFunctor {
 public:
-  Params params;
+  Params full_params;
   Geometry geometry;
 
-  GravityFunctor(const Params &params) 
-    : params(params), geometry(params) {};
+  GravityFunctor(const Params &full_params) 
+    : full_params(full_params), geometry(full_params.device_params) {};
   ~GravityFunctor() = default;
 
   void applyGravity(Array Q, Array Unew, real_t dt) {
-    auto params = this->params;
+    auto full_params = this->full_params;
+    auto params = full_params.device_params;
     auto geo = this->geometry;
 
     Kokkos::parallel_for(
       "Gravity", 
-      params.range_dom,
+      full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         Pos g = computeGravity(i, j, params, geo);
 
@@ -62,19 +63,20 @@ public:
 
 class CoriolisFunctor {
   public:
-    Params params;
+    Params full_params;
   
-    CoriolisFunctor(const Params &params) 
-      : params(params) {};
+    CoriolisFunctor(const Params &full_params) 
+      : full_params(full_params) {};
     ~CoriolisFunctor() = default;
   
     void applyCoriolis(Array Q, Array Unew, real_t dt) {
-      auto params = this->params;
-      const real_t omega = this->params.coriolis_omega; 
+      auto full_params = this->full_params;
+      auto params = full_params.device_params;
+      const real_t omega = params.coriolis_omega; 
   
       Kokkos::parallel_for(
         "Coriolis", 
-        params.range_dom,
+        full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           #if 0
             real_t rho = Q(j, i, IR);

@@ -52,7 +52,7 @@ public:
                     SPsi = SPsiX + SPsiY;
                     
                     for (int ivar = 0; ivar < Nfields; ++ivar) {
-                        Unew(j, i, ivar) -= dt * (SMag[ivar] + SPsi[ivar]);
+                        Unew(j, i, ivar) += dt * (SMag[ivar] + SPsi[ivar]);
                     }
                     // Parabolic source term
                     Unew(j, i, IPSI) -= dt * alpha*q[IPSI];

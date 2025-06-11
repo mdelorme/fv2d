@@ -574,18 +574,18 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   State rS_m {alpha_s*rhoLn, alpha_s*rhoLn*(q[IU] - cs), rhoLn*(alpha_s*q[IV] - alpha_f*cf*chi2*sigma(b1)), rhoLn*(alpha_s*q[IW] - alpha_f*cf*chi3*sigma(b1)), psi_sm, 0.0, -alpha_f*a_beta*chi2*Kokkos::sqrt(rhoLn), -alpha_f*a_beta*chi3*Kokkos::sqrt(rhoLn), 0.0};
 
   // KEPES Flux - eq. (4.72), disspation term
-  Matrix R = Matrix("R", Nfields, Nfields);
+  Matrix R {};
 
   for (int i = 0; i < Nfields; ++i) {
-    R(0, i) = rF_p[i];
-    R(i, 1) = rA_p[i];
-    R(i, 2) = rS_p[i];
-    R(i, 3) = rpsi_p[i];
-    R(i, 4) = rE[i];
-    R(i, 5) = rpsi_m[i];
-    R(i, 6) = rS_m[i];
-    R(i, 7) = rA_m[i];
-    R(i, 8) = rF_m[i];
+    R[0][i] = rF_p[i];
+    R[i][1] = rA_p[i];
+    R[i][2] = rS_p[i];
+    R[i][3] = rpsi_p[i];
+    R[i][4] = rE[i];
+    R[i][5] = rpsi_m[i];
+    R[i][6] = rS_m[i];
+    R[i][7] = rA_m[i];
+    R[i][8] = rF_m[i];
   }
   const State VState = getEntropyJumpState(qL, qR, params);
   State res {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -595,7 +595,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     for (int j=0; j<Nfields; ++j) {
       ksum = 0.0;
       for (int k=0; k<Nfields; ++k) {
-        ksum += lambda_hat[k] * R(i, k) * R(j, k) * Z[k];
+        ksum += lambda_hat[k] * R[i][k] * R[j][k] * Z[k];
       }
     jsum += VState[j] * ksum;
     }

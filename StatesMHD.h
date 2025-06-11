@@ -80,7 +80,6 @@ real_t fastMagnetoAcousticSpeed(State &q, const DeviceParams &params, IDir idir)
   return Kokkos::sqrt(0.5*(c02+ca2)+0.5*Kokkos::sqrt((c02+ca2)*(c02+ca2)-4.0*c02*cap2));
 }
 
-KOKKOS_INLINE_FUNCTION
 real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
   auto params = full_params.device_params;
   real_t u_max = 0.0;
@@ -101,7 +100,6 @@ real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
     return lambda_max - u_max;
   }
   
-KOKKOS_INLINE_FUNCTION
 real_t ComputeLambdaMax(Array Q, const Params &full_params) {
   auto params = full_params.device_params;
   real_t lambda_max = 0.0;

@@ -37,7 +37,7 @@ using Vect  = Kokkos::Array<real_t, 3>;
 using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
-using Matrix = Kokkos::View<real_t**>;
+using Matrix = Kokkos::Array<Kokkos::Array<real_t, Nfields>, Nfields>;
 
 struct RestartInfo {
   real_t time;

@@ -64,7 +64,8 @@ enum ReconstructionType
   PCM,
   PCM_WB,
   PLM,
-  PLM_WB
+  PLM_WB,
+  WENO5
 };
 
 enum ThermalConductivityMode
@@ -388,7 +389,8 @@ struct DeviceParams
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},
       {"plm",    PLM},
-      {"plm_wb", PLM_WB}
+      {"plm_wb", PLM_WB},
+      {"weno3",  WENO5}
     };
     reconstruction = reader.GetMapValue(recons_map, "solvers", "reconstruction", "pcm");
 

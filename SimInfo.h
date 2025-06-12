@@ -266,10 +266,10 @@ struct DeviceParams {
       {"no_flux",           BCTC_NO_FLUX},
       {"no_conduction",     BCTC_NO_CONDUCTION},
     };
-    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_xmin", "none");
-    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
-    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
-    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
+    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_ymin", "none");
+    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_ymax", "none");
+    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
+    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);
 
     // Viscosity
     viscosity_active = reader.GetBoolean("viscosity", "active", false);
@@ -437,6 +437,76 @@ Pos getPos(const DeviceParams& params, int i, int j) {
           params.ymin + (j-params.jbeg+0.5) * params.dy};
 }
 
+// Printing every single parameter of the run
+void print_ini_file(const Params &p) {
+  std::cout << std::endl << std::endl;
+  std::cout << "===========================================" << std::endl;
+  std::cout << "== Parameters read : " << std::endl;
+  std::cout << std::endl << "[HOST]" << std::endl;
+  std::cout << "Problem          = " << p.problem << std::endl;
+  std::cout << "Filename out     = " << p.filename_out << std::endl;
+  std::cout << "T end            = " << p.tend << std::endl;
+  std::cout << "Save frequency   = " << p.save_freq << std::endl;
+  std::cout << "Restart file     = " << p.restart_file << std::endl;
+  std::cout << "Multiple outputs = " << p.multiple_outputs << std::endl;
+  std::cout << "Time stepping    = " << p.time_stepping << std::endl;
+  
+  std::cout << std::endl << "[DEVICE]" << std::endl;
+  auto &dp = p.device_params;
+  std::cout << " -- Grid -- " << std::endl;
+  std::cout << "Nx                 = " << dp.Nx << std::endl;
+  std::cout << "Ny                 = " << dp.Ny << std::endl;
+  std::cout << "Nghosts            = " << dp.Ng << std::endl;
+  std::cout << "xmin               = " << dp.xmin << std::endl;
+  std::cout << "xmax               = " << dp.xmax << std::endl;
+  std::cout << "ymin               = " << dp.ymin << std::endl;
+  std::cout << "ymax               = " << dp.ymax << std::endl;
+  std::cout << "Ntx                = " << dp.Ntx << std::endl;
+  std::cout << "Nty                = " << dp.Nty << std::endl;
+  std::cout << "ibeg, iend         = " << dp.ibeg << " " << dp.iend << std::endl;
+  std::cout << "jbeg, jend         = " << dp.jbeg << " " << dp.jend << std::endl;
+  std::cout << "dx, dy             = " << dp.dx << " " << dp.dy << std::endl;
+  std::cout << "boundary X         = " << dp.boundary_x << std::endl;
+  std::cout << "boundary Y         = " << dp.boundary_y << std::endl;
+  
+  std::cout << std::endl << " -- Numerics -- " << std::endl;
+  std::cout << "reconstruction     = " << dp.reconstruction << std::endl;
+  std::cout << "riemann_solver     = " << dp.riemann_solver << std::endl;
+  std::cout << "CFL                = " << dp.CFL << std::endl;
+  std::cout << "epsilon            = " << dp.epsilon << std::endl;
+
+  std::cout << std::endl << " -- Physics -- " << std::endl;
+  std::cout << "gamma0             = " << dp.gamma0 << std::endl;
+  std::cout << "gravity active     = " << dp.gravity << std::endl;
+  std::cout << "g                  = " << dp.g << std::endl;
+  std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
+  std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;
+  std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;
+  std::cout << "thermal conduction = " << dp.thermal_conductivity_active << std::endl;
+  std::cout << "TC mode            = " << dp.thermal_conductivity_mode << std::endl;
+  std::cout << "kappa              = " << dp.kappa << std::endl;
+  std::cout << "bctc_ymin          = " << dp.bctc_ymin << std::endl; 
+  std::cout << "bctc_ymax          = " << dp.bctc_ymax << std::endl;
+  std::cout << "bctc_ymin_value    = " << dp.bctc_ymin_value << std::endl; 
+  std::cout << "bctc_ymax_value    = " << dp.bctc_ymax_value << std::endl;
+  std::cout << "viscosity          = " << dp.viscosity_active << std::endl;
+  std::cout << "mu                 = " << dp.mu << std::endl;
+  std::cout << "viscosity_mode     = " << dp.viscosity_mode << std::endl;
+  std::cout << "heating            = " << dp.heating_active << std::endl;
+  std::cout << "heating_mode       = " << dp.heating_mode << std::endl;
+  std::cout << "iso3_dy0           = " << dp.iso3_dy0 << std::endl;
+  std::cout << "iso3_dy1           = " << dp.iso3_dy1 << std::endl;
+  std::cout << "iso3_dy2           = " << dp.iso3_dy2 << std::endl;
+  std::cout << "iso3_theta1        = " << dp.iso3_theta1 << std::endl;
+  std::cout << "iso3_theta2        = " << dp.iso3_theta2 << std::endl;
+  std::cout << "iso3_m1            = " << dp.iso3_m1 << std::endl;
+  std::cout << "iso3_m2            = " << dp.iso3_m2 << std::endl;
+  std::cout << "iso3_k1            = " << dp.iso3_k1 << std::endl;
+  std::cout << "iso3_k2            = " << dp.iso3_k2 << std::endl;
+  std::cout << "iso3_T0            = " << dp.iso3_T0 << std::endl;
+  std::cout << "iso3_rho0          = " << dp.iso3_rho0 << std::endl;
+}
+
 Params readInifile(std::string filename) {
   // Params reader(filename);
   Params res;
@@ -474,9 +544,11 @@ Params readInifile(std::string filename) {
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
 
+  print_ini_file(res);
 
   return res;
 } 
+
 }
 
 

@@ -390,7 +390,7 @@ struct DeviceParams
       {"plm",    PLM},
       {"plm_wb", PLM_WB}
     };
-    reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
+    reconstruction = reader.GetMapValue(recons_map, "solvers", "reconstruction", "pcm");
 
     std::map<std::string, RiemannSolver> riemann_map{{"hll", HLL}, {"hllc", HLLC}, {"fslp", FSLP}};
     riemann_solver = reader.GetMapValue(riemann_map, "solvers", "riemann_solver", "hllc");
@@ -475,6 +475,7 @@ struct Params
   std::string filename_out   = "run";
   std::string output_path    = "./";
   std::string restart_file   = "";
+  std::string init_filename  = "";
   TimeStepping time_stepping = TS_EULER;
 
   bool multiple_outputs = false;

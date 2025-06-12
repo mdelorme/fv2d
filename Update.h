@@ -11,77 +11,64 @@ namespace fv2d
 {
 
 namespace {
-  /**
-   * @brief MUSCL-type reconstruction for the hydro update
-   * 
-   * Options are :
-   *  . PCM : Piecewise Constant Method, taking the original value of the cell (1st order)
-   *  . PLM : Piecewise Linear Method, using the slopes to reconstruct (2nd order)
-   *  . PCM_WB : Piecewise Constant Method + Well-balancing (1st order), taken from Kappeli & Mishra 2016
-   *  . PLM_WB : Piecewise Linear Method + Well-balancing (2nd order), taken from Kappeli & Mishra 2016
-   */
-  KOKKOS_INLINE_FUNCTION
-  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
-    State q     = getStateFromArray(Q, i, j);
-    State slope = getStateFromArray(slopes, i, j);
-    
-    State res;
-    switch (params.reconstruction) {
-      case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
-      case PCM_WB: // Piecewise constant + Well-balancing
-      {
-        res[IR] = q[IR];
-        res[IU] = q[IU];
-        res[IV] = q[IV];
-        res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
-      }
-      break;
-      case PLM_WB: // Piecewise linear + Well-balancing 
-      {
-        // Piecewise linear reconstruction
-        res = q + slope * sign * 0.5;
-
-        if (dir == IY) {
-          // Getting neighbour states
-          State neigh_m, neigh_p;
-          neigh_m = getStateFromArray(Q, i + (dir == IX ? -1 : 0), j + (dir == IY ? -1 : 0));
-          neigh_p = getStateFromArray(Q, i + (dir == IX ?  1 : 0), j + (dir == IY ?  1 : 0));
-          
-          // Calculating p1_{i-1}
-          const real_t p0_im = q[IP] + 0.5 * (q[IR] + neigh_m[IR]) * params.g * params.dy;
-          const real_t p1_im = neigh_m[IP] - p0_im;
-
-          // Calculating p1_{i+1}
-          const real_t p0_ip = q[IP] - 0.5 * (q[IR] + neigh_p[IR]) * params.g * params.dy;
-          const real_t p1_ip = neigh_p[IP] - p0_ip;
-
-          // TODO : This should be outsourced to compute Slopes !!!
-          // Calculating slope using minmod
-          real_t dP = 0.0;
-          if (p1_im * p1_ip < 0.0) // Slope left is -p1_im; Slope right is p1_ip so their sign should be opposite
-            dP = (Kokkos::abs(p1_im) < Kokkos::abs(p1_ip) ? -p1_im : p1_ip);
-
-          // Reconstructing pressure
-          res[IP] = (sign == -1 ? p0_im : p0_ip) + dP * sign * 0.5;
-        }
-
-      } break;
-      default:  res = q; // Piecewise Constant
-    }
-
+/**
+ * @brief MUSCL-type reconstruction for the hydro update
+ * 
+ * Options are :
+ *  . PCM : Piecewise Constant Method, taking the original value of the cell (1st order)
+ *  . PLM : Piecewise Linear Method, using the slopes to reconstruct (2nd order)
+ *  . PCM_WB : Piecewise Constant Method + Well-balancing (1st order), taken from Kappeli & Mishra 2016
+ *  . PLM_WB : Piecewise Linear Method + Well-balancing (2nd order), taken from Kappeli & Mishra 2016
+ */
+KOKKOS_INLINE_FUNCTION
+State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
+  State q     = getStateFromArray(Q, i, j);
+  State slope = getStateFromArray(slopes, i, j);
+  
   State res;
-  switch (params.reconstruction)
-  {
-  case PLM:
-    res = q + slope * sign * 0.5;
-    break;     // Piecewise Linear
-  case PCM_WB: // Piecewise constant + Well-balancing
-    res[IR] = q[IR];
-    res[IU] = q[IU];
-    res[IV] = q[IV];
-    res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
-  default:
-    res = q; // Piecewise Constant
+  switch (params.reconstruction) {
+    case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
+    case PCM_WB: // Piecewise constant + Well-balancing
+    {
+      res[IR] = q[IR];
+      res[IU] = q[IU];
+      res[IV] = q[IV];
+      res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
+    }
+    break;
+    case PLM_WB: // Piecewise linear + Well-balancing 
+    {
+      // Piecewise linear reconstruction
+      res = q + slope * sign * 0.5;
+
+      if (dir == IY) {
+        // Getting neighbour states
+        State neigh_m, neigh_p;
+        neigh_m = getStateFromArray(Q, i + (dir == IX ? -1 : 0), j + (dir == IY ? -1 : 0));
+        neigh_p = getStateFromArray(Q, i + (dir == IX ?  1 : 0), j + (dir == IY ?  1 : 0));
+        
+        const real_t g = getGravity(i, j, dir, params);
+
+        // Calculating p1_{i-1}
+        const real_t p0_im = q[IP] + 0.5 * (q[IR] + neigh_m[IR]) * g * params.dy;
+        const real_t p1_im = neigh_m[IP] - p0_im;
+
+        // Calculating p1_{i+1}
+        const real_t p0_ip = q[IP] - 0.5 * (q[IR] + neigh_p[IR]) * g * params.dy;
+        const real_t p1_ip = neigh_p[IP] - p0_ip;
+
+        // TODO : This should be outsourced to compute Slopes !!!
+        // Calculating slope using minmod
+        real_t dP = 0.0;
+        if (p1_im * p1_ip < 0.0) // Slope left is -p1_im; Slope right is p1_ip so their sign should be opposite
+          dP = (Kokkos::abs(p1_im) < Kokkos::abs(p1_ip) ? -p1_im : p1_ip);
+
+        // Reconstructing pressure
+        res[IP] = (sign == -1 ? p0_im : p0_ip) + dP * sign * 0.5;
+      }
+
+    } break;
+    default:  res = q; // Piecewise Constant
   }
 
   return swap_component(res, dir);

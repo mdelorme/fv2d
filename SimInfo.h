@@ -225,10 +225,10 @@ struct DeviceParams {
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
       {"fixed_gradient",    BCTC_FIXED_GRADIENT}
     };
-    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_xmin", "none");
-    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
-    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
-    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
+    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_ymin", "none");
+    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_ymax", "none");
+    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
+    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);
 
     // Viscosity
     viscosity_active = reader.GetBoolean("viscosity", "active", false);

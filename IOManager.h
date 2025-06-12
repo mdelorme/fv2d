@@ -144,7 +144,7 @@ public:
 
     Table trho, tu, tv, tprs;
     #ifdef MHD
-    Table tw, tbx, tby, tbz, tdivB;
+    Table tw, tbx, tby, tbz, tdivB, tpsi;
     #endif
 
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
@@ -164,14 +164,15 @@ public:
           real_t bx = Qhost(j, i, IBX);
           real_t by = Qhost(j, i, IBY);
           real_t bz = Qhost(j, i, IBZ);
-          
+          real_t psi = Qhost(j, i, IPSI);
+
           tw.push_back(w);
           tbx.push_back(bx);
           tby.push_back(by);
           tbz.push_back(bz);
+          tpsi.push_back(psi);
           real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
           real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
-          real_t divB = dBx_dx + dBy_dy;
           tdivB.push_back(dBx_dx + dBy_dy);
         #endif //MHD
         }
@@ -187,6 +188,7 @@ public:
       file.createDataSet("by", tby);
       file.createDataSet("bz", tbz);
       file.createDataSet("divB", tdivB);
+      file.createDataSet("psi", tpsi);
     #endif //MHDÒ
     file.createAttribute("time", t);
 
@@ -198,6 +200,7 @@ public:
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v", "w"));
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "magnetic_field", "bx", "by", "bz"));    
       fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "divB"));
+      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "psi"));
     #else
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v"));
     #endif
@@ -252,13 +255,13 @@ public:
 
     Table trho, tu, tv, tprs;
     #ifdef MHD
-    Table tw, tbx, tby, tbz, tdivB; // TODO: Ajouter un condition sur régime MHD
+    Table tw, tbx, tby, tbz, tdivB, tpsi;
     #endif
 
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
       std::vector<real_t> rrho, ru, rv, rprs;
       #ifdef MHD
-      std::vector<real_t> rw, rbx, rby, rbz, rdivB;
+      std::vector<real_t> rw, rbx, rby, rbz, rdivB, rpsi;
       #endif
 
       for (int i=device_params.ibeg; i<device_params.iend; ++i) {
@@ -277,15 +280,16 @@ public:
         real_t bx = Qhost(j, i, IBX);
         real_t by = Qhost(j, i, IBY);
         real_t bz = Qhost(j, i, IBZ);
-        
+        real_t psi = Qhost(j, i, IPSI);
+
         rw.push_back(w);
         rbx.push_back(bx);
         rby.push_back(by);
         rbz.push_back(bz);
+        rpsi.push_back(psi);
         real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
         real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
-        real_t divB = dBx_dx + dBy_dy;
-        rdivB.push_back(divB);
+        rdivB.push_back(dBx_dx + dBy_dy);
         #endif //MHD
       }
       trho.push_back(rrho);
@@ -299,6 +303,7 @@ public:
       tby.push_back(rby);
       tbz.push_back(rbz);
       tdivB.push_back(rdivB);
+      tpsi.push_back(rpsi);
       #endif //MHD
   } // loop j
 
@@ -313,6 +318,7 @@ public:
       group.createDataSet("by", tby);
       group.createDataSet("bz", tbz);
       group.createDataSet("divB", tdivB);
+      group.createDataSet("psi", tpsi);
     #endif //MHD
     group.createAttribute("time", t);
 
@@ -322,6 +328,7 @@ public:
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v", "w"));
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "magnetic_field", "bx", "by", "bz"));
       fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "divB"));
+      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "psi"));
     #else
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v"));
     #endif
@@ -367,6 +374,7 @@ public:
       load_and_copy("bx", IBX);
       load_and_copy("by", IBY);
       load_and_copy("bz", IBZ);
+      load_and_copy("psi", IPSI);
     #endif //MHD
     Kokkos::deep_copy(Q, Qhost);
 

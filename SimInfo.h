@@ -21,6 +21,7 @@ namespace {
     }
     return map.at(tmp);
   };
+
 }
 
 using real_t = double;
@@ -32,9 +33,11 @@ constexpr int Nfields = 4;
 #endif
 
 using Pos   = Kokkos::Array<real_t, 2>;
+using Vect  = Kokkos::Array<real_t, 3>;
 using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
+using Matrix = Kokkos::Array<Kokkos::Array<real_t, Nfields>, Nfields>;
 
 struct RestartInfo {
   real_t time;
@@ -73,7 +76,8 @@ enum RiemannSolver {
   HLL,
   HLLC,
   HLLD,
-  FIVEWAVES
+  FIVEWAVES,
+  IDEALGLM
 };
 
 enum DivCleaning {
@@ -234,7 +238,8 @@ struct DeviceParams {
       {"hll", HLL},
       {"hllc", HLLC},
       {"hlld", HLLD},
-      {"fivewaves", FIVEWAVES}
+      {"fivewaves", FIVEWAVES},
+      {"idealGLM", IDEALGLM}
     };
     riemann_solver = read_map(reader, riemann_map, "solvers", "riemann_solver", "hllc");
     std::map<std::string, DivCleaning> div_cleaning_map{
@@ -256,6 +261,7 @@ struct DeviceParams {
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+    cr      = reader.GetFloat("physics", "cr", 0.18);
     
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -504,4 +510,4 @@ void checkNegatives(Array &Q, const Params &full_params) {
       std::cout << "--> NaN detected." << std::endl;
 }
 
-}
+} // namespace fv2d

@@ -5,6 +5,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Sources.h"
 
 namespace fv2d {
 
@@ -36,12 +37,14 @@ public:
   BoundaryManager bc_manager;
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
+  SourcesFunctor sources_functor;
 
   Array slopesX, slopesY;
 
   UpdateFunctor(const Params &full_params)
     : full_params(full_params), bc_manager(full_params),
-      tc_functor(full_params), visc_functor(full_params) {
+      tc_functor(full_params), visc_functor(full_params),
+      sources_functor(full_params) {
       auto device_params = full_params.device_params;
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
       slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
@@ -86,19 +89,17 @@ public:
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
+    real_t ch_global = 0.0;
+    // real_t lambda_max = ComputeLambdaMax(Q, full_params);
+    if (params.riemann_solver == IDEALGLM)
+      ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
     
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        real_t ch, cp, parabolic;
-        if (mhd_run && params.div_cleaning == DEDNER) {
-          ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
-          cp = std::sqrt(params.cr*ch);
-          parabolic = std::exp(-dt*ch*ch/(cp*cp));
-        }
-
+        real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
@@ -110,7 +111,7 @@ public:
           State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
           State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
           State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
-
+          
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
             #ifdef MHD
@@ -134,7 +135,10 @@ public:
                 FiveWaves(qL, qR, flux, pout, params);
                 break;
               }
-              
+              case IDEALGLM: {
+                IdealGLM(qL, qR, flux, pout, ch, params);
+                break;
+              }
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
             }
             if (params.div_cleaning == DEDNER){
@@ -160,6 +164,7 @@ public:
           fluxR = swap_component(fluxR, dir);
 
           // Remove mechanical flux in a well-balanced fashion
+          // TODO: Vérifier s'il faut pas changer params en device_params ici
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             if (j==params.jbeg)
               #ifdef MHD
@@ -183,18 +188,11 @@ public:
           }
           setStateInArray(Unew, i, j, un_loc);
         };
-        // #ifdef MHD
-        // Q(j, i, IPSI) *= parabolic;
-        // #endif
+
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
 
         Unew(j, i, IR) = fmax(params.smallr, Unew(j, i, IR));
-        #ifdef MHD
-        if (params.div_cleaning == DEDNER) {
-            Unew(j, i, IPSI) *= parabolic;
-        }
-        #endif
       });
   }
   
@@ -206,13 +204,12 @@ public:
     if (full_params.device_params.reconstruction == PLM)
     computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt);
-    // pressureFix(Unew);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
     tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
     visc_functor.applyViscosity(Q, Unew, dt);
-
+    sources_functor.applySources(Q, Unew, dt);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
         "Clean values", 

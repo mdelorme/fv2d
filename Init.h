@@ -29,6 +29,23 @@ namespace {
     }
   }
 
+   /**
+   * @brief Sod Shock tube aligned along the X axis
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initSodXInverse(Array Q, int i, int j, const DeviceParams &params) {
+    if (getPos(params, i, j)[IX] > 0.5) {
+      Q(j, i, IR) = 1.0;
+      Q(j, i, IP) = 1.0;
+      Q(j, i, IU) = 0.0;
+    }
+    else {
+      Q(j, i, IR) = 0.125;
+      Q(j, i, IP) = 0.1;
+      Q(j, i, IU) = 0.0;
+    }
+  }
+
   /**
    * @brief Sod Shock tube aligned along the Y axis
    */
@@ -318,6 +335,7 @@ namespace {
  */
 enum InitType {
   SOD_X,
+  SOD_X_INVERSE,
   SOD_Y,
   BLAST,
   RAYLEIGH_TAYLOR,
@@ -339,6 +357,7 @@ public:
     : full_params(full_params) {
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
+      {"sod_x_inverse", SOD_X_INVERSE},
       {"sod_y", SOD_Y},
       {"blast", BLAST},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
@@ -369,6 +388,7 @@ public:
                           KOKKOS_LAMBDA(const int i, const int j) {
                             switch(init_type) {
                               case SOD_X:            initSodX(Q, i, j, params); break;
+                              case SOD_X_INVERSE:   initSodXInverse(Q, i, j, params); break;
                               case SOD_Y:            initSodY(Q, i, j, params); break;
                               case BLAST:            initBlast(Q, i, j, params); break;
                               case DIFFUSION:        initDiffusion(Q, i, j, params); break;

@@ -313,7 +313,7 @@ public:
     group.createDataSet("v", tv);
     group.createDataSet("prs", tprs);
     #ifdef MHD
-      group.createDataSet("w", tw); // TODO: Ajouter un condition sur régime MHD
+      group.createDataSet("w", tw);
       group.createDataSet("bx", tbx);
       group.createDataSet("by", tby);
       group.createDataSet("bz", tbz);

@@ -220,11 +220,12 @@ KOKKOS_INLINE_FUNCTION
 State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params) {
   const State qJump = qR - qL;
   const State qAvg = 0.5 * (qL + qR);
-  const real_t betaL = 0.5 * qL[IR]/qL[IP], betaR = 0.5 * qR[IR]/qR[IP];
-  const real_t betaJump = betaR - betaL;
-  const real_t betaAvg = 0.5 * (betaL + betaR);
-  const real_t betaLn = logMean(betaL, betaR);
   const real_t rhoLn = logMean(qL[IR], qR[IR]);
+  const real_t betaL = 0.5 * qL[IR]/qL[IP]; 
+  const real_t betaR = 0.5 * qR[IR]/qR[IP];
+  const real_t betaJump = betaR - betaL;
+  const real_t betaAvg = 0.5 * qAvg[IR]/qAvg[IP];
+  const real_t betaLn = 0.5 * rhoLn / logMean(qL[IP], qR[IP]);
   const real_t v2Avg = 0.5 * (qL[IU]*qL[IU]+qR[IU]*qR[IU] + qL[IV]*qL[IV]+qR[IV]*qR[IV] + qL[IW]*qL[IW]+qR[IW]*qR[IW]);
   return {
     qJump[IR]/rhoLn + betaJump/(betaLn*(params.gamma0-1.0)) - v2Avg*betaJump - 2.0*betaAvg*(qAvg[IU]*qJump[IU] + qAvg[IV]*qJump[IV] + qAvg[IW]*qJump[IW]),

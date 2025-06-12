@@ -499,40 +499,52 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
 
 KOKKOS_INLINE_FUNCTION
 State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &params) {
+  const State q = 0.5 * (qL + qR); //{{q}}
+
+  const real_t rhoLn = logMean(qL[IR], qR[IR]);
+  const real_t pLn = logMean(qL[IP], qR[IP]);
   const real_t betaL = 0.5 * qL[IR]/qL[IP];
   const real_t betaR = 0.5 * qR[IR]/qR[IP];
-  const real_t betaAvg = 0.5 * (betaL + betaR);
-  const real_t betaLn = logMean(betaL, betaR);
-  const real_t rhoLn = logMean(qL[IR], qR[IR]);
-  State q = 0.5 * (qL + qR); //{{q}}
-  State q2 = 0.5 * (qL*qL + qR*qR); //{{q^2}}
+  const real_t betaAvg = 0.5 * q[IR]/q[IP];
+  const real_t betaLn = 0.5 * rhoLn / pLn;
     // Some useful constants defined in eq. (4.63)
   const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
-  const real_t b1 = q[IBX]/ Kokkos::sqrt(rhoLn);
-  const real_t b2 = q[IBY]/ Kokkos::sqrt(rhoLn);
-  const real_t b3 = q[IBZ]/ Kokkos::sqrt(rhoLn);
-  const real_t B2 = b1*b1 + b2*b2 + b3*b3;
+  const real_t b12 = q[IBX]*q[IBX]/rhoLn;
+  const real_t b22 = q[IBY]*q[IBY]/rhoLn;
+  const real_t b32 = q[IBZ]*q[IBZ]/rhoLn;
+  const real_t B2 = b12 + b22 + b32;
+  const real_t b1 = Kokkos::sqrt(b12);
+  const real_t bT2 = b22 + b32;
+  const real_t bTrans = Kokkos::sqrt(bT2);
+  const real_t chi2 = Kokkos::sqrt(b22) / bTrans;
+  const real_t chi3 = Kokkos::sqrt(b32) / bTrans;
+
   const real_t p_tilde = 0.5 * q[IR]/betaAvg;
   const real_t a2 = params.gamma0 * p_tilde / rhoLn;
-
+  const real_t a_ln2 = params.gamma0 * pLn / rhoLn;;
+  const real_t a_beta = Kokkos::sqrt(0.5 * params.gamma0 / betaAvg);
+  
   // Compute the discrete wave speeds
   const real_t ca = Kokkos::abs(b1);
   const real_t cf2 = 0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
   const real_t cf = Kokkos::sqrt(cf2);
   const real_t cs2 = 0.5 * (a2 + B2 - Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
   const real_t cs = Kokkos::sqrt(cs2);
+  
+  const real_t alpha_f = Kokkos::sqrt((a2 - cs2) / (cf2 - cs2));
+  const real_t alpha_s = Kokkos::sqrt((cf2 - a2) / (cf2 - cs2));
 
   // Eigenvalues, as defined in eq. (4.74)
   State lambda_hat {
-    Kokkos::abs(q[IU] + cf),
-    Kokkos::abs(q[IU] + ca),
-    Kokkos::abs(q[IU] + cs),
-    Kokkos::abs(q[IU] + ch),
-    Kokkos::abs(q[IU]),
-    Kokkos::abs(q[IU] - ch),
-    Kokkos::abs(q[IU] - cs),
-    Kokkos::abs(q[IU] - ca),
-    Kokkos::abs(q[IU] - cf)
+    q[IU] + cf,
+    q[IU] + ca,
+    q[IU] + cs,
+    q[IU] + ch,
+    q[IU],
+    q[IU] - ch,
+    q[IU] - cs,
+    q[IU] - ca,
+    q[IU] - cf
   };
   // Mean State for the diagonal scaling matrix, eq. (4.70)
   const real_t z1 = 2.0 * params.gamma0 * rhoLn;
@@ -548,9 +560,6 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   // Entropy wave : \lambda_E
   State rE {1.0, q[IU], q[IV], q[IW], 0.5*u2bar, 0.0, 0.0, 0.0, 0.0};
   // Alfvén Waves : \lambda_{\pma}
-  const real_t bTrans = b2*b2 + b3*b3;
-  const real_t chi2 = b2 / bTrans;
-  const real_t chi3 = b3 / bTrans;
   const real_t rhoSrho = rhoLn*Kokkos::sqrt(q[IR]);
   State rA_p {0.0, 0.0, rhoSrho*chi3, -rhoSrho*chi2, -rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rhoLn*chi3, rhoLn*chi2, 0.0}; // r\lambda_{+a}
   State rA_m {0.0, 0.0, -rhoSrho*chi3, rhoSrho*chi2,  rhoSrho*(chi2*q[IW] - chi3*q[IV]), 0.0, -rhoLn*chi3, rhoLn*chi2, 0.0}; // r\lambda_{-a}
@@ -558,11 +567,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   auto sigma = [&](const real_t omega) {
     return (omega >= 0.0 ? 1.0 : -1.0);
   };
-  const real_t alpha_f = Kokkos::sqrt((a2 - cs2) / (cf2 - cs2));
-  const real_t alpha_s = Kokkos::sqrt((cf2 - a2) / (cf2 - cs2));
-  const real_t a_ln2 = params.gamma0 / (2.0 * betaLn);
   // const real_t a_ln2 = params.gamma0*(0.5*rhoLn/betaLn)/rhoLn;
-  const real_t a_beta = Kokkos::sqrt(0.5 * params.gamma0 / betaAvg);
   const real_t psi_sp = 0.5*alpha_s*rhoLn*u2bar - a_beta*alpha_f*rhoLn*bTrans + (alpha_s*rhoLn*a_ln2)/(params.gamma0 - 1.0) + alpha_s*cs*rhoLn*q[IU] + alpha_f*cf*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+s}
   const real_t psi_sm = 0.5*alpha_s*rhoLn*u2bar - a_beta*alpha_f*rhoLn*bTrans + (alpha_s*rhoLn*a_ln2)/(params.gamma0 - 1.0) - alpha_s*cs*rhoLn*q[IU] - alpha_f*cf*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{-s}
   const real_t psi_fp = 0.5*alpha_f*rhoLn*u2bar + a_beta*alpha_s*rhoLn*bTrans + (alpha_f*rhoLn*a_ln2)/(params.gamma0 - 1.0) + alpha_f*cf*rhoLn*q[IU] - alpha_s*cs*rhoLn*sigma(b1)*(q[IV]*chi2 + q[IW]*chi3); // \psi_{+f}
@@ -575,9 +580,9 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
 
   // KEPES Flux - eq. (4.72), disspation term
   Matrix R {};
-
+  Matrix RT {};
   for (int i = 0; i < Nfields; ++i) {
-    R[0][i] = rF_p[i];
+    R[i][0] = rF_p[i];
     R[i][1] = rA_p[i];
     R[i][2] = rS_p[i];
     R[i][3] = rpsi_p[i];
@@ -586,21 +591,64 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     R[i][6] = rS_m[i];
     R[i][7] = rA_m[i];
     R[i][8] = rF_m[i];
+
+    RT[i][0] = rF_p[i];
+    RT[i][1] = rA_p[i];
+    RT[i][2] = rS_p[i];
+    RT[i][3] = rpsi_p[i];
+    RT[i][4] = rE[i];
+    RT[i][5] = rpsi_m[i];
+    RT[i][6] = rS_m[i];
+    RT[i][7] = rA_m[i];
+    RT[i][8] = rF_m[i];
   }
-  const State VState = getEntropyJumpState(qL, qR, params);
-  State res {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  real_t jsum, ksum;
-  for (int i=0; i<Nfields; ++i) {
-    jsum = 0.0;
-    for (int j=0; j<Nfields; ++j) {
-      ksum = 0.0;
-      for (int k=0; k<Nfields; ++k) {
-        ksum += lambda_hat[k] * R[i][k] * R[j][k] * Z[k];
+  auto matmul = [&](const Matrix &A, Matrix &B){
+    Matrix C{};
+    for (int i=0; i<Nfields; ++i) {
+      for (int j=0; j<Nfields; ++j) {
+        real_t sum = 0.0;
+        for (int k=0; k<Nfields; ++k) {
+          sum += A[i][k] * B[k][j];
+        }
+        C[i][j] = sum;
       }
-    jsum += VState[j] * ksum;
     }
-  res[i] += jsum;
+    return C;
+  };
+
+  Matrix ZL {};
+  for (int i=0; i<Nfields; ++i) {
+    for (int j=0; j<Nfields; ++j) {
+      if (i == j) {
+      ZL[i][j] = Z[j] * lambda_hat[i];
+    }
+      else {
+        ZL[i][j] = 0.0;
+      }
+    }
   }
+  Matrix tmp1 = matmul(R, ZL);
+  Matrix tmp2 = matmul(tmp1, RT);
+  const State VJump = getEntropyJumpState(qL, qR, params);
+  State res {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  for (int i=0; i<Nfields; ++i) {
+    for (int j=0; j<Nfields; ++j) {
+      res[i] += VJump[j] * tmp2[i][j];
+    }
+  }
+  // State res {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  // real_t jsum, ksum;
+  // for (int i=0; i<Nfields; ++i) {
+  //   jsum = 0.0;
+  //   for (int j=0; j<Nfields; ++j) {
+  //     ksum = 0.0;
+  //     for (int k=0; k<Nfields; ++k) {
+  //       ksum += Kokkos::abs(lambda_hat[k]) * R[i][k] * R[j][k] * Z[k];
+  //     }
+  //   jsum += VJump[j] * ksum;
+  //   }
+  // res[i] += jsum;
+  // }
 
   return res;
 }
@@ -624,8 +672,8 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const 
   // 1. Compute KEPEC Flux
   FluxKEPEC(qL, qR, flux, pout, ch, params);
   // 2. Compute the dissipation term for the KEPES flux
-  State dissipative_term = getScalarDissipation(qL, qR, params);
-  // State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
+  // State dissipative_term = getScalarDissipation(qL, qR, params);
+  State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
   flux -= 0.5 * dissipative_term; // Subtract the dissipation term
 }
 

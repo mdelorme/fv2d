@@ -506,6 +506,5 @@ void checkNegatives(Array &Q, const Params &full_params) {
       std::cout << "--> NaN detected." << std::endl;
 }
 
-}
 
 } // namespace fv2d

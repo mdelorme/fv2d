@@ -88,11 +88,10 @@ namespace fv2d {
 class IOManager {
 public:
   Params params;
-  BoundaryManager bc_manager;
   DeviceParams &device_params;
 
   IOManager(Params &params)
-    : params(params), bc_manager(params), device_params(params.device_params) {};
+    : params(params), device_params(params.device_params) {};
 
   ~IOManager() = default;
 

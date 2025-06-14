@@ -88,11 +88,10 @@ namespace fv2d {
 class IOManager {
 public:
   Params params;
-  BoundaryManager bc_manager;
   DeviceParams &device_params;
 
   IOManager(Params &params)
-    : params(params), bc_manager(params), device_params(params.device_params) {};
+    : params(params), device_params(params.device_params) {};
 
   ~IOManager() = default;
 
@@ -138,7 +137,7 @@ public:
     file.createDataSet("y", y);
 
     using Table = std::vector<real_t>;
-    bc_manager.fillBoundaries(Q);
+
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 
@@ -249,7 +248,7 @@ public:
     }
 
     using Table = std::vector<std::vector<real_t>>;
-    bc_manager.fillBoundaries(Q);
+    
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 

@@ -9,7 +9,34 @@ Check the [change log](CHANGELOG.md) for the latest updates.
 * A C++ compiler compatible with C++17
 * CMake (3.16+)
 
+## Cloning the repo
+
+To clone FV2D, you need to clone the repository and the submodules. To do so from scratch: 
+
+```bash
+git clone --recurse-submodules git@github.com:mdelorme/fv2d.git
+```
+
+If you have already cloned the repo but forgot to add the `--recurse-submodules`, you can still get the submodules by typing at the root of fv2d the following commands: 
+
+```bash
+git submodule init
+git submodule update
+```
+
 ## Building
+
+### Get the Sources
+
+`fv2d` includes Kokkos and other libraries as `git submodules`. Make sure to clone this repository recursively, this will also download `Kokkos` and other dependencies`
+
+```bash
+git clone --recurse-submodules git@github.com:mdelorme/fv2d.git
+```
+or if you already cloned the repository without `--recurse-submodules`
+```bash
+git submodule update --init
+```
 
 Building relies on CMake. As FV2D is built with Kokkos included as a submodule, all Kokkos option have to be passed here. For more information on how to indicate which architecture/compiler you wish to use with Kokkos, please refer to the [Kokkos documentation](https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/Compiling.html). Here are a few examples of build commands for FV2D depending on the architecture : 
 

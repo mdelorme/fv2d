@@ -137,7 +137,7 @@ public:
     file.createDataSet("y", y);
 
     using Table = std::vector<real_t>;
-    bc_manager.fillBoundaries(Q);
+
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 
@@ -248,7 +248,7 @@ public:
     }
 
     using Table = std::vector<std::vector<real_t>>;
-    bc_manager.fillBoundaries(Q);
+    
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 

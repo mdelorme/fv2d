@@ -21,7 +21,6 @@ namespace {
     }
     return map.at(tmp);
   };
-
 }
 
 using real_t = double;
@@ -193,11 +192,12 @@ struct DeviceParams {
   real_t ymax;
   real_t dx;   // Space step
   real_t dy;
-  
   // Misc stuff
   real_t epsilon = 1.0e-6;
   
   void init_from_inifile(INIReader &reader) {
+    
+    
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -218,7 +218,6 @@ struct DeviceParams {
     dy = (ymax-ymin) / Ny;
     
     CFL = reader.GetFloat("solvers", "CFL", 0.8);
-    
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
@@ -226,7 +225,6 @@ struct DeviceParams {
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
-    
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},
@@ -271,7 +269,6 @@ struct DeviceParams {
     };
     thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
-    
     std::map<std::string, BCTC_Mode> bctc_map{
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
@@ -281,7 +278,6 @@ struct DeviceParams {
     bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
     bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
     bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
-    
     // Viscosity
     viscosity_active = reader.GetBoolean("viscosity", "active", false);
     std::map<std::string, ViscosityMode> viscosity_map{
@@ -289,10 +285,10 @@ struct DeviceParams {
     };
     viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
-    
+
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
-    
+
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
   }
@@ -508,6 +504,8 @@ void checkNegatives(Array &Q, const Params &full_params) {
       std::cout << "--> negative pressure: " << negative_pressure << std::endl;
     if (nan_count)
       std::cout << "--> NaN detected." << std::endl;
+}
+
 }
 
 } // namespace fv2d

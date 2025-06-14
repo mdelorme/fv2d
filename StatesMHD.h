@@ -71,7 +71,7 @@ real_t speedOfSound(State &q, const DeviceParams &params) {
 
 KOKKOS_INLINE_FUNCTION
 real_t fastMagnetoAcousticSpeed(State &q, const DeviceParams &params, IDir idir) {
-  const int iB = IBX + idir; //static_cast<IVar>(idir); // IBX, IBY, or IBZ depending on idir
+  const int iB = (idir == IX ? IBX : IBY);
   const real_t cs = speedOfSound(q, params);
   const real_t c02  = cs*cs;
   const real_t B2 = q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];

@@ -71,13 +71,17 @@ real_t speedOfSound(State &q, const DeviceParams &params) {
 
 KOKKOS_INLINE_FUNCTION
 real_t fastMagnetoAcousticSpeed(State &q, const DeviceParams &params, IDir idir) {
-  const int iB = (idir == IX ? IBX : IBY);
-  const real_t cs = speedOfSound(q, params);
-  const real_t c02  = cs*cs;
-  const real_t B2 = q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ];
-  const real_t ca2  = B2 / q[IR];
-  const real_t cap2 = q[iB]*q[iB]/q[IR];
-  return Kokkos::sqrt(0.5*(c02+ca2)+0.5*Kokkos::sqrt((c02+ca2)*(c02+ca2)-4.0*c02*cap2));
+  const real_t a2 = params.gamma0 * q[IP] / q[IR];
+  const real_t sqrt_rho = Kokkos::sqrt(q[IR]);
+  const real_t b1 = q[IBX] / sqrt_rho;
+  const real_t b2 = q[IBY] / sqrt_rho;
+  const real_t b3 = q[IBZ] / sqrt_rho;
+  const real_t B2 = b1*b1 + b2*b2 + b3*b3;
+  const real_t bi = (idir == IX ? b1 : b2);
+
+  return Kokkos::sqrt(
+    0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0 * a2 * bi*bi))
+  );
 }
 
 real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
@@ -100,21 +104,6 @@ real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
     return lambda_max - u_max;
   }
   
-real_t ComputeLambdaMax(Array Q, const Params &full_params) {
-  auto params = full_params.device_params;
-  real_t lambda_max = 0.0;
-  Kokkos::parallel_reduce("Compute Lambda Max",
-    full_params.range_dom,
-    KOKKOS_LAMBDA(int i, int j, real_t& lamba_max) {
-      State q = getStateFromArray(Q, i, j);
-      real_t lambda_x = Kokkos::max(Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)), Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX)));
-      real_t lambda_y = Kokkos::max(Kokkos::abs(q[IV] - fastMagnetoAcousticSpeed(q, params, IY)), Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY)));
-      real_t lambda_loc = Kokkos::max(lambda_x, lambda_y);
-      lamba_max = Kokkos::max(lamba_max, lambda_loc);
-    },
-    Kokkos::Max<real_t>(lambda_max));
-    return lambda_max;
-  }
   
   KOKKOS_INLINE_FUNCTION
   State& operator+=(State &a, State b) {

@@ -509,9 +509,12 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   const real_t betaLn = 0.5 * rhoLn / pLn;
     // Some useful constants defined in eq. (4.63)
   const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
-  const real_t b12 = q[IBX]*q[IBX]/rhoLn;
-  const real_t b22 = q[IBY]*q[IBY]/rhoLn;
-  const real_t b32 = q[IBZ]*q[IBZ]/rhoLn;
+  // const real_t b12 = q[IBX]*q[IBX]/rhoLn;
+  const real_t b12 = q[IBX] * 0.5 * (qL[IBX]/qL[IR] + qR[IBX]/qR[IR]); // version Annexe C (eq. C.17)
+  // const real_t b22 = q[IBY]*q[IBY]/rhoLn;
+  const real_t b22 = q[IBY] * 0.5 * (qL[IBY]/qL[IR] + qR[IBY]/qR[IR]);
+  // const real_t b32 = q[IBZ]*q[IBZ]/rhoLn;
+  const real_t b32 = q[IBZ] * 0.5 * (qL[IBZ]/qL[IR] + qR[IBZ]/qR[IR]);
   const real_t B2 = b12 + b22 + b32;
   const real_t b1 = Kokkos::sqrt(b12);
   const real_t bT2 = b22 + b32;
@@ -520,16 +523,16 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   const real_t chi3 = Kokkos::sqrt(b32) / bTrans;
 
   const real_t p_tilde = 0.5 * q[IR]/betaAvg;
-  const real_t a2 = params.gamma0 * p_tilde / rhoLn;
-  const real_t a_ln2 = params.gamma0 * pLn / rhoLn;;
+  // const real_t a2 = params.gamma0 * p_tilde / rhoLn;
+  const real_t a2 = params.gamma0 * q[IP] * 0.5 * (1.0/qL[IR] + 1.0/qR[IR]);
+  const real_t a_ln2 = params.gamma0 * pLn / rhoLn;
   const real_t a_beta = Kokkos::sqrt(0.5 * params.gamma0 / betaAvg);
   
-  // Compute the discrete wave speeds
-  const real_t ca = Kokkos::abs(b1);
-  const real_t cf2 = 0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
-  const real_t cf = Kokkos::sqrt(cf2);
-  const real_t cs2 = 0.5 * (a2 + B2 - Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
-  const real_t cs = Kokkos::sqrt(cs2);
+  real_t cf = 0.5 * Kokkos::sqrt(a2 + B2 + 2.0*Kokkos::sqrt(a2*b12)) + Kokkos::sqrt(a2 + B2 - 2.0*Kokkos::sqrt(a2*b12));
+  real_t cs = 0.5 * Kokkos::sqrt(a2 + B2 + 2.0*Kokkos::sqrt(a2*b12)) - Kokkos::sqrt(a2 + B2 - 2.0*Kokkos::sqrt(a2*b12));
+  real_t cf2 = cf*cf;
+  real_t cs2 = cs*cs;
+  real_t ca = Kokkos::abs(b1);
   
   const real_t alpha_f = Kokkos::sqrt((a2 - cs2) / (cf2 - cs2));
   const real_t alpha_s = Kokkos::sqrt((cf2 - a2) / (cf2 - cs2));
@@ -546,6 +549,12 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     q[IU] - ca,
     q[IU] - cf
   };
+    // Compute the discrete wave speeds
+  ca = Kokkos::abs(b1);
+  cf2 = 0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1)); // expression divergente avec eq. C.17
+  cf = Kokkos::sqrt(cf2);
+  cs2 = 0.5 * (a2 + B2 - Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
+  cs = Kokkos::sqrt(cs2);
   // Mean State for the diagonal scaling matrix, eq. (4.70)
   const real_t z1 = 2.0 * params.gamma0 * rhoLn;
   const real_t z2 = 4.0 * betaAvg * rhoLn * rhoLn;

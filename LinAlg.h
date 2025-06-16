@@ -4,19 +4,32 @@
 
 namespace fv2d {
 
+// KOKKOS_INLINE_FUNCTION
+// real_t logMean(const real_t xl, const real_t xr, const real_t epsilon = 1e-3){
+//   const real_t zeta = xl/xr;
+//   const real_t f = (zeta - 1.0) / (zeta + 1.0);
+//   const real_t u = f * f;
+//   real_t F;
+//   if (u < epsilon){
+//       F = 1.0 + u/3.0 + u*u/5.0 + u*u*u/7.0;
+//   }
+//   else {
+//       F = Kokkos::log(zeta) / 2.0 / f;
+//   }
+//   return (xr + xl) / (2 * F);
+// }
+
 KOKKOS_INLINE_FUNCTION
-real_t logMean(const real_t xl, const real_t xr, const real_t epsilon = 1e-3){
-  const real_t zeta = xl/xr;
-  const real_t f = (zeta - 1.0) / (zeta + 1.0);
-  const real_t u = f * f;
-  real_t F;
-  if (u < epsilon){
-      F = 1.0 + u/3.0 + u*u/5.0 + u*u*u/7.0;
+real_t logMean(const real_t x, const real_t y, const real_t epsilon = 1e-4) {
+  // Implemntation from Trixi.jl https://github.com/trixi-framework/Trixi.jl
+  const real_t f2 = (x * (x - 2.0 * y) + y * y) / (x * (x + 2.0 * y) + y * y);
+  if (f2 < epsilon){
+    const real_t polynome = 2.0 + f2 * 2.0/3.0 + f2*f2 * 2.0/5.0 + f2*f2*f2 * 2.0/7.0;
+    return (x + y) / polynome;
   }
   else {
-      F = Kokkos::log(zeta) / 2.0 / f;
+    return (y - x) / Kokkos::log(y/x);
   }
-  return (xr + xl) / (2 * F);
 }
 
 KOKKOS_INLINE_FUNCTION

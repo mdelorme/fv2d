@@ -206,6 +206,24 @@ State getConsJumpState(const State &qL, const State &qR, const DeviceParams &par
 }
 
 KOKKOS_INLINE_FUNCTION
+State primToEntropy(State &q, const DeviceParams &params) {
+  State res {};
+  const real_t beta = 0.5 * q[IR]/q[IP];
+  const real_t s = (1 - params.gamma0)*Kokkos::log(q[IR]) - Kokkos::log(2.0*beta);
+  res[IR] = (params.gamma0 - s)/(params.gamma0 - 1.0) - beta * (q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]);
+  res[IU] = 2.0 * beta * q[IU];
+  res[IV] = 2.0 * beta * q[IV];
+  res[IW] = 2.0 * beta * q[IW];
+  res[IE] = -2.0 * beta;
+  res[IBX] = 2.0 * beta * q[IBX];
+  res[IBY] = 2.0 * beta * q[IBY];
+  res[IBZ] = 2.0 * beta * q[IBZ];
+  res[IPSI] = 2.0 * beta * q[IPSI];
+  return res;
+}
+
+
+KOKKOS_INLINE_FUNCTION
 State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params) {
   const State qJump = qR - qL;
   const State qAvg = 0.5 * (qL + qR);

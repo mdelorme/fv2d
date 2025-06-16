@@ -439,8 +439,7 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
 }
 
 KOKKOS_INLINE_FUNCTION
-void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params){
-  // Note : In fv2d, the vector q holds the primitive variables: q = (rho, u, v, w, p, Bx, By, Bz, Psi)
+void FluxDerigs(State &qL, State &qR, State &flux, real_t ch, const DeviceParams &params){
   const State qAvg = 0.5 * (qL + qR);
   const real_t rhoLn = logMean(qL[IR], qR[IR]);
 
@@ -464,41 +463,86 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
   const real_t vBAvg = 0.5 * (qL[IU]*qL[IBX] + qR[IU]*qR[IBX] +
                               qL[IV]*qL[IBY] + qR[IV]*qR[IBY] +
                               qL[IW]*qL[IBZ] + qR[IW]*qR[IBZ]);
-
-  // const real_t vBAvg = qAvg[IU]*qAvg[IBX] + 
-  //                      qAvg[IV]*qAvg[IBY] + 
-  //                      qAvg[IW]*qAvg[IBZ];
-  // Average of the magnetic flux                   
+                              
   const real_t ptot = 0.5 * qAvg[IR]/betaAvg + 0.5*B2Avg;
-  // const real_t betaUAvg = 0.5 * (qL[IU]*betaL + qR[IU]*betaR);
-  // const real_t betaVAvg = 0.5 * (qL[IV]*betaL + qR[IV]*betaR);
-  // const real_t betaWAvg = 0.5 * (qL[IW]*betaL + qR[IW]*betaR);
-  // const real_t betaPsiAvg = 0.5 *(qL[IPSI]*betaL + qR[IPSI]*betaR);
+  
   // Flux components
   flux[IR] = rhoLn * qAvg[IU];
   flux[IU] = flux[IR] * qAvg[IU] - qAvg[IBX]*qAvg[IBX] + ptot;
   flux[IV] = flux[IR] * qAvg[IV] - qAvg[IBX]*qAvg[IBY];
   flux[IW] = flux[IR] * qAvg[IW] - qAvg[IBX]*qAvg[IBZ];
-  // flux[IBX] = ch * betaPsiAvg/betaAvg; // Barbier
   flux[IBX] = ch * qAvg[IPSI];
   flux[IBY] = qAvg[IU]*qAvg[IBY] - qAvg[IV]*qAvg[IBX]; //Dedner
-  // flux[IBY] = (1.0/betaAvg) * (betaUAvg * qAvg[IBY] - betaVAvg * qAvg[IBX]);
   flux[IBZ] = qAvg[IU]*qAvg[IBZ] - qAvg[IW]*qAvg[IBX]; //Dedner
-  // flux[IBZ] = (1.0/betaAvg) * (betaUAvg * qAvg[IBZ] - betaWAvg * qAvg[IBX]);
   flux[IPSI] = ch * qAvg[IBX];
   
-  const real_t f5 = flux[IR] * (1.0/(2.0*betaLn*(params.gamma0-1.0)) - 0.5*v2Avg) +
-                    flux[IU] * qAvg[IU] +
-                    flux[IV] * qAvg[IV] +
-                    flux[IW] * qAvg[IW] +
-                    flux[IBX] * qAvg[IBX] +
-                    flux[IBY] * qAvg[IBY] +
-                    flux[IBZ] * qAvg[IBZ] +
-                    flux[IPSI] * qAvg[IPSI] +
-                    qAvg[IBX]*vBAvg - 0.5*uB2Avg  - ch * 0.5 * (qL[IBX]*qL[IPSI] + qR[IBX]*qR[IPSI]);
+  flux[IE] = flux[IR] * (1.0/(2.0*betaLn*(params.gamma0-1.0)) - 0.5*v2Avg) +
+             flux[IU] * qAvg[IU] +
+             flux[IV] * qAvg[IV] +
+             flux[IW] * qAvg[IW] +
+             flux[IBX] * qAvg[IBX] +
+             flux[IBY] * qAvg[IBY] +
+             flux[IBZ] * qAvg[IBZ] +
+             flux[IPSI] * qAvg[IPSI] +
+             qAvg[IBX]*vBAvg - 0.5*uB2Avg  - ch * 0.5 * (qL[IBX]*qL[IPSI] + qR[IBX]*qR[IPSI]);
+}
 
-  flux[IE] = f5;
-  pout = qAvg[IP];
+KOKKOS_INLINE_FUNCTION
+void FluxChandrashekar(State &qL, State &qR, State &flux, real_t ch, const DeviceParams &params){
+  const State qAvg = 0.5 * (qL + qR);
+  const real_t rhoLn = logMean(qL[IR], qR[IR]);
+
+  const real_t betaL = 0.5 * qL[IR]/qL[IP];
+  const real_t betaR = 0.5 * qR[IR]/qR[IP];
+  const real_t betaAvg = 0.5 * qAvg[IR]/qAvg[IP];
+  const real_t betaLn = 0.5 * rhoLn / logMean(qL[IP], qR[IP]);
+  // sum_i {{Bi^2}}
+  const real_t B2Avg = 0.5 * (qL[IBX]*qL[IBX]+qR[IBX]*qR[IBX] + 
+                              qL[IBY]*qL[IBY]+qR[IBY]*qR[IBY] + 
+                              qL[IBZ]*qL[IBZ]+qR[IBZ]*qR[IBZ]);
+  //sum_i {{vi^2}}
+  const real_t v2Avg = 0.5 * (qL[IU]*qL[IU] + qR[IU]*qR[IU] + 
+                              qL[IV]*qL[IV] + qR[IV]*qR[IV] + 
+                              qL[IW]*qL[IW] + qR[IW]*qR[IW]);
+
+  const real_t vBAvg = qAvg[IU]*qAvg[IBX] + 
+                       qAvg[IV]*qAvg[IBY] + 
+                       qAvg[IW]*qAvg[IBZ];
+  // Average of the magnetic flux                   
+  const real_t ptot = 0.5 * qAvg[IR]/betaAvg + 0.5*B2Avg;
+  const real_t betaUAvg = 0.5 * (qL[IU]*betaL + qR[IU]*betaR);
+  const real_t betaVAvg = 0.5 * (qL[IV]*betaL + qR[IV]*betaR);
+  const real_t betaWAvg = 0.5 * (qL[IW]*betaL + qR[IW]*betaR);
+  const real_t betaPsiAvg = 0.5 *(qL[IPSI]*betaL + qR[IPSI]*betaR);
+  
+  // Flux components
+  flux[IR] = rhoLn * qAvg[IU];
+  flux[IU] = flux[IR] * qAvg[IU] - qAvg[IBX]*qAvg[IBX] + ptot;
+  flux[IV] = flux[IR] * qAvg[IV] - qAvg[IBX]*qAvg[IBY];
+  flux[IW] = flux[IR] * qAvg[IW] - qAvg[IBX]*qAvg[IBZ];
+  flux[IBX] = ch * betaPsiAvg/betaAvg; // Barbier
+  flux[IBY] = (1.0/betaAvg) * (betaUAvg * qAvg[IBY] - betaVAvg * qAvg[IBX]);
+  flux[IBZ] = (1.0/betaAvg) * (betaUAvg * qAvg[IBZ] - betaWAvg * qAvg[IBX]);
+  flux[IPSI] = ch * qAvg[IBX];
+  
+  flux[IE] = flux[IR] * (1.0/(2.0*betaLn*(params.gamma0-1.0)) - 0.5*v2Avg) +
+             flux[IU] * qAvg[IU] +
+             flux[IV] * qAvg[IV] +
+             flux[IW] * qAvg[IW] +
+             flux[IBX] * qAvg[IBX] +
+             flux[IBY] * qAvg[IBY] +
+             flux[IBZ] * qAvg[IBZ] +
+             flux[IPSI] * qAvg[IPSI] +
+             qAvg[IBX]*vBAvg - 0.5*qAvg[IU]*B2Avg - ch * 0.5 * (qL[IBX]*qL[IPSI] + qR[IBX]*qR[IPSI]);
+}
+
+
+KOKKOS_INLINE_FUNCTION
+void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params){
+  // Note : In fv2d, the vector q holds the primitive variables: q = (rho, u, v, w, p, Bx, By, Bz, Psi)
+  FluxDerigs(qL, qR, flux, ch, params);
+  // FluxChandrashekar(qL, qR, flux, ch, params);
+  pout = 0.5 * (qL[IP] + qR[IP]);
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -641,7 +685,10 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   }
   Matrix tmp1 = matmul(R, ZL);
   Matrix tmp2 = matmul(tmp1, RT);
-  const State VJump = getEntropyJumpState(qL, qR, params);
+  // const State VJump = getEntropyJumpState(qL, qR, params);
+  const State sL = primToEntropy(qL, params);
+  const State sR = primToEntropy(qR, params);
+  const State VJump = sR - sL;
   State res {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   for (int i=0; i<Nfields; ++i) {
     for (int j=0; j<Nfields; ++j) {
@@ -684,8 +731,8 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const 
   // 1. Compute KEPEC Flux
   FluxKEPEC(qL, qR, flux, pout, ch, params);
   // 2. Compute the dissipation term for the KEPES flux
-  State dissipative_term = getScalarDissipation(qL, qR, params);
-  // State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
+  // State dissipative_term = getScalarDissipation(qL, qR, params);
+  State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
   flux -= 0.5 * dissipative_term; // Subtract the dissipation term
 }
 

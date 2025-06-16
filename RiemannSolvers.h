@@ -453,37 +453,41 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
                               qL[IBY]*qL[IBY]+qR[IBY]*qR[IBY] + 
                               qL[IBZ]*qL[IBZ]+qR[IBZ]*qR[IBZ]);
   //sum_i {{vi^2}}
-  const real_t v2Avg = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
+  const real_t v2Avg = 0.5 * (qL[IU]*qL[IU] + qR[IU]*qR[IU] + 
+                              qL[IV]*qL[IV] + qR[IV]*qR[IV] + 
+                              qL[IW]*qL[IW] + qR[IW]*qR[IW]);
   // sum_i {{vi*Bi^2}}
-  // const real_t uB2Avg = 0.5 * (qL[IU]*qL[IBX]*qL[IBX] + qR[IU]*qR[IBX]*qR[IBX] +
-  //                              qL[IU]*qL[IBY]*qL[IBY] + qR[IU]*qR[IBY]*qR[IBY] +
-  //                              qL[IU]*qL[IBZ]*qL[IBZ] + qR[IU]*qR[IBZ]*qR[IBZ]);
+  const real_t uB2Avg = 0.5 * (qL[IU]*qL[IBX]*qL[IBX] + qR[IU]*qR[IBX]*qR[IBX] +
+                               qL[IU]*qL[IBY]*qL[IBY] + qR[IU]*qR[IBY]*qR[IBY] +
+                               qL[IU]*qL[IBZ]*qL[IBZ] + qR[IU]*qR[IBZ]*qR[IBZ]);
   // sum_i {{vi*Bi}}
-  // const real_t uBAvg = 0.5 * (qL[IU]*qL[IBX] + qR[IU]*qR[IBX] +
-  //                             qL[IV]*qL[IBY] + qR[IV]*qR[IBY] +
-  //                             qL[IW]*qL[IBZ] + qR[IW]*qR[IBZ]);
-  const real_t uBAvg = qAvg[IU]*qAvg[IBX] + 
-                       qAvg[IV]*qAvg[IBY] + 
-                       qAvg[IW]*qAvg[IBZ];
+  const real_t vBAvg = 0.5 * (qL[IU]*qL[IBX] + qR[IU]*qR[IBX] +
+                              qL[IV]*qL[IBY] + qR[IV]*qR[IBY] +
+                              qL[IW]*qL[IBZ] + qR[IW]*qR[IBZ]);
+
+  // const real_t vBAvg = qAvg[IU]*qAvg[IBX] + 
+  //                      qAvg[IV]*qAvg[IBY] + 
+  //                      qAvg[IW]*qAvg[IBZ];
   // Average of the magnetic flux                   
   const real_t ptot = 0.5 * qAvg[IR]/betaAvg + 0.5*B2Avg;
-  const real_t betaUAvg = 0.5 * (qL[IU]*betaL + qR[IU]*betaR);
-  const real_t betaVAvg = 0.5 * (qL[IV]*betaL + qR[IV]*betaR);
-  const real_t betaWAvg = 0.5 * (qL[IW]*betaL + qR[IW]*betaR);
-  const real_t betaPsiAvg = 0.5 *(qL[IPSI]*betaL + qR[IPSI]*betaR);
+  // const real_t betaUAvg = 0.5 * (qL[IU]*betaL + qR[IU]*betaR);
+  // const real_t betaVAvg = 0.5 * (qL[IV]*betaL + qR[IV]*betaR);
+  // const real_t betaWAvg = 0.5 * (qL[IW]*betaL + qR[IW]*betaR);
+  // const real_t betaPsiAvg = 0.5 *(qL[IPSI]*betaL + qR[IPSI]*betaR);
   // Flux components
   flux[IR] = rhoLn * qAvg[IU];
   flux[IU] = flux[IR] * qAvg[IU] - qAvg[IBX]*qAvg[IBX] + ptot;
   flux[IV] = flux[IR] * qAvg[IV] - qAvg[IBX]*qAvg[IBY];
   flux[IW] = flux[IR] * qAvg[IW] - qAvg[IBX]*qAvg[IBZ];
-  flux[IBX] = ch * betaPsiAvg/betaAvg; // Barbier
-  // flux[IBY] = qAvg[IU]*qAvg[IBY] - qAvg[IV]*qAvg[IBX]; //Dedner
-  flux[IBY] = (1.0/betaAvg) * (betaUAvg * qAvg[IBY] - betaVAvg * qAvg[IBX]);
-  // flux[IBZ] = qAvg[IU]*qAvg[IBZ] - qAvg[IW]*qAvg[IBX]; //Dedner
-  flux[IBZ] = (1.0/betaAvg) * (betaUAvg * qAvg[IBZ] - betaWAvg * qAvg[IBX]);
+  // flux[IBX] = ch * betaPsiAvg/betaAvg; // Barbier
+  flux[IBX] = ch * qAvg[IPSI];
+  flux[IBY] = qAvg[IU]*qAvg[IBY] - qAvg[IV]*qAvg[IBX]; //Dedner
+  // flux[IBY] = (1.0/betaAvg) * (betaUAvg * qAvg[IBY] - betaVAvg * qAvg[IBX]);
+  flux[IBZ] = qAvg[IU]*qAvg[IBZ] - qAvg[IW]*qAvg[IBX]; //Dedner
+  // flux[IBZ] = (1.0/betaAvg) * (betaUAvg * qAvg[IBZ] - betaWAvg * qAvg[IBX]);
   flux[IPSI] = ch * qAvg[IBX];
   
-  const real_t f5 = flux[IR] * (1.0/(2.0*betaLn*(params.gamma0-1.0)) - 0.5*v2Avg) + // Attention à v2Avg = u2bar
+  const real_t f5 = flux[IR] * (1.0/(2.0*betaLn*(params.gamma0-1.0)) - 0.5*v2Avg) +
                     flux[IU] * qAvg[IU] +
                     flux[IV] * qAvg[IV] +
                     flux[IW] * qAvg[IW] +
@@ -491,7 +495,7 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
                     flux[IBY] * qAvg[IBY] +
                     flux[IBZ] * qAvg[IBZ] +
                     flux[IPSI] * qAvg[IPSI] +
-                    qAvg[IBX]*uBAvg - 0.5*qAvg[IU]*B2Avg  - ch * qAvg[IBX]*qAvg[IPSI];
+                    qAvg[IBX]*vBAvg - 0.5*uB2Avg  - ch * 0.5 * (qL[IBX]*qL[IPSI] + qR[IBX]*qR[IPSI]);
 
   flux[IE] = f5;
   pout = qAvg[IP];
@@ -508,13 +512,15 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   const real_t betaAvg = 0.5 * q[IR]/q[IP];
   const real_t betaLn = 0.5 * rhoLn / pLn;
     // Some useful constants defined in eq. (4.63)
-  const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
-  // const real_t b12 = q[IBX]*q[IBX]/rhoLn;
-  const real_t b12 = q[IBX] * 0.5 * (qL[IBX]/qL[IR] + qR[IBX]/qR[IR]); // version Annexe C (eq. C.17)
-  // const real_t b22 = q[IBY]*q[IBY]/rhoLn;
-  const real_t b22 = q[IBY] * 0.5 * (qL[IBY]/qL[IR] + qR[IBY]/qR[IR]);
-  // const real_t b32 = q[IBZ]*q[IBZ]/rhoLn;
-  const real_t b32 = q[IBZ] * 0.5 * (qL[IBZ]/qL[IR] + qR[IBZ]/qR[IR]);
+  // const real_t u2bar = qL[IU]*qR[IU] + qL[IV]*qR[IV] + qL[IW]*qR[IW];
+  const real_t v2Avg = 0.5 * (qL[IU]*qL[IU]+qR[IU]*qR[IU] +  qL[IV]*qL[IV]+qR[IV]*qR[IV] + qL[IW]*qL[IW]+qR[IW]*qR[IW]);
+  const real_t u2bar = 2.0 * (q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]) - v2Avg;
+  const real_t b12 = q[IBX]*q[IBX]/rhoLn;
+  const real_t b22 = q[IBY]*q[IBY]/rhoLn;
+  const real_t b32 = q[IBZ]*q[IBZ]/rhoLn;
+  // const real_t b12 = q[IBX] * 0.5 * (qL[IBX]/qL[IR] + qR[IBX]/qR[IR]); // version Annexe C (eq. C.17)
+  // const real_t b22 = q[IBY] * 0.5 * (qL[IBY]/qL[IR] + qR[IBY]/qR[IR]);
+  // const real_t b32 = q[IBZ] * 0.5 * (qL[IBZ]/qL[IR] + qR[IBZ]/qR[IR]);
   const real_t B2 = b12 + b22 + b32;
   const real_t b1 = Kokkos::sqrt(b12);
   const real_t bT2 = b22 + b32;
@@ -523,16 +529,19 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   const real_t chi3 = Kokkos::sqrt(b32) / bTrans;
 
   const real_t p_tilde = 0.5 * q[IR]/betaAvg;
-  // const real_t a2 = params.gamma0 * p_tilde / rhoLn;
-  const real_t a2 = params.gamma0 * q[IP] * 0.5 * (1.0/qL[IR] + 1.0/qR[IR]);
+  const real_t a2 = params.gamma0 * p_tilde / rhoLn;
+  // const real_t a2 = params.gamma0 * q[IP] * 0.5 * (1.0/qL[IR] + 1.0/qR[IR]);
   const real_t a_ln2 = params.gamma0 * pLn / rhoLn;
   const real_t a_beta = Kokkos::sqrt(0.5 * params.gamma0 / betaAvg);
   
-  real_t cf = 0.5 * Kokkos::sqrt(a2 + B2 + 2.0*Kokkos::sqrt(a2*b12)) + Kokkos::sqrt(a2 + B2 - 2.0*Kokkos::sqrt(a2*b12));
-  real_t cs = 0.5 * Kokkos::sqrt(a2 + B2 + 2.0*Kokkos::sqrt(a2*b12)) - Kokkos::sqrt(a2 + B2 - 2.0*Kokkos::sqrt(a2*b12));
-  real_t cf2 = cf*cf;
-  real_t cs2 = cs*cs;
-  real_t ca = Kokkos::abs(b1);
+  // Compute the discrete wave speeds
+  const real_t X1 = a2 + B2;
+  const real_t X2 = 2.0 * Kokkos::sqrt(a2*b12);
+  const real_t cf = 0.5 * (Kokkos::sqrt(X1 + X2) + Kokkos::sqrt(X1 - X2));
+  const real_t cs = 0.5 * (Kokkos::sqrt(X1 + X2) - Kokkos::sqrt(X1 - X2));
+  const real_t cf2 = 0.5 * (X1 + Kokkos::sqrt(X1*X1 - X2*X2));
+  const real_t cs2 = 0.5 * (X1 - Kokkos::sqrt(X1*X1 - X2*X2));
+  const real_t ca = Kokkos::abs(b1);
   
   const real_t alpha_f = Kokkos::sqrt((a2 - cs2) / (cf2 - cs2));
   const real_t alpha_s = Kokkos::sqrt((cf2 - a2) / (cf2 - cs2));
@@ -549,12 +558,6 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     q[IU] - ca,
     q[IU] - cf
   };
-    // Compute the discrete wave speeds
-  ca = Kokkos::abs(b1);
-  cf2 = 0.5 * (a2 + B2 + Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1)); // expression divergente avec eq. C.17
-  cf = Kokkos::sqrt(cf2);
-  cs2 = 0.5 * (a2 + B2 - Kokkos::sqrt((a2 + B2)*(a2 + B2) - 4.0*a2*b1*b1));
-  cs = Kokkos::sqrt(cs2);
   // Mean State for the diagonal scaling matrix, eq. (4.70)
   const real_t z1 = 2.0 * params.gamma0 * rhoLn;
   const real_t z2 = 4.0 * betaAvg * rhoLn * rhoLn;
@@ -681,8 +684,8 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const 
   // 1. Compute KEPEC Flux
   FluxKEPEC(qL, qR, flux, pout, ch, params);
   // 2. Compute the dissipation term for the KEPES flux
-  // State dissipative_term = getScalarDissipation(qL, qR, params);
-  State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
+  State dissipative_term = getScalarDissipation(qL, qR, params);
+  // State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
   flux -= 0.5 * dissipative_term; // Subtract the dissipation term
 }
 

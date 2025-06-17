@@ -45,7 +45,8 @@ struct RestartInfo {
 
 enum IDir : uint8_t {
   IX = 0,
-  IY = 1
+  IY = 1,
+  IZ = 2
 };
 
 #ifdef MHD

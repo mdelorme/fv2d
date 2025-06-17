@@ -48,18 +48,19 @@ State matvecmul(const Matrix& matrix, const State& vector) {
 }
 
 
-// Matrix matmul(const Matrix &A, const Matrix &B) {
-//     Matrix C {};
-//     Kokkos::parallel_for("MatrixMultiply", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {Nfields, Nfields}),
-//                         KOKKOS_LAMBDA(const int i, const int j) {
-//                             real_t sum = 0.0;
-//                             for (int k = 0; k < Nfields; ++k) {
-//                                 sum += A[i][k] * B[k][j];
-//                             }
-//                             C[i][j] = sum;
-//                         });
-//     return C;
-// }
+Matrix matmul(const Matrix &A, const Matrix &B) {
+    Matrix C{};
+    for (int i=0; i<Nfields; ++i) {
+      for (int j=0; j<Nfields; ++j) {
+        real_t sum = 0.0;
+        for (int k=0; k<Nfields; ++k) {
+          sum += A[i][k] * B[k][j];
+        }
+        C[i][j] = sum;
+      }
+    }
+    return C;
+}
 
 KOKKOS_INLINE_FUNCTION
 real_t dot(const Vect &a, const Vect &b) {
@@ -79,4 +80,40 @@ real_t norm(const Vect &v) {
   return Kokkos::sqrt(res);
 }
 
+KOKKOS_INLINE_FUNCTION
+real_t norm2(const Vect &v) {
+  real_t res = 0.0;
+  for (int i = 0; i < 3; ++i) {
+      res += v[i] * v[i];
+  }
+  return res;
+}
+
+KOKKOS_INLINE_FUNCTION
+Vect& operator+=(Vect &a, Vect b) {
+  for (int i=0; i < Nfields; ++i)
+    a[i] += b[i];
+  return a;
+}
+
+KOKKOS_INLINE_FUNCTION
+Vect operator*(const Vect &a, real_t q) {
+  Vect res;
+  for (int i=0; i < Nfields; ++i)
+    res[i] = a[i]*q;
+  return res;
+}
+
+KOKKOS_INLINE_FUNCTION
+Vect operator*(real_t q, const Vect &a) {
+    return a*q;
+}
+
+KOKKOS_INLINE_FUNCTION
+Vect operator+(const Vect &a, const Vect &b) {
+  Vect res;
+  for (int i=0; i < Nfields; ++i)
+    res[i] = a[i] + b[i];
+  return res;
+}
 } // namespace fv2d

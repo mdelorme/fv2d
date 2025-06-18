@@ -56,7 +56,8 @@ enum BoundaryType
 enum TimeStepping
 {
   TS_EULER,
-  TS_RK2
+  TS_RK2,
+  TS_RK3
 };
 
 enum ReconstructionType

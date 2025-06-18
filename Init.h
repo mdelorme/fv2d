@@ -182,6 +182,103 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params)
 }
 
 /**
+ * @brief Lax-Liu config #13 setup
+ */
+KOKKOS_INLINE_FUNCTION
+void initLaxLiu13(Array Q, int i, int j, const DeviceParams &params) {
+  real_t xmid = 0.5 * (params.xmin+params.xmax);
+  real_t ymid = 0.5 * (params.ymin+params.ymax);
+
+  Pos pos = getPos(params, i, j);
+  real_t x = pos[IX];
+  real_t y = pos[IY];
+  real_t rho, u, v, p;
+
+  if (x < xmid) {
+    if (y < ymid) {
+      rho = 1.0625;
+      u   = 0.0;
+      v   = 0.8145;
+      p   = 0.4;
+    }
+    else {
+      rho = 2.0;
+      u   = 0.0;
+      v   = 0.3;
+      p   = 1.0;
+    }
+  }
+  else {
+    if (y < ymid) {
+      rho = 0.5313;
+      u   = 0.0;
+      v   = 0.4276;
+      p   = 0.4;
+    }
+    else {
+      rho = 1.0;
+      u   = 0.0;
+      v   = -0.3;
+      p   = 1.0;
+    }
+  }
+
+  Q(j, i, IR) = rho;
+  Q(j, i, IU) = u;
+  Q(j, i, IV) = v;
+  Q(j, i, IP) = p;
+}
+
+/**
+ * @brief Lax-Liu config #3 setup
+ */
+KOKKOS_INLINE_FUNCTION
+void initLaxLiu3(Array Q, int i, int j, const DeviceParams &params) {
+  real_t xmid = 0.8;
+  real_t ymid = 0.8;
+
+  Pos pos = getPos(params, i, j);
+  real_t x = pos[IX];
+  real_t y = pos[IY];
+
+  real_t rho, u, v, p;
+
+  if (x < xmid) {
+    if (y < ymid) {
+      rho = 0.138;
+      u   = 1.206;
+      v   = 1.206;
+      p   = 0.029;
+    }
+    else {
+      rho = 0.5323;
+      u   = 1.206;
+      v   = 0.0;
+      p   = 0.3;
+    }
+  }
+  else {
+    if (y < ymid) {
+      rho = 0.5323;
+      u   = 0.0;
+      v   = 1.206;
+      p   = 0.3;
+    }
+    else {
+      rho = 1.5;
+      u   = 0.0;
+      v   = 0.0;
+      p   = 1.5;
+    }
+  }
+
+  Q(j, i, IR) = rho;
+  Q(j, i, IU) = u;
+  Q(j, i, IV) = v;
+  Q(j, i, IP) = p;
+}
+
+/**
  * @brief Sedov blast initial conditions
  */
 KOKKOS_INLINE_FUNCTION
@@ -364,8 +461,10 @@ enum InitType
   C91,
   KELVIN_HELMHOLTZ,
   HSE,
+  PROFILE,
   GRESHO_VORTEX,
-  PROFILE
+  LAXLIU3,
+  LAXLIU13
 };
 
 struct InitFunctor
@@ -388,7 +487,9 @@ public:
       {"C91", C91},
       {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
       {"profile", PROFILE},
-      {"gresho_vortex", GRESHO_VORTEX}
+      {"gresho_vortex", GRESHO_VORTEX},
+      {"lax_liu_3", LAXLIU3},
+      {"lax_liu_13", LAXLIU13}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -442,6 +543,12 @@ public:
             break;
           case GRESHO_VORTEX:
             initGreshoVortex(Q, i, j, params);
+            break;
+          case LAXLIU3:
+            initLaxLiu3(Q, i, j, params);
+            break;
+          case LAXLIU13:
+            initLaxLiu13(Q, i, j, params);
             break;
           }
         });

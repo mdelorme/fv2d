@@ -86,14 +86,25 @@ enum ViscosityMode {
   VSC_CONSTANT
 };
 
+enum GravityMode {
+  GRAV_NONE,
+  GRAV_CONSTANT,
+  GRAV_ANALYTICAL
+};
+
+enum AnalyticalGravityMode {
+  AGM_HOT_BUBBLE
+};
+
 // All parameters that should be copied on the device
 struct DeviceParams { 
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
   
   // Gravity
-  bool gravity = false;
-  real_t g;
+  GravityMode gravity_mode;
+  real_t gx, gy;
+  AnalyticalGravityMode analytical_gravity_mode;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
   
@@ -126,6 +137,9 @@ struct DeviceParams {
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
+
+  // Hot bubble
+  real_t hot_bubble_g0;
   
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
@@ -203,13 +217,27 @@ struct DeviceParams {
     // Physics
     epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
     gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
-    gravity = reader.GetBoolean("physics", "gravity", false);
-    g       = reader.GetFloat("physics", "g", 0.0);
     m1      = reader.GetFloat("polytrope", "m1", 1.0);
     theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+
+    // Gravity
+    std::map<std::string, GravityMode> gravity_map{
+      {"none",       GRAV_NONE},
+      {"constant",   GRAV_CONSTANT},
+      {"analytical", GRAV_ANALYTICAL}
+    };
+    gravity_mode = read_map(reader, gravity_map, "gravity", "mode", "none");
+
+    gx = reader.GetFloat("gravity", "gx", 0.0);
+    gy = reader.GetFloat("gravity", "gy", 0.0);
+
+    std::map<std::string, AnalyticalGravityMode> analytical_gravity_map{
+      {"hot_bubble", AGM_HOT_BUBBLE}
+    };
+    analytical_gravity_mode = read_map(reader, analytical_gravity_map, "gravity", "analytical_mode", "hot_bubble");
 
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -243,6 +271,9 @@ struct DeviceParams {
 
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
+
+    // Hot bubble
+    hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
   }
 };
 

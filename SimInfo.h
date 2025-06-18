@@ -39,17 +39,6 @@ struct RestartInfo {
   int iteration;
 };
 
-/**
- * @brief Total profile for a Cartesian stellar simulation
- */
-struct Profile {
-  Kokkos::View<real_t*> y, rho, u, v, p, kappa, gy;
-};
-
-struct HostProfile {
-  std::vector<real_t> y, rho, u, v, p, kappa, gy;
-};
-
 enum IDir : uint8_t {
   IX = 0,
   IY = 1
@@ -178,8 +167,9 @@ struct DeviceParams {
   real_t gamma0 = 5.0/3.0;
   
   // Gravity
-  bool gravity = false;
-  real_t g; // gravity as a float
+  GravityMode gravity_mode;
+  real_t gx, gy;
+  AnalyticalGravityMode analytical_gravity_mode;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
 
@@ -317,13 +307,28 @@ struct DeviceParams {
     // Physics
     epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
     gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
-    gravity = reader.GetBoolean("physics", "gravity", false);
-    g       = reader.GetFloat("physics", "g", 0.0);
     m1      = reader.GetFloat("polytrope", "m1", 1.0);
     theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+
+    // Gravity
+    std::map<std::string, GravityMode> gravity_map{
+      {"none",       GRAV_NONE},
+      {"constant",   GRAV_CONSTANT},
+      {"analytical", GRAV_ANALYTICAL},
+      {"profile",    GRAV_PROFILE}
+    };
+    gravity_mode = read_map(reader, gravity_map, "gravity", "mode", "none");
+
+    gx = reader.GetFloat("gravity", "gx", 0.0);
+    gy = reader.GetFloat("gravity", "gy", 0.0);
+
+    std::map<std::string, AnalyticalGravityMode> analytical_gravity_map{
+      {"hot_bubble", AGM_HOT_BUBBLE}
+    };
+    analytical_gravity_mode = read_map(reader, analytical_gravity_map, "gravity", "analytical_mode", "hot_bubble");
 
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -402,7 +407,7 @@ struct DeviceParams {
     // Profile inputs
     if (reader.Get("physics", "problem", "unknown") == "cartesian_star") {
       std::string init_filename = reader.Get("run", "init_filename", "");
-      profile = readProfileFromHDF5(init_filename);    
+      profile = readProfileFromHDF5(init_filename);
     }
   }
 };
@@ -570,8 +575,6 @@ void print_ini_file(const Params &p) {
 
   std::cout << std::endl << " -- Physics -- " << std::endl;
   std::cout << "gamma0             = " << dp.gamma0 << std::endl;
-  std::cout << "gravity active     = " << dp.gravity << std::endl;
-  std::cout << "g                  = " << dp.g << std::endl;
   std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
   std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;
   std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;
@@ -641,39 +644,6 @@ Params readInifile(std::string filename) {
 
   return res;
 } 
-
-Profile readProfileFromHDF5(std::string filename) {
-  Profile profile;
-
-  using namespace H5Easy;
-  
-  File file(filename, File::ReadOnly);
-
-  using Table = std::vector<real_t>;
-  using KTable = Kokkos::View<real_t*>;
-
-
-  auto readField = [&](std::string fieldname, KTable dest) -> void {
-    Table t = load<Table>(file, fieldname);
-    dest = KTable(fieldname, t.size());
-
-    auto host_table = Kokkos::create_mirror_view(dest);
-    for (size_t i=0; i<t.size(); ++i)
-      host_table(i) = t[i];
-    
-    Kokkos::deep_copy(dest, host_table);
-  };
-
-  readField("y",     profile.y);
-  readField("rho",   profile.rho);
-  readField("u",     profile.u);
-  readField("v",     profile.v);
-  readField("p",     profile.p);
-  readField("kappa", profile.kappa);
-  readField("gy",    profile.gy);
-
-  return profile;
-}
 
 }
 

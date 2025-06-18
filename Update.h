@@ -5,6 +5,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Gravity.h"
 
 namespace fv2d {
 
@@ -21,8 +22,7 @@ namespace {
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
-        res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * params.g * params.dy * 0.5);
-        break;
+        res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
       default:  res = q; // Piecewise Constant
     }
 
@@ -120,18 +120,20 @@ public:
 
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
+            real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
             else 
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
         
-          if (dir == IY && params.gravity) {
-            un_loc[IV] += dt * Q(j, i, IR) * params.g;
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+          if (params.gravity_mode != GRAV_NONE) {
+            real_t g = getGravity(i, j, dir, params);
+            un_loc[IV] += dt * Q(j, i, IR) * g;
+            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
 
           setStateInArray(Unew, i, j, un_loc);

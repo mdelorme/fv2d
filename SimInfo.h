@@ -63,7 +63,8 @@ enum BoundaryType {
 
 enum TimeStepping {
   TS_EULER,
-  TS_RK2
+  TS_RK2,
+  TS_RK3
 };
 
 enum ReconstructionType {
@@ -447,7 +448,8 @@ Params readInifile(std::string filename) {
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
-    {"RK2",   TS_RK2}
+    {"RK2",   TS_RK2},
+    {"RK3",   TS_RK3}
   };
   res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
   res.problem = res.Get("physics", "problem", "blast");

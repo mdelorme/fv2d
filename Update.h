@@ -468,6 +468,46 @@ public:
             Unew(j, i, ivar) = 0.5 * (U0(j, i, ivar) + Unew(j, i, ivar));
         });
     }
+    else if (full_params.time_stepping == TS_RK3) {
+      auto params = full_params.device_params;
+      Array U0  = Array("U0", params.Nty, params.Ntx, Nfields);
+      Array Us  = Array("Ustar", params.Nty, params.Ntx, Nfields);
+      Array Uss = Array("Ustarstar", params.Nty, params.Ntx, Nfields);
+
+      // Step 1
+      Kokkos::deep_copy(U0, Unew);
+      Kokkos::deep_copy(Us, Unew);
+      euler_step(Q, Unew, dt); // U0 -> Us
+      
+      // Step 2
+      Kokkos::deep_copy(Us, Unew);
+      consToPrim(Us, Q, full_params);
+      euler_step(Q, Unew, dt); // Us -> Us + dt L(Us)
+
+      Kokkos::parallel_for( // Uss <- 1/4 * (3 U0 + Us + dt L(Us))
+        "RK3 step2 correct",
+        full_params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          for (int ivar=0; ivar < Nfields; ++ivar)
+            Unew(j, i, ivar) = 0.25 * (3.0 * U0(j, i, ivar) + Unew(j, i, ivar));
+        }
+      );
+
+      // Step 3
+      Kokkos::deep_copy(Uss, Unew);
+      consToPrim(Uss, Q, full_params);
+      euler_step(Q, Unew, dt);
+
+      // SSP-RK3
+      Kokkos::parallel_for(
+        "RK3 Correct",
+        full_params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          for (int ivar=0; ivar < Nfields; ++ivar) 
+            Unew(j, i, ivar) = 1.0/3.0 * (U0(j, i, ivar) + 2.0 * Unew(j, i, ivar));
+        }
+      );
+    }
   }
 };
 

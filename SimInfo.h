@@ -90,14 +90,25 @@ enum ViscosityMode {
   VSC_CONSTANT
 };
 
+enum GravityMode {
+  GRAV_NONE,
+  GRAV_CONSTANT,
+  GRAV_ANALYTICAL
+};
+
+enum AnalyticalGravityMode {
+  AGM_HOT_BUBBLE
+};
+
 // All parameters that should be copied on the device
 struct DeviceParams { 
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
   
   // Gravity
-  bool gravity = false;
-  real_t g;
+  GravityMode gravity_mode;
+  real_t gx, gy;
+  AnalyticalGravityMode analytical_gravity_mode;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
   
@@ -136,6 +147,9 @@ struct DeviceParams {
   // Gresho Vortex
   real_t gresho_density, gresho_Mach;
 
+  // Hot bubble
+  real_t hot_bubble_g0;
+  
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
@@ -213,14 +227,28 @@ struct DeviceParams {
     // Physics
     epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
     gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
-    gravity = reader.GetBoolean("physics", "gravity", false);
-    g       = reader.GetFloat("physics", "g", 0.0);
     m1      = reader.GetFloat("polytrope", "m1", 1.0);
     theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
     fslp_K  = reader.GetFloat("physics", "fslp_K", 1.1);
+
+    // Gravity
+    std::map<std::string, GravityMode> gravity_map{
+      {"none",       GRAV_NONE},
+      {"constant",   GRAV_CONSTANT},
+      {"analytical", GRAV_ANALYTICAL}
+    };
+    gravity_mode = read_map(reader, gravity_map, "gravity", "mode", "none");
+
+    gx = reader.GetFloat("gravity", "gx", 0.0);
+    gy = reader.GetFloat("gravity", "gy", 0.0);
+
+    std::map<std::string, AnalyticalGravityMode> analytical_gravity_map{
+      {"hot_bubble", AGM_HOT_BUBBLE}
+    };
+    analytical_gravity_mode = read_map(reader, analytical_gravity_map, "gravity", "analytical_mode", "hot_bubble");
 
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -236,10 +264,10 @@ struct DeviceParams {
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
       {"fixed_gradient",    BCTC_FIXED_GRADIENT}
     };
-    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_xmin", "none");
-    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_xmax", "none");
-    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_xmin_value", 1.0);
-    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_xmax_value", 1.0);
+    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_ymin", "none");
+    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_ymax", "none");
+    bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
+    bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);
 
     // Viscosity
     viscosity_active = reader.GetBoolean("viscosity", "active", false);
@@ -258,6 +286,9 @@ struct DeviceParams {
     // Gresho Vortex
     gresho_density = reader.GetFloat("gresho_vortex", "density",  1.0);
     gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach",     0.1);
+    
+    // Hot bubble
+    hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
   }
 };
 

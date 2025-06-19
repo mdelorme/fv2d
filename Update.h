@@ -355,18 +355,23 @@ public:
           auto [qCR, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, IRIGHT, geometry, params);
           
           if (params.fixed_spline_boundaries) {
+            Pos u_r = geometry.mapc2p_center(i,j);
+            const real_t r = norm(u_r);
+            u_r = u_r / r;
+            const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
+
             if (dir==IX && (i==params.ibeg || i==params.iend-1)) { 
               State &q = (i==params.ibeg) ? qL : qR;
               q[IR] = params.spl_rho.GetValue(params.radial_radius);
-              q[IU] = 0.0; // TODO uniquement vr = 0
-              q[IV] = 0.0;
+              q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
+              q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
               q[IP] = params.spl_prs.GetValue(params.radial_radius);
             }
             if (dir==IY && (j==params.jbeg || j==params.jend-1)) { 
               State &q = (j==params.jbeg) ? qL : qR;
               q[IR] = params.spl_rho.GetValue(params.radial_radius);
-              q[IU] = 0.0;
-              q[IV] = 0.0;
+              q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
+              q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
               q[IP] = params.spl_prs.GetValue(params.radial_radius);
             }
           }

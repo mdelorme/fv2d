@@ -385,7 +385,7 @@ namespace {
     real_t xmid = 0.5 * (params.xmin+params.xmax);
     real_t ymid = 0.5 * (params.ymin+params.ymax);
 
-    Pos pos = getPos(params, i, j);
+    Pos pos = geo.mapc2p_center(i,j);
 
     real_t x0 = (pos[IX]-xmid);
     real_t y0 = (pos[IY]-ymid);
@@ -400,6 +400,27 @@ namespace {
     Q(j, i, IP) = 1.0;
     Q(j, i, IU) = 1.0;
     Q(j, i, IV) = 1.0;
+  }
+
+  /**
+   * @brief Simple diffusion test with a structure being advected on the grid
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initGaussian(Array Q, int i, int j, const DeviceParams &params, const Geometry &geo) {
+    real_t xmid = 0.5 * (params.xmin+params.xmax);
+    real_t ymid = 0.5 * (params.ymin+params.ymax);
+
+    Pos pos = geo.mapc2p_center(i,j);
+
+    real_t x0 = (pos[IX]-xmid);
+    real_t y0 = (pos[IY]-ymid);
+
+    real_t r = sqrt(x0*x0+y0*y0);
+
+    Q(j, i, IR) = 1.0 * exp(-100. * r*r/2);
+    Q(j, i, IP) = 1.0;
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
   }
 
   /**
@@ -521,6 +542,7 @@ enum InitType {
   RAYLEIGH_TAYLOR,
   ISOTH_STATIC,
   DIFFUSION,
+  GAUSSIAN,
   H84,
   C91,
   
@@ -551,6 +573,7 @@ public:
       {"smoothblast", SMOOTHBLAST},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
+      {"gaussian", GAUSSIAN},
       {"H84", H84},
       {"C91", C91},
 
@@ -593,6 +616,7 @@ public:
                               case SMOOTHBLAST:     initSmoothBlast(Q, i, j, params, geometry); break;
 
                               case DIFFUSION:       initDiffusion(Q, i, j, params, geometry); break;
+                              case GAUSSIAN:        initGaussian(Q, i, j, params, geometry); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params, geometry, random_pool); break;
                               // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;

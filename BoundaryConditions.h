@@ -5,6 +5,7 @@
 
 #include "Gravity.h"
 #include "SimInfo.h"
+#include "Gravity.h"
 
 namespace fv2d
 {

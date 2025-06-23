@@ -230,7 +230,7 @@ public:
             State qL  = reconstruct(Q, slopes, weno_struct, i + dxm, j + dym, 1.0, dir, params);
             State qR  = reconstruct(Q, slopes, weno_struct, i + dxp, j + dyp, -1.0, dir, params);
 
-            const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
+            const real_t gdx = (dir == IX ? 0.0 : getGravity(i, j, IY, params) * params.dy);
 
             // Calling the right Riemann solver
             auto riemann = [&](State qL, State qR, State &flux, int side, real_t &pout)

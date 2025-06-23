@@ -44,7 +44,7 @@ namespace {
           res[ivar] = WeightXL(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightXL(1, j, i, ivar) * PxL(1, j, i, ivar) + WeightXL(2, j, i, ivar) * PxL(2, j, i, ivar);
         };
         /*
-        if (i==19 && j==8){
+        if (i==35 && j==8){
           printf("rho R = %lf; centered = %lf\n", res[IR], Q(j, i, IR));
           printf("BetaX 0 = %lf\n", BetaX(0, j, i, IR));
           printf("BetaX 2 = %lf\n", BetaX(2, j, i, IR));
@@ -57,7 +57,7 @@ namespace {
           res[ivar] = WeightXR(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightXR(1, j, i, ivar) * PxR(1, j, i, ivar) + WeightXR(2, j, i, ivar) * PxR(2, j, i, ivar);
         };
         /*
-        if (i==18 && j==8){
+        if (i==34 && j==8){
           printf("rho L = %lf; centered = %lf\n", res[IR], Q(j, i, IR));
           printf("BetaX 0 = %lf\n", BetaX(0, j, i, IR));
           printf("BetaX 2 = %lf\n", BetaX(2, j, i, IR));
@@ -238,7 +238,7 @@ public:
           State qL  = reconstruct(Q, slopes, weno_struct, i+dxm, j+dym, 1.0, dir, params);
           State qR  = reconstruct(Q, slopes, weno_struct, i+dxp, j+dyp, -1.0, dir, params);
 
-          const real_t gdx = (dir == IX ? 0.0 : params.g * params.dy);
+          const real_t gdx = (dir == IX ? 0.0 : getGravity(i, j, IY, params) * params.dy);
 
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, int side, real_t &pout) {

@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "SimInfo.h"
+#include "Gravity.h"
 
 namespace fv2d {
   namespace {
@@ -78,7 +79,7 @@ namespace fv2d {
         State out = getStateFromArray(Q, i, params.jbeg);
         real_t rho = out[IR];
         real_t dy  = params.dy * (params.jbeg - j);
-        real_t p   = out[IP] - dy * rho * params.g;
+        real_t p   = out[IP] - dy * rho * getGravity(i, j, IY, params);
         out[IP] = p;
 
         out[IV] *= -1.0;
@@ -90,7 +91,7 @@ namespace fv2d {
         State out = getStateFromArray(Q, i, params.jend-1);
         real_t rho = out[IR];
         real_t dy  = params.dy * (j - params.jend+1);
-        real_t p   = out[IP] + dy * rho * params.g;        
+        real_t p   = out[IP] + dy * rho * getGravity(i, j, IY, params);        
         out[IP] = p;
 
         out[IV] *= -1.0;

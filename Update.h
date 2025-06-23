@@ -5,6 +5,7 @@
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
 #include "Viscosity.h"
+#include "Gravity.h"
 
 namespace fv2d {
 
@@ -43,7 +44,7 @@ namespace {
           res[ivar] = WeightXL(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightXL(1, j, i, ivar) * PxL(1, j, i, ivar) + WeightXL(2, j, i, ivar) * PxL(2, j, i, ivar);
         };
         /*
-        if (i==19 && j==8){
+        if (i==35 && j==8){
           printf("rho R = %lf; centered = %lf\n", res[IR], Q(j, i, IR));
           printf("BetaX 0 = %lf\n", BetaX(0, j, i, IR));
           printf("BetaX 2 = %lf\n", BetaX(2, j, i, IR));
@@ -56,7 +57,7 @@ namespace {
           res[ivar] = WeightXR(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightXR(1, j, i, ivar) * PxR(1, j, i, ivar) + WeightXR(2, j, i, ivar) * PxR(2, j, i, ivar);
         };
         /*
-        if (i==18 && j==8){
+        if (i==34 && j==8){
           printf("rho L = %lf; centered = %lf\n", res[IR], Q(j, i, IR));
           printf("BetaX 0 = %lf\n", BetaX(0, j, i, IR));
           printf("BetaX 2 = %lf\n", BetaX(2, j, i, IR));
@@ -106,7 +107,7 @@ namespace {
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
-        res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * params.g * params.dy * 0.5);
+        res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
       }
       break;
       case PLM_WB: // Piecewise linear + Well-balancing 
@@ -237,7 +238,7 @@ public:
           State qL  = reconstruct(Q, slopes, weno_struct, i+dxm, j+dym, 1.0, dir, params);
           State qR  = reconstruct(Q, slopes, weno_struct, i+dxp, j+dyp, -1.0, dir, params);
 
-          const real_t gdx = (dir == IX ? 0.0 : params.g * params.dy);
+          const real_t gdx = (dir == IX ? 0.0 : getGravity(i, j, IY, params) * params.dy);
 
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, int side, real_t &pout) {
@@ -260,18 +261,20 @@ public:
 
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
+            real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
             else 
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
         
-          if (dir == IY && params.gravity && params.riemann_solver != FSLP) {
-            un_loc[IV] += dt * Q(j, i, IR) * params.g;
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+          if (params.gravity_mode != GRAV_NONE) {
+            real_t g = getGravity(i, j, dir, params);
+            un_loc[IV] += dt * Q(j, i, IR) * g;
+            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
 
           setStateInArray(Unew, i, j, un_loc);

@@ -82,14 +82,57 @@ namespace {
     if (r < 0.2) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
       Q(j, i, IP) = 10.0;
     }
     else {
       Q(j, i, IR) = 1.2;
       Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
       Q(j, i, IP) = 0.1;
     }
   }
+
+
+  /**
+   * @brief Rising bubble initial conditions
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initHotBubble(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    real_t xr = params.hot_bubble_x0 - x;
+    real_t yr = params.hot_bubble_y0 - y;
+    real_t r = sqrt(xr*xr+yr*yr);
+
+    real_t ky = 2.0 * M_PI / params.ymax;
+    real_t coeff_gamma = 1 - 1/params.gamma0;
+
+    real_t prs = coeff_gamma * (1 - Kokkos::cos(ky * y)) * params.hot_bubble_g0 / (ky * pow(params.hot_bubble_A0, 1/params.gamma0));
+    prs += pow(params.hot_bubble_p0, coeff_gamma);
+    prs = pow(prs, 1/coeff_gamma);
+
+    real_t coeff_rad = Kokkos::cos(M_PI / 2.0 * r / params.hot_bubble_r0);
+
+    real_t A_inside = params.hot_bubble_A0 * (1 + params.hot_bubble_amplitude * coeff_rad * coeff_rad);
+
+    if (r <= params.hot_bubble_r0) {
+      Q(j, i, IR) = pow(prs/A_inside, 1/params.gamma0);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = prs;
+    }
+    else {
+      Q(j, i, IR) = pow(prs/params.hot_bubble_A0, 1/params.gamma0);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = prs;
+    }
+  
+  }
+  
 
   /**
    * @brief Stratified convection based on Hurlburt et al 1984
@@ -179,12 +222,12 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     else {
       Q(j, i, IR) = 2.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
 
     if (y > -1.0/3.0 && y < 1.0/3.0)
@@ -407,6 +450,7 @@ enum InitType {
   SOD_X_INVERSE,
   SOD_Y,
   BLAST,
+  HOT_BUBBLE,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
@@ -429,6 +473,7 @@ public:
       {"sod_x_inverse", SOD_X_INVERSE},
       {"sod_y", SOD_Y},
       {"blast", BLAST},
+      {"hot_bubble", HOT_BUBBLE},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
@@ -461,6 +506,7 @@ public:
                               case SOD_X_INVERSE:   initSodXInverse(Q, i, j, params); break;
                               case SOD_Y:           initSodY(Q, i, j, params); break;
                               case BLAST:           initBlast(Q, i, j, params); break;
+                              case HOT_BUBBLE:      initHotBubble(Q, i, j, params); break;
                               case DIFFUSION:       initDiffusion(Q, i, j, params); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;

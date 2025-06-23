@@ -315,6 +315,12 @@ struct DeviceParams
 
   // Hot bubble
   real_t hot_bubble_g0;
+  real_t hot_bubble_x0;
+  real_t hot_bubble_y0;
+  real_t hot_bubble_r0;
+  real_t hot_bubble_A0;
+  real_t hot_bubble_amplitude;
+  real_t hot_bubble_p0;
 
   // Kelvin-Helmholtz
   real_t kh_y1, kh_y2;
@@ -458,14 +464,24 @@ struct DeviceParams
     kh_amp     = reader.GetFloat("kelvin_helmholtz", "amp", 0.01);
     kh_P0      = reader.GetFloat("kelvin_helmholtz", "P0", 1.0);
     kh_rho_fac = reader.GetFloat("kelvin_helmholtz", "rho_fac", 0.0);
-    kh_sigma   = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
-    kh_uflow   = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
-    kh_y1      = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
-    kh_y2      = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
+    kh_sigma = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
+    kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
+    kh_y1    = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
+    kh_y2    = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
+    
+    // Gresho Vortex
+    gresho_density = reader.GetFloat("gresho_vortex", "density",  1.0);
+    gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach",     0.1);
 
-    // Gresho vortex
-    gresho_density = reader.GetFloat("gresho_vortex", "density", 1.0);
-    gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach", 0.1);
+    // Hot bubble
+    hot_bubble_g0        = reader.GetFloat("hot_bubble", "g0", 0.0);
+    hot_bubble_x0        = reader.GetFloat("hot_bubble", "x0", 0.5);
+    hot_bubble_y0        = reader.GetFloat("hot_bubble", "y0", 0.5);
+    hot_bubble_r0        = reader.GetFloat("hot_bubble", "r0", 0.2);
+    hot_bubble_A0        = reader.GetFloat("hot_bubble", "A0", 1.0);
+    hot_bubble_amplitude = reader.GetFloat("hot_bubble", "amplitude", 1.0e-3);
+    hot_bubble_p0        = reader.GetFloat("hot_bubble", "p0", 1.0e6);
+
   }
 };
 

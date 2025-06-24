@@ -185,7 +185,7 @@ void initHotBubble(Array Q, int i, int j, const DeviceParams &params) {
 
   real_t A_inside = params.hot_bubble_A0 * (1 + params.hot_bubble_amplitude * coeff_rad * coeff_rad);
 
-  if (r <= params.hot_bubble_r0) {
+  if (r <= params.hot_bubble_r0 && params.hot_bubble_has_bubble) {
     Q(j, i, IR) = pow(prs/A_inside, 1/params.gamma0);
     Q(j, i, IU) = 0.0;
     Q(j, i, IV) = 0.0;
@@ -197,9 +197,8 @@ void initHotBubble(Array Q, int i, int j, const DeviceParams &params) {
     Q(j, i, IV) = 0.0;
     Q(j, i, IP) = prs;
   }
-
 }
-
+  
 /**
  * @brief Sod Shock tube aligned along the Y axis
  */

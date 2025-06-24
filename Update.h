@@ -273,7 +273,7 @@ public:
         
           if (params.gravity_mode != GRAV_NONE && params.riemann_solver != FSLP) {
             real_t g = getGravity(i, j, dir, params);
-            un_loc[IV] += dt * Q(j, i, IR) * g;
+            un_loc[dir == IX ? IU : IV] += dt * Q(j, i, IR) * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
 

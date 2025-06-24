@@ -153,6 +153,7 @@ struct DeviceParams {
   real_t hot_bubble_A0;
   real_t hot_bubble_amplitude;
   real_t hot_bubble_p0;
+  bool   hot_bubble_has_bubble;
 
   // Kelvin-Helmholtz
   real_t kh_y1, kh_y2;
@@ -324,6 +325,7 @@ struct DeviceParams {
     hot_bubble_A0 = reader.GetFloat("hot_bubble", "A0", 1.0);
     hot_bubble_amplitude = reader.GetFloat("hot_bubble", "amplitude", 1.0e-3);
     hot_bubble_p0 = reader.GetFloat("hot_bubble", "p0", 1.0e6);
+    hot_bubble_has_bubble = reader.GetBoolean("hot_bubble", "has_bubble", true);
 
   }
 };

@@ -18,7 +18,8 @@ float getAnalyticalGravity(int i, int j, IDir dir, const DeviceParams &params) {
 
   switch(params.analytical_gravity_mode) {
     case AGM_HOT_BUBBLE: 
-    default: g = params.hot_bubble_g0 * Kokkos::sin(pos[IY] * M_PI * 2.0 / params.ymax); 
+    default: 
+    g = (dir == IY ? params.hot_bubble_g0 * Kokkos::sin(pos[IY] * M_PI * 2.0 / params.ymax) : 0.0);
   }
 
   return g;

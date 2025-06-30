@@ -72,7 +72,8 @@ enum ReconstructionType {
   PCM_WB,
   PLM,
   PLM_WB,
-  WENO3
+  WENO3,
+  CWENO4
 };
 
 enum ThermalConductivityMode {
@@ -231,7 +232,8 @@ struct DeviceParams {
       {"pcm_wb", PCM_WB},
       {"plm",    PLM},
       {"plm_wb", PLM_WB},
-      {"weno3",  WENO3}
+      {"weno3",  WENO3},
+      {"cweno4", CWENO4}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
 

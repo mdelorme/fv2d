@@ -16,8 +16,12 @@ namespace {
     WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
   };
 
+  struct CWENOStruct {
+    WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightX, WeightY;
+  };
+
   /**
-   * @brief Reconstructs interfqce stqte using WENO3 method
+   * @brief Reconstructs interface state using WENO3 method
    * 
    * @param Q The primitive variables array
    */
@@ -25,7 +29,6 @@ namespace {
   State reconstruct_weno3(Array Q, IDir dir, real_t sign, WENOStruct weno_struct, int i, int j, const DeviceParams &params) {
     State res;
     
-    // .... 
     auto &PxL = weno_struct.PxL;
     auto &PxR = weno_struct.PxR;
     auto &PyL = weno_struct.PyL;
@@ -81,6 +84,54 @@ namespace {
     return res;
   }
 
+
+  /**
+   * @brief Reconstructs interface state using CWENO4 method
+   * 
+   * @param Q The primitive variables array
+   */
+  KOKKOS_INLINE_FUNCTION
+  State reconstruct_cweno4(Array Q, IDir dir, real_t sign, CWENOStruct cweno_struct, int i, int j, const DeviceParams &params) {
+    State res;
+    
+    auto &PxL = cweno_struct.PxL;
+    auto &PxR = cweno_struct.PxR;
+    auto &PyL = cweno_struct.PyL;
+    auto &PyR = cweno_struct.PyR;
+    auto &BetaX = cweno_struct.BetaX;
+    auto &BetaY = cweno_struct.BetaY;
+    auto &WeightX = cweno_struct.WeightX;
+    auto &WeightY = cweno_struct.WeightY;
+    
+
+    if (dir == IX){
+      if (sign <0){
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightX(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightX(1, j, i, ivar) * PxL(1, j, i, ivar) + WeightX(2, j, i, ivar) * PxL(2, j, i, ivar);
+        }
+      } else {
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightX(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightX(1, j, i, ivar) * PxR(1, j, i, ivar) + WeightX(2, j, i, ivar) * PxR(2, j, i, ivar);
+        }
+      }
+
+    } else if (dir == IY){
+      if (sign <0){
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightY(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightY(1, j, i, ivar) * PyL(1, j, i, ivar) + WeightY(2, j, i, ivar) * PyL(2, j, i, ivar);
+        }
+      } else {
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightY(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightY(1, j, i, ivar) * PyR(1, j, i, ivar) + WeightY(2, j, i, ivar) * PyR(2, j, i, ivar);
+        }
+      }
+    }
+    
+    return res;
+  }
+
+
+
   /**
    * @brief MUSCL-type reconstruction for the hydro update
    * 
@@ -89,10 +140,11 @@ namespace {
    *  . PLM : Piecewise Linear Method, using the slopes to reconstruct (2nd order)
    *  . PCM_WB : Piecewise Constant Method + Well-balancing (1st order), taken from Kappeli & Mishra 2016
    *  . PLM_WB : Piecewise Linear Method + Well-balancing (2nd order), taken from Kappeli & Mishra 2016
-   *  . WENO3 : Weighted Essentially Non Oscillatory Scheme 
+   *  . WENO3 : Weighted Essentially Non Oscillatory Scheme (5th order)
+   *  . CWENO4 : Centrally Weighted Essentially Non Oscillatory Scheme (4th order)
    */
   KOKKOS_INLINE_FUNCTION
-  State reconstruct(Array Q, Array slopes, WENOStruct weno_struct, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
+  State reconstruct(Array Q, Array slopes, WENOStruct weno_struct, CWENOStruct cweno_struct, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
     State q     = getStateFromArray(Q, i, j);
     
     State res;
@@ -141,6 +193,7 @@ namespace {
 
       } break;
       case WENO3: res = reconstruct_weno3(Q, dir, sign, weno_struct, i, j, params); break;
+      case CWENO4: res = reconstruct_cweno4(Q, dir, sign, cweno_struct, i, j, params); break;
       default:  res = q; // Piecewise Constant
     }
 
@@ -161,6 +214,9 @@ public:
   // WENO3
   WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
 
+  // CWENO4
+  WENOArray WeightX, WeightY;
+
   UpdateFunctor(const Params &full_params)
     : full_params(full_params), bc_manager(full_params),
       tc_functor(full_params), visc_functor(full_params) {
@@ -180,6 +236,16 @@ public:
         WeightXR  = WENOArray("WeightXR",  3, device_params.Nty, device_params.Ntx, Nfields);
         WeightYL  = WENOArray("WeightYL",  3, device_params.Nty, device_params.Ntx, Nfields);
         WeightYR  = WENOArray("WeightYR",  3, device_params.Nty, device_params.Ntx, Nfields);
+      }
+      else if (device_params.reconstruction == CWENO4) {
+        PxL = WENOArray("PxL", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PxR = WENOArray("PxR", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PyL = WENOArray("PyL", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PyR = WENOArray("Pyr", 3, device_params.Nty, device_params.Ntx, Nfields);
+        BetaX  = WENOArray("BetaX",  3, device_params.Nty, device_params.Ntx, Nfields);
+        BetaY  = WENOArray("BetaY",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightX  = WENOArray("WeightX",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightY  = WENOArray("WeightY",  3, device_params.Nty, device_params.Ntx, Nfields);
       }
     };
   ~UpdateFunctor() = default;
@@ -221,6 +287,8 @@ public:
 
     WENOStruct weno_struct {PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR};
 
+    CWENOStruct cweno_struct {PxL, PxR, PyL, PyR, BetaX, BetaY, WeightX, WeightY};
+
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
@@ -233,10 +301,10 @@ public:
           int dym = (dir == IY ? -1 : 0);
           int dyp = (dir == IY ?  1 : 0);
 
-          State qCR = reconstruct(Q, slopes, weno_struct, i, j,  1.0, dir, params);
-          State qCL = reconstruct(Q, slopes, weno_struct, i, j, -1.0, dir, params);
-          State qL  = reconstruct(Q, slopes, weno_struct, i+dxm, j+dym, 1.0, dir, params);
-          State qR  = reconstruct(Q, slopes, weno_struct, i+dxp, j+dyp, -1.0, dir, params);
+          State qCR = reconstruct(Q, slopes, weno_struct, cweno_struct, i, j,  1.0, dir, params);
+          State qCL = reconstruct(Q, slopes, weno_struct, cweno_struct, i, j, -1.0, dir, params);
+          State qL  = reconstruct(Q, slopes, weno_struct, cweno_struct, i+dxm, j+dym, 1.0, dir, params);
+          State qR  = reconstruct(Q, slopes, weno_struct, cweno_struct, i+dxp, j+dyp, -1.0, dir, params);
 
           const real_t gdx = (dir == IX ? 0.0 : getGravity(i, j, IY, params) * params.dy);
 
@@ -316,6 +384,9 @@ public:
       });
   }
   
+  /**
+  * @brief Weights computation for WENO scheme
+  */
   void compute_weno_w(Array Q) {
     auto WeightXL = this->WeightXL;
     auto WeightXR = this->WeightXR;
@@ -384,6 +455,50 @@ public:
 
   }
 
+  /**
+  * @brief Weights computation for CWENO scheme
+  */
+  void compute_c_weno_w(Array Q) {
+    auto WeightX = this->WeightX;
+    auto WeightY = this->WeightY;
+    auto BetaX = this->BetaX;
+    auto BetaY = this->BetaY;
+
+    Kokkos::parallel_for(
+      "Weno Weights",
+      full_params.range_slopes,
+      KOKKOS_LAMBDA(const int i, const int j) {
+
+      real_t eps = 1.0e-6; //epsilon choice
+
+        for (int ivar=0; ivar < Nfields; ++ivar) {
+          ////// Selon X
+          WeightX(0, j, i, ivar) = 3/16.0 * 1/((eps + BetaX(0, j, i, ivar)) * (eps + BetaX(0, j, i, ivar)));
+          WeightX(1, j, i, ivar) = 5/8.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
+          WeightX(2, j, i, ivar) = 3/16.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
+
+          real_t sumX = WeightX(0, j, i, ivar) + WeightX(1, j, i, ivar) + WeightX(2, j, i, ivar);
+
+          WeightX(0, j, i, ivar) /= sumX;
+          WeightX(1, j, i, ivar) /= sumX;
+          WeightX(2, j, i, ivar) /= sumX;
+
+          ////// Selon Y
+          WeightY(0, j, i, ivar) = 3/16.0 * 1/((eps + BetaY(0, j, i, ivar)) * (eps + BetaY(0, j, i, ivar)));
+          WeightY(1, j, i, ivar) = 5/8.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
+          WeightY(2, j, i, ivar) = 3/16.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
+
+          real_t sumY = WeightY(0, j, i, ivar) + WeightY(1, j, i, ivar) + WeightY(2, j, i, ivar);
+
+          WeightY(0, j, i, ivar) /= sumY;
+          WeightY(1, j, i, ivar) /= sumY;
+          WeightY(2, j, i, ivar) /= sumY;
+
+        }
+      });
+
+  }
+
   void compute_weno_P(Array Q) {
     auto PxL = this->PxL;
     auto PxR = this->PxR;
@@ -430,6 +545,11 @@ public:
     else if (full_params.device_params.reconstruction == WENO3) {
       compute_weno_beta(Q);
       compute_weno_w(Q);
+      compute_weno_P(Q);
+    }
+    else if (full_params.device_params.reconstruction == CWENO4) {
+      compute_weno_beta(Q);
+      compute_c_weno_w(Q);
       compute_weno_P(Q);
     }
     computeFluxesAndUpdate(Q, Unew, dt);

@@ -64,15 +64,16 @@ public:
 class HeatingFunctor {
   public:
     Params full_params;
+    Geometry geometry;
   
     HeatingFunctor(const Params &full_params) 
-      : full_params(full_params) {};
+      : full_params(full_params), geometry(full_params.device_params) {};
     ~HeatingFunctor() = default;
   
     void applyHeating(Array Q, Array Unew, real_t dt) {
       auto full_params = this->full_params;
       auto params = full_params.device_params;
-      const real_t omega = params.coriolis_omega; 
+      auto geometry = this->geometry;
   
       Kokkos::parallel_for(
         "Heating", 
@@ -85,7 +86,6 @@ class HeatingFunctor {
         });
     }
   };
-}
 
 class CoriolisFunctor {
   public:

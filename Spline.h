@@ -9,7 +9,8 @@ class Spline {
 // using real_t = double;
 
 public:
-  enum ReadfileOffset { OF_RHO, OF_PRS, OF_GRAVITY, OF_KAPPA, OF_HEATING, };
+  enum ReadfileOffset { OF_RHO, OF_PRS, OF_GRAVITY, OF_KAPPA, OF_HEATING, OF_NRHO};
+  // enum ReadfileOffset { OF_RHO, OF_PRS, OF_GRAVITY, OF_KAPPA, OF_HEATING, };
   Spline() = default;
 
   Spline(std::string filename, ReadfileOffset off)
@@ -65,10 +66,16 @@ public:
   }
 
 private:
+  // struct {
+  //   uint32_t N;
+  //   uint32_t offset_variable[5];
+  //   real_t r0, dr, rcut;
+  //   real_t Cp, R, gamma;
+  // } header;
   struct {
     uint32_t N;
-    uint32_t offset_variable[5];
-    real_t r0, dr, rcut;
+    uint32_t offset_variable[6];
+    real_t r0, dr, r_cz;
     real_t Cp, R, gamma;
   } header;
   Kokkos::View<real_t*[4]> spline;

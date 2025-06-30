@@ -61,6 +61,32 @@ public:
   }
 };
 
+class HeatingFunctor {
+  public:
+    Params full_params;
+  
+    HeatingFunctor(const Params &full_params) 
+      : full_params(full_params) {};
+    ~HeatingFunctor() = default;
+  
+    void applyHeating(Array Q, Array Unew, real_t dt) {
+      auto full_params = this->full_params;
+      auto params = full_params.device_params;
+      const real_t omega = params.coriolis_omega; 
+  
+      Kokkos::parallel_for(
+        "Heating", 
+        full_params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          Pos pos = geometry.mapc2p_center(i,j);
+          const real_t r = norm(pos);
+          real_t Q = params.spl_heating.GetValue(r);
+          Unew(j, i, IE) += dt * Q;
+        });
+    }
+  };
+}
+
 class CoriolisFunctor {
   public:
     Params full_params;

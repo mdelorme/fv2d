@@ -160,15 +160,17 @@ public:
   ViscosityFunctor visc_functor;
   GravityFunctor grav_functor;
   CoriolisFunctor coriolis_functor;
+  HeatingFunctor heating_functor;
   Geometry geometry;
 
   Array slopesX, slopesY;
   Array psi;
 
   UpdateFunctor(const Params &full_params)
-    : full_params(full_params), bc_manager(full_params),
-      tc_functor(full_params), visc_functor(full_params), grav_functor(full_params), coriolis_functor(full_params),
-      geometry(full_params.device_params) {
+    : full_params(full_params),     bc_manager(full_params),
+      tc_functor(full_params),      visc_functor(full_params), 
+      grav_functor(full_params),    coriolis_functor(full_params),
+      heating_functor(full_params), geometry(full_params.device_params) {
       
       auto device_params = full_params.device_params;
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
@@ -767,6 +769,8 @@ public:
       grav_functor.applyGravity(Q, Unew, dt);
     if (full_params.device_params.coriolis_active)
       coriolis_functor.applyCoriolis(Q, Unew, dt);
+    if (full_params.device_params.heating != HEAT_NONE)
+      heating_functor.applyHeating(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt) {

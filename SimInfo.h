@@ -131,6 +131,11 @@ enum GravityType {
   GRAV_READFILE,
 };
 
+enum HeatingType { 
+  HEAT_NONE,
+  HEAT_READFILE,
+};
+
 enum GradientType { 
   LEAST_SQUARE,
   LEAST_SQUARE_WIDE,
@@ -181,6 +186,8 @@ struct DeviceParams {
   real_t g;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
+
+  HeatingType heating = HEAT_NONE;
   
   // Thermal conductivity
   bool thermal_conductivity_active;
@@ -263,7 +270,7 @@ struct DeviceParams {
 
 
   // Splines
-  Spline spl_rho, spl_prs, spl_grav;
+  Spline spl_rho, spl_prs, spl_grav, spl_heating;
   real_t pert;
 
   /////////////////////////////////////////////////////////
@@ -317,6 +324,13 @@ struct DeviceParams {
       {"readfile",      GRAV_READFILE},
     };
     gravity = read_map(reader, gravity_map, "physics", "gravity", "false");
+
+    std::map<std::string, HeatingType> heating_map{
+      {"none",          HEAT_NONE},
+      {"false",         HEAT_NONE},
+      {"readfile",      HEAT_READFILE},
+    };
+    heating = read_map(reader, heating_map, "physics", "heating", "false");
 
     coriolis_active = reader.GetBoolean("coriolis", "active", false);
     coriolis_omega = reader.GetFloat("coriolis", "omega", 2.8329587910568913e-06);
@@ -436,6 +450,8 @@ struct DeviceParams {
     }
     if (gravity == GRAV_READFILE)
       spl_grav = Spline(spline_data_path, Spline::OF_GRAVITY);
+    if (heating == HEAT_READFILE)
+      spl_heating = Spline(spline_data_path, Spline::OF_HEATING);
     
     pert = reader.GetFloat("physics", "perturbation", 1.0e-3);
     

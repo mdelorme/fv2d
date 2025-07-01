@@ -191,7 +191,7 @@ public:
   // Muscl Slopes
   Array slopesX, slopesY;
 
-  // WENO3
+  // WENO5
   WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
 
   // CWENO4

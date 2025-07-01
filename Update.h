@@ -21,12 +21,12 @@ namespace {
   };
 
   /**
-   * @brief Reconstructs interface state using WENO3 method
+   * @brief Reconstructs interface state using WENO5 method
    * 
    * @param Q The primitive variables array
    */
   KOKKOS_INLINE_FUNCTION
-  State reconstruct_weno3(Array Q, IDir dir, real_t sign, WENOStruct weno_struct, int i, int j, const DeviceParams &params) {
+  State reconstruct_weno5(Array Q, IDir dir, real_t sign, WENOStruct weno_struct, int i, int j, const DeviceParams &params) {
     State res;
     
     auto &PxL = weno_struct.PxL;
@@ -140,7 +140,7 @@ namespace {
    *  . PLM : Piecewise Linear Method, using the slopes to reconstruct (2nd order)
    *  . PCM_WB : Piecewise Constant Method + Well-balancing (1st order), taken from Kappeli & Mishra 2016
    *  . PLM_WB : Piecewise Linear Method + Well-balancing (2nd order), taken from Kappeli & Mishra 2016
-   *  . WENO3 : Weighted Essentially Non Oscillatory Scheme (5th order)
+   *  . WENO5 : Weighted Essentially Non Oscillatory Scheme (5th order)
    *  . CWENO4 : Centrally Weighted Essentially Non Oscillatory Scheme (4th order)
    */
   KOKKOS_INLINE_FUNCTION
@@ -192,7 +192,7 @@ namespace {
         }*/
 
       } break;
-      case WENO3: res = reconstruct_weno3(Q, dir, sign, weno_struct, i, j, params); break;
+      case WENO5: res = reconstruct_weno5(Q, dir, sign, weno_struct, i, j, params); break;
       case CWENO4: res = reconstruct_cweno4(Q, dir, sign, cweno_struct, i, j, params); break;
       default:  res = q; // Piecewise Constant
     }
@@ -211,7 +211,7 @@ public:
   // Muscl Slopes
   Array slopesX, slopesY;
 
-  // WENO3
+  // WENO5
   WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
 
   // CWENO4
@@ -225,7 +225,7 @@ public:
         slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
         slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
       }
-      else if (device_params.reconstruction == WENO3) {
+      else if (device_params.reconstruction == WENO5) {
         PxL = WENOArray("PxL", 3, device_params.Nty, device_params.Ntx, Nfields);
         PxR = WENOArray("PxR", 3, device_params.Nty, device_params.Ntx, Nfields);
         PyL = WENOArray("PyL", 3, device_params.Nty, device_params.Ntx, Nfields);
@@ -542,7 +542,7 @@ public:
     // Hyperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
-    else if (full_params.device_params.reconstruction == WENO3) {
+    else if (full_params.device_params.reconstruction == WENO5) {
       compute_weno_beta(Q);
       compute_weno_w(Q);
       compute_weno_P(Q);

@@ -72,7 +72,7 @@ enum ReconstructionType {
   PCM_WB,
   PLM,
   PLM_WB,
-  WENO3,
+  WENO5,
   CWENO4
 };
 
@@ -239,7 +239,7 @@ struct DeviceParams {
       {"pcm_wb", PCM_WB},
       {"plm",    PLM},
       {"plm_wb", PLM_WB},
-      {"weno3",  WENO3},
+      {"weno5",  WENO5},
       {"cweno4", CWENO4}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");

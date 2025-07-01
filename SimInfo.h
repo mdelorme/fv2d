@@ -165,6 +165,13 @@ struct DeviceParams {
   real_t kh_amp;
   real_t kh_P0;
   
+  // Implosion
+  real_t implosion_p_in;
+  real_t implosion_p_out;
+  real_t implosion_rho_in;
+  real_t implosion_rho_out;
+  real_t implosion_x0;
+  
   // Gresho Vortex
   real_t gresho_density, gresho_Mach;
 
@@ -329,6 +336,12 @@ struct DeviceParams {
     hot_bubble_p0 = reader.GetFloat("hot_bubble", "p0", 1.0e6);
     hot_bubble_has_bubble = reader.GetBoolean("hot_bubble", "has_bubble", true);
 
+    // Implosion
+    implosion_p_in = reader.GetFloat("implosion", "p_in", 0.2);
+    implosion_p_out = reader.GetFloat("implosion", "p_out", 1.0);
+    implosion_rho_in = reader.GetFloat("implosion", "rho_in", 0.1);
+    implosion_rho_out = reader.GetFloat("implosion", "rho_out", 1.0);
+    implosion_x0 = reader.GetFloat("implosion", "x0", 0.5);
   }
 };
 

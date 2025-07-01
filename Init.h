@@ -438,9 +438,34 @@ namespace {
     Q(j, i, IV) =  xnr * u_phi;
     
   }
+
+  /**
+   * @brief Implosion setup
+   */
+   KOKKOS_INLINE_FUNCTION
+   void initImplosion(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    if (y < x-params.implosion_x0) {
+      Q(j, i, IR) = params.implosion_rho_in;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = params.implosion_p_in;
+    }
+    else {
+      Q(j, i, IR) = params.implosion_rho_out;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = params.implosion_p_out;
+    }
+    
+   }
+
+
 }
-
-
+  
 
 /**
  * @brief Enum describing the type of initialization possible
@@ -458,7 +483,8 @@ enum InitType {
   PROFILE,
   GRESHO_VORTEX,
   LAXLIU3,
-  LAXLIU13
+  LAXLIU13,
+  IMPLOSION
 };
 
 struct InitFunctor {
@@ -481,7 +507,8 @@ public:
       {"profile", PROFILE},
       {"gresho_vortex", GRESHO_VORTEX},
       {"lax_liu_3", LAXLIU3},
-      {"lax_liu_13", LAXLIU13}
+      {"lax_liu_13", LAXLIU13},
+      {"implosion", IMPLOSION}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -514,6 +541,7 @@ public:
                               case GRESHO_VORTEX:   initGreshoVortex(Q, i, j, params); break;
                               case LAXLIU3:         initLaxLiu3(Q, i, j, params); break;
                               case LAXLIU13:        initLaxLiu13(Q, i, j, params); break;
+                              case IMPLOSION:       initImplosion(Q, i, j, params); break;
                               default: break;
                             }
                           });

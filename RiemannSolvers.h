@@ -546,7 +546,7 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
 }
 
 KOKKOS_INLINE_FUNCTION
-State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &params) {
+State DerigsMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &params) {
   // Implementation inspired by fluxo : https://github.com/project-fluxo/fluxo.git
   const State q = 0.5 * (qL + qR); //{{q}}
   const real_t rhoL = qL[IU], pL = qL[IP], psiL = qL[IPSI];
@@ -884,7 +884,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
 }
 
 KOKKOS_INLINE_FUNCTION
-State getScalarDissipation(State &qL, State &qR, const DeviceParams &params) {
+State DissipationLLF(State &qL, State &qR, const DeviceParams &params) {
   State Lmax {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   State q = 0.5 * (qL + qR);
   const real_t lambdaMaxLocal = Kokkos::max(
@@ -903,7 +903,7 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const 
   FluxKEPEC(qL, qR, flux, pout, ch, params);
   // 2. Compute the dissipation term for the KEPES flux
   // State dissipative_term = getScalarDissipation(qL, qR, params);
-  State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
+  State dissipative_term = DerigsMatrixDissipation(qL, qR, ch, params);
   flux -= 0.5 * dissipative_term; // Subtract the dissipation term
 }
 

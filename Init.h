@@ -517,6 +517,9 @@ namespace {
     real_t pert = params.pert * (generator.drand(-1.0, 1.0));
     random_pool.free_state(generator);
 
+    if (r < params.pert_radius)
+      pert = 0;
+
 
     Q(j, i, IR) = params.spl_rho(r);
     Q(j, i, IU) = 0.0;

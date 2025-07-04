@@ -83,16 +83,14 @@ namespace {
 
   KOKKOS_INLINE_FUNCTION
   Kokkos::Array<State, 2> reconstruct(Array Q, Array slopesX, Array slopesY, Array psi, int i, int j, IDir dir, ISide side, const Geometry& geometry, const DeviceParams &params) {
-    // int sx = (dir == IX ? 1 : 0);
-    // int sy = (dir == IY ? 1 : 0);
-    // int iL = i - (side == ILEFT ? sx : 0 );
-    // int jL = j - (side == ILEFT ? sy : 0 );
-    // int iR = i + (side == ILEFT ?  0 : sx);
-    // int jR = j + (side == ILEFT ?  0 : sy);
     int iL = i - (side == ILEFT  && dir == IX);
     int jL = j - (side == ILEFT  && dir == IY);
     int iR = i + (side == IRIGHT && dir == IX);
     int jR = j + (side == IRIGHT && dir == IY);
+
+    real_t r = norm(geometry.faceCenter(i, j, dir, side));
+    const real_t rho0 = params.spl_rho(r);
+    const real_t prs0 = params.spl_prs(r);  
 
     Kokkos::Array<State, 2> q;
 
@@ -121,7 +119,10 @@ namespace {
         break;
       }
     }
-
+    q[ILEFT][IR]  = q[ILEFT][IR]  * rho0;
+    q[ILEFT][IP]  = q[ILEFT][IP]  * prs0;
+    q[IRIGHT][IR] = q[IRIGHT][IR] * rho0;
+    q[IRIGHT][IP] = q[IRIGHT][IP] * prs0;
     return q;
   }
 
@@ -364,17 +365,17 @@ public:
 
             if (dir==IX && (i==params.ibeg || i==params.iend-1)) { 
               State &q = (i==params.ibeg) ? qL : qR;
-              q[IR] = params.spl_rho.GetValue(params.radial_radius);
+              q[IR] = 1; // params.spl_rho.GetValue(params.radial_radius);
               q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
               q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
-              q[IP] = params.spl_prs.GetValue(params.radial_radius);
+              q[IP] = 1; // params.spl_prs.GetValue(params.radial_radius);
             }
             if (dir==IY && (j==params.jbeg || j==params.jend-1)) { 
               State &q = (j==params.jbeg) ? qL : qR;
-              q[IR] = params.spl_rho.GetValue(params.radial_radius);
+              q[IR] = 1; // params.spl_rho.GetValue(params.radial_radius);
               q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
               q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
-              q[IP] = params.spl_prs.GetValue(params.radial_radius);
+              q[IP] = 1; // params.spl_prs.GetValue(params.radial_radius);
             }
           }
 
@@ -453,6 +454,31 @@ public:
           setStateInArray(Unew, i, j, primToCons(q, params));
         }
         #endif
+
+        { // alpha beta scheme 
+          real_t len;
+          Pos lenL = geometry.getRotationMatrix(i, j, IX, ILEFT,  len); lenL = lenL * len;
+          Pos lenR = geometry.getRotationMatrix(i, j, IX, IRIGHT, len); lenR = lenR * len;
+          Pos lenD = geometry.getRotationMatrix(i, j, IY, ILEFT,  len); lenD = lenD * len;
+          Pos lenU = geometry.getRotationMatrix(i, j, IY, IRIGHT, len); lenU = lenU * len;
+          real_t r  = norm(geometry.mapc2p_center(i,j));
+          real_t rl = norm(geometry.faceCenter(i, j, IX, ILEFT));
+          real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
+          real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
+          real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
+          const real_t rho   = Unew(j, i, IR);
+          const real_t rho0  = params.spl_rho(r);
+          const real_t prs0l = params.spl_prs(rl);
+          const real_t prs0r = params.spl_prs(rr);
+          const real_t prs0d = params.spl_prs(rd);
+          const real_t prs0u = params.spl_prs(ru);
+
+          const real_t rhogx =   rho / rho0 * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
+          const real_t rhogy =   rho / rho0 * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
+          Unew(j, i, IU) += dt * rhogx;
+          Unew(j, i, IV) += dt * rhogy;
+          Unew(j, i, IE) += dt * (Q(j, i, IU) * rhogx + Q(j, i, IV) * rhogy);
+        }
 
         if (params.use_pressure_gradient) // crash imédiatement avec HLLC, ~ok avec HLL
         {
@@ -747,6 +773,22 @@ public:
   void euler_step(Array Q, Array Unew, real_t dt) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
+
+
+    auto dparams = full_params.device_params;
+    Geometry geometry = this->geometry;
+    Kokkos::parallel_for(
+      "alpha_beta conversion",
+      full_params.range_tot,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        const real_t r = norm(geometry.mapc2p_center(i,j));
+        const real_t rho0 = dparams.spl_rho(r);
+        const real_t prs0 = dparams.spl_prs(r);
+        
+        Q(j, i, IR) = Q(j, i, IR) / rho0;
+        Q(j, i, IP) = Q(j, i, IP) / prs0;
+      });
+
     
     computeSlopes(Q);
     if (full_params.device_params.reconstruction == RECONS_BJ)
@@ -765,8 +807,8 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
-    if (full_params.device_params.gravity != GRAV_NONE)
-      grav_functor.applyGravity(Q, Unew, dt);
+    // if (full_params.device_params.gravity != GRAV_NONE)
+    //   grav_functor.applyGravity(Q, Unew, dt);
     if (full_params.device_params.coriolis_active)
       coriolis_functor.applyCoriolis(Q, Unew, dt);
     if (full_params.device_params.heating != HEAT_NONE)

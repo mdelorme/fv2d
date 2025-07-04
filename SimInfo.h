@@ -271,7 +271,7 @@ struct DeviceParams {
 
   // Splines
   Spline spl_rho, spl_prs, spl_grav, spl_heating;
-  real_t pert;
+  real_t pert, pert_radius;
 
   /////////////////////////////////////////////////////////
   // ring test init
@@ -454,6 +454,7 @@ struct DeviceParams {
       spl_heating = Spline(spline_data_path, Spline::OF_HEATING);
     
     pert = reader.GetFloat("physics", "perturbation", 1.0e-3);
+    pert_radius = reader.GetFloat("physics", "perturbation_radius", 0);
     
     // ring test init
     ring_velocity     = reader.GetFloat("ring", "velocity", 0.1);

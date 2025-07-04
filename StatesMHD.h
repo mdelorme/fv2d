@@ -225,25 +225,21 @@ State primToEntropy(State &q, const DeviceParams &params) {
 
 KOKKOS_INLINE_FUNCTION
 State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params) {
-  const State qJump = qR - qL;
-  const State qAvg = 0.5 * (qL + qR);
-  const real_t rhoLn = logMean(qL[IR], qR[IR]);
-  const real_t betaL = 0.5 * qL[IR]/qL[IP]; 
-  const real_t betaR = 0.5 * qR[IR]/qR[IP];
-  const real_t betaJump = betaR - betaL;
-  const real_t betaAvg = 0.5 * qAvg[IR]/qAvg[IP];
-  const real_t betaLn = 0.5 * rhoLn / logMean(qL[IP], qR[IP]);
-  const real_t v2Avg = 0.5 * (qL[IU]*qL[IU]+qR[IU]*qR[IU] + qL[IV]*qL[IV]+qR[IV]*qR[IV] + qL[IW]*qL[IW]+qR[IW]*qR[IW]);
-  return {
-    qJump[IR]/rhoLn + betaJump/(betaLn*(params.gamma0-1.0)) - v2Avg*betaJump - 2.0*betaAvg*(qAvg[IU]*qJump[IU] + qAvg[IV]*qJump[IV] + qAvg[IW]*qJump[IW]),
-    2.0 * (betaAvg * qJump[IU] + qAvg[IU]*betaJump),
-    2.0 * (betaAvg * qJump[IV] + qAvg[IV]*betaJump),
-    2.0 * (betaAvg * qJump[IW] + qAvg[IW]*betaJump),
-    -2.0 * betaJump,
-    2.0 * (betaAvg * qJump[IBX] + qAvg[IBX]*betaJump),
-    2.0 * (betaAvg * qJump[IBY] + qAvg[IBY]*betaJump),
-    2.0 * (betaAvg * qJump[IBZ] + qAvg[IBZ]*betaJump),
-    2.0 * (betaAvg * qJump[IPSI] + qAvg[IPSI]*betaJump)
-  };
+  State res{};
+  real_t v2L = qL[IU]*qL[IU] + qL[IV]*qL[IV] + qL[IW]*qL[IW];
+  real_t v2R = qR[IU]*qR[IU] + qR[IV]*qR[IV] + qR[IW]*qR[IW];
+  real_t betaL = 0.5 * qL[IR]/qL[IP];
+  real_t betaR = 0.5 * qR[IR]/qR[IP];
+  real_t betaLn = logMean(betaL, betaR);
+  res[IR] = params.gamma0 * (Kokkos::log(qR[IR]/qL[IR]) - Kokkos::log(qR[IP]/qL[IP]))/(params.gamma0 - 1.0) - (betaR*v2R - betaL*v2L);
+  res[IU] = 2.0 * (betaR*qR[IU] - betaL*qL[IU]);
+  res[IV] = 2.0 * (betaR*qR[IV] - betaL*qL[IV]);
+  res[IW] = 2.0 * (betaR*qR[IW] - betaL*qL[IW]);
+  res[IE] = -2.0 * (betaR - betaL);
+  res[IBX] = 2.0 * (betaR*qR[IBX] - betaL*qL[IBX]);
+  res[IBY] = 2.0 * (betaR*qR[IBY] - betaL*qL[IBY]);
+  res[IBZ] = 2.0 * (betaR*qR[IBZ] - betaL*qL[IBZ]);
+  res[IPSI] = 2.0 * (betaR*qR[IPSI] - betaL*qL[IPSI]);
+  return res;
 }
 }

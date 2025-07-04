@@ -63,6 +63,17 @@ Matrix matmul(const Matrix &A, const Matrix &B) {
 }
 
 KOKKOS_INLINE_FUNCTION
+Matrix transpose(const Matrix& inputMatrix) {
+    Matrix transposedMatrix{};
+   for (int i = 0; i < Nfields; ++i){
+     for (int j = 0; j < Nfields; ++j) {
+      transposedMatrix[i][j] = inputMatrix[j][i];
+      }
+    }
+    return transposedMatrix;
+  }
+
+KOKKOS_INLINE_FUNCTION
 real_t dot(const Vect &a, const Vect &b) {
   real_t res = 0.0;
   for (int i = 0; i < 3; ++i) {

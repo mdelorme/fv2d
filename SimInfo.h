@@ -613,7 +613,8 @@ Params readInifile(std::string filename) {
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
   res.range_dom = ParallelRange({res.device_params.ibeg, res.device_params.jbeg}, {res.device_params.iend, res.device_params.jend});
-  res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
+//   res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
+  res.range_xbound = ParallelRange({0, 0}, {res.device_params.Ng, res.device_params.Nty});
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
   

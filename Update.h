@@ -317,7 +317,9 @@ public:
     auto slopesY = this->slopesY;
 
     const real_t dt_half = 0.5 * dt;
-    const real_t gamma = full_params.device_params.gamma0;
+    auto dparams = this->full_params.device_params;
+    const real_t gamma = dparams.gamma0;
+    auto geometry = this->geometry;
 
     // not compatible with plm + non-cartesian
 
@@ -328,6 +330,19 @@ public:
         auto [ r,   u,   v,   p ] = getStateFromArray(Q, i, j);
         auto [drx, dux, dvx, dpx] = getStateFromArray(slopesX, i, j);
         auto [dry, duy, dvy, dpy] = getStateFromArray(slopesY, i, j);
+        
+        Pos u_r = geometry.mapc2p_center(i,j);
+        const real_t radius = norm(u_r);
+        u_r = u_r / radius;
+        const real_t r0 = dparams.spl_rho(radius);
+        const real_t p0 = dparams.spl_prs(radius);
+        const real_t dr0 = dparams.spl_rho.GetDerivative(radius);
+        const real_t dp0 = dparams.spl_prs.GetDerivative(radius);
+
+        drx = drx + r / r0 * dr0 * u_r[IX];
+        dry = dry + r / r0 * dr0 * u_r[IY];
+        dpx = dpx + p / p0 * dp0 * u_r[IX];
+        dpy = dpy + p / p0 * dp0 * u_r[IY];
         
         Q(j, i, IR) = r - dt_half * (u * drx + r * dux          +  v * dry + r * dvy)        ;
         Q(j, i, IU) = u - dt_half * (u * dux + dpx / r          +  v * duy)                  ;
@@ -358,24 +373,34 @@ public:
           auto [qCR, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, IRIGHT, geometry, params);
           
           if (params.fixed_spline_boundaries) {
-            Pos u_r = geometry.mapc2p_center(i,j);
-            const real_t r = norm(u_r);
-            u_r = u_r / r;
-            const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
+            // Pos u_r = geometry.mapc2p_center(i,j);
+            // const real_t r = norm(u_r);
+            // u_r = u_r / r;
+            // const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
 
             if (dir==IX && (i==params.ibeg || i==params.iend-1)) { 
               State &q = (i==params.ibeg) ? qL : qR;
-              q[IR] = 1; // params.spl_rho.GetValue(params.radial_radius);
+              Pos u_r = geometry.faceCenter(i,j, dir, (i==params.ibeg) ? ILEFT : IRIGHT);
+              const real_t r = norm(u_r);
+              u_r = u_r / r;
+              const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
+
+              q[IR] = params.spl_rho(r);
               q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
               q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
-              q[IP] = 1; // params.spl_prs.GetValue(params.radial_radius);
+              q[IP] = params.spl_prs(r);
             }
             if (dir==IY && (j==params.jbeg || j==params.jend-1)) { 
               State &q = (j==params.jbeg) ? qL : qR;
-              q[IR] = 1; // params.spl_rho.GetValue(params.radial_radius);
+              Pos u_r = geometry.faceCenter(i,j, dir, (j==params.jbeg) ? ILEFT : IRIGHT);
+              const real_t r = norm(u_r);
+              u_r = u_r / r;
+              const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
+
+              q[IR] = params.spl_rho(r);
               q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
               q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
-              q[IP] = 1; // params.spl_prs.GetValue(params.radial_radius);
+              q[IP] = params.spl_prs(r);
             }
           }
 
@@ -399,38 +424,20 @@ public:
 
           if (params.reflective_flux || params.reflective_flux_wb)
           {
-            auto get_dP_wb = [&](ISide side) {
-              const Pos center = geometry.mapc2p_center(i,j);
-              const real_t r = norm(center);
-              #if 1
-                const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
-                const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
-              #else
-                const Pos face_to_face = geometry.faceToFace(i,j,dir);
-                const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r * (side==ILEFT?-1.0:1.0);
-              #endif
-              return dP;
-            };
+            // reflective flux ne marche pas bien ==> vitesse radial très élevé au bords dès les premières itérations
+            const real_t p0 = params.spl_prs(params.radial_radius);  
 
             if (dir == IX) {
-              if (i==params.ibeg) {
-                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
-                fluxL = rotate_back(State{0.0, poutL + dP, 0.0, 0.0}, rotL);
-              }
-              else if (i==params.iend-1) {
-                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
-                fluxR = rotate_back(State{0.0, poutR + dP, 0.0, 0.0}, rotR);
-              }
+              if (i==params.ibeg)
+                fluxL = rotate_back(State{0.0, p0, 0.0, 0.0}, rotL);
+              else if (i==params.iend-1)
+                fluxR = rotate_back(State{0.0, p0, 0.0, 0.0}, rotR);
             }
             else {
-              if (j==params.jbeg) {
-                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(ILEFT) : 0;
-                fluxL = rotate_back(State{0.0, poutL + dP, 0.0, 0.0}, rotL);
-              }
-              else if (j==params.jend-1) {
-                real_t dP = (params.reflective_flux_wb) ? get_dP_wb(IRIGHT) : 0;
-                fluxR = rotate_back(State{0.0, poutR + dP, 0.0, 0.0}, rotR);
-              }
+              if (j==params.jbeg)
+                fluxL = rotate_back(State{0.0, p0, 0.0, 0.0}, rotL);
+              else if (j==params.jend-1)
+                fluxR = rotate_back(State{0.0, p0, 0.0, 0.0}, rotR);
             }
           }
 
@@ -440,20 +447,8 @@ public:
           setStateInArray(Unew, i, j, un_loc);
         };
         
-        #if 1
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
-        #else
-        if (norm(geometry.mapc2p_center(i,j)) < params.radial_radius) {
-          updateAlongDir(i, j, IX);
-          updateAlongDir(i, j, IY);
-        }
-        else {
-          real_t r = params.radial_radius;
-          State q = {params.spl_rho(r), 0, 0, params.spl_prs(r)};
-          setStateInArray(Unew, i, j, primToCons(q, params));
-        }
-        #endif
 
         { // alpha beta scheme 
           real_t len;
@@ -466,166 +461,22 @@ public:
           real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
           real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
           real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
-          const real_t rho   = Unew(j, i, IR);
-          const real_t rho0  = params.spl_rho(r);
+          const real_t prs0   = Q(j, i, IP);
           const real_t prs0l = params.spl_prs(rl);
           const real_t prs0r = params.spl_prs(rr);
           const real_t prs0d = params.spl_prs(rd);
           const real_t prs0u = params.spl_prs(ru);
 
-          const real_t rhogx =   rho / rho0 * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
-          const real_t rhogy =   rho / rho0 * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
-          Unew(j, i, IU) += dt * rhogx;
-          Unew(j, i, IV) += dt * rhogy;
-          Unew(j, i, IE) += dt * (Q(j, i, IU) * rhogx + Q(j, i, IV) * rhogy);
-        }
-
-        if (params.use_pressure_gradient) // crash imédiatement avec HLLC, ~ok avec HLL
-        {
-          auto getState = [](const Array& Q, int i, int j){return Q(j,i,IP);};
-          Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, params.gradient_type);
-          Unew(j, i, IU) -= dt * grad[IX];
-          Unew(j, i, IV) -= dt * grad[IY];
+          const real_t sx = prs0 * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
+          const real_t sy = prs0 * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
+          Unew(j, i, IU) += dt * sx;
+          Unew(j, i, IV) += dt * sy;
+          Unew(j, i, IE) += dt * (Q(j, i, IU) * sx + Q(j, i, IV) * sy);
         }
 
         // Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
       });
   }
-
-  // OLD (contient flux reflectif & wb)
-#if 0
-  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
-    auto params = this->params;
-    auto slopesX = this->slopesX;
-    auto slopesY = this->slopesY;
-    auto &geometry = this->geometry;
-
-    Kokkos::parallel_for(
-      "Update", 
-      params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
-        const real_t cellArea = geometry.cellArea(i,j);
-        // Lambda to update the cell along a direction
-        auto updateAlongDir = [&](int i, int j, IDir dir) {
-          auto& slopes = (dir == IX ? slopesX : slopesY);
-          int dxm = (dir == IX ? -1 : 0);
-          int dxp = (dir == IX ?  1 : 0);
-          int dym = (dir == IY ? -1 : 0);
-          int dyp = (dir == IY ?  1 : 0);
-
-          real_t lenL, lenR;
-          Pos rotL = geometry.getRotationMatrix(i, j, dir, ILEFT,  lenL);
-          Pos rotR = geometry.getRotationMatrix(i, j, dir, IRIGHT, lenR);
-
-          auto [dLL, dLR] = geometry.cellReconsLength(i, j, dir);
-          auto [dRL, dRR] = geometry.cellReconsLength(i+dxp, j+dyp, dir);
-          
-          State qL  = reconstruct(Q, slopes, i+dxm, j+dym,  dLL, dir, params);
-          State qCL = reconstruct(Q, slopes, i,     j,     -dLR, dir, params);
-          State qCR = reconstruct(Q, slopes, i,     j,      dRL, dir, params);
-          State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -dRR, dir, params);
-
-          qL  = rotate(qL , rotL);
-          qCL = rotate(qCL, rotL);
-          qCR = rotate(qCR, rotR);
-          qR  = rotate(qR , rotR);
-
-          // Calling the right Riemann solver
-          auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
-            switch (params.riemann_solver) {
-              case HLL: hll(qL, qR, flux, pout, params); break;
-              default: hllc(qL, qR, flux, pout, params); break;
-            }
-          };
-
-          // Calculating flux left and right of the cell
-          State fluxL, fluxR;
-          real_t poutL, poutR;
-
-          riemann(qL, qCL, fluxL, poutL);
-          riemann(qCR, qR, fluxR, poutR);
-
-          // Remove mechanical flux in a well-balanced fashion
-          // if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
-          //   if (j==params.jbeg)
-          //     fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
-          //   else 
-          //     fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
-          // }
-
-          // reflective fluxes
-          #if 0 // well balancing à réparer
-          auto get_dP_wb = [&](ISide side) {
-              const Pos center = geometry.mapc2p_center(i,j);
-              const real_t r = norm(center);
-              // const Pos center_to_face = geometry.centerToFace(i,j,dir,side);
-              const Pos face_to_face = geometry.faceToFace(i,j,dir);
-              // return 0;
-              // std::string sideinfo; sideinfo += (dir==IX?'X':'Y');sideinfo += (side==ILEFT?'L':'R'); 
-              // sideinfo += "  ";
-              // if (dir == IY && side == IRIGHT)
-              // std::cout << sideinfo << '('<< i << ',' << j << ")\t"
-              // << dot(center, center_to_face) / r << "\t" 
-              // << norm(geometry.faceCenter(i,j,dir,side)) << std::endl;
-              // const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, center_to_face) / r;
-              const real_t dP = params.spl_grav.GetValue(r) * Q(j, i, IR) * dot(center, face_to_face) / r;
-              // std::cout << (dir==IX?'X':'Y') << (side==ILEFT?'L':'R') << ": " << dP << std::endl;
-              // return params.spl_grav.GetValue(r) * qC[IR] * dot(center, center_to_face) / r;
-              return dP * (side==IRIGHT?-1.0:1.0);
-              };
-          
-          if (dir == IX) {
-            if (i==params.ibeg)
-              fluxL = State{0.0, poutR + get_dP_wb(ILEFT),  0.0, 0.0};
-            else if (i==params.iend-1)
-              fluxR = State{0.0, poutL + get_dP_wb(IRIGHT), 0.0, 0.0};
-          }
-          else {
-            if (j==params.jbeg)
-              fluxL = State{0.0, poutR + get_dP_wb(ILEFT),  0.0, 0.0};
-            else if (j==params.jend-1)
-              fluxR = State{0.0, poutL + get_dP_wb(IRIGHT), 0.0, 0.0};
-          }
-          #else
-
-          // if (dir == IX) {
-          //   if (i==params.ibeg)
-          //     fluxL = State{0.0, poutL,  0.0, 0.0};
-          //   else if (i==params.iend-1)
-          //     fluxR = State{0.0, poutR, 0.0, 0.0};
-          // }
-          // else {
-          //   if (j==params.jbeg)
-          //     fluxL = State{0.0, poutL,  0.0, 0.0};
-          //   else if (j==params.jend-1)
-          //     fluxR = State{0.0, poutR, 0.0, 0.0};
-          // }
-          #endif
-
-          fluxL = rotate_back(fluxL, rotL);
-          fluxR = rotate_back(fluxR, rotR);
-
-          auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
-
-          setStateInArray(Unew, i, j, un_loc);
-        };
-
-        updateAlongDir(i, j, IX);
-        updateAlongDir(i, j, IY);
-
-        if (params.use_pressure_gradient) // crash imédiatement avec HLLC, ~ok avec HLL
-        {
-          auto getState = [](const Array& Q, int i, int j){return Q(j,i,IP);};
-          Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, params.gradient_type);
-          Unew(j, i, IU) -= dt * grad[IX];
-          Unew(j, i, IV) -= dt * grad[IY];
-        }
-
-        // Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
-      });
-  }
-#endif
 
   void computeFluxesAndUpdate_CTU(Array Q, Array Unew, real_t dt) const {
     auto full_params = this->full_params;
@@ -694,23 +545,6 @@ public:
 
         // Lambda to update the cell along a direction
         auto updateCorrector = [&](int i, int j, IDir dir) {
-#if 0 // old
-          // auto reconstructTransverse = [&](int ii, int jj, real_t len) {
-          //   State U = reconstruct1D(Q, slopes, ii, jj, len, dir, params);
-          //   U = primToCons(U, params);
-          //   State FL = getStateFromArray(Fhat[tdir], ii,     jj);
-          //   State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
-          //   U = U + 0.5 * dtdtdir * (FL - FR);
-          //   return consToPrim(U, params);
-          // };
-
-          // auto [dL, dCL] = geometry.cellReconsLength(i, j, dir);
-          // auto [dCR, dR] = geometry.cellReconsLength(i+dxp, j+dyp, dir);
-          // State qL  = reconstructTransverse(i+dxm, j+dym,  dL);
-          // State qCL = reconstructTransverse(i,     j,     -dCL);
-          // State qCR = reconstructTransverse(i,     j,      dCR);
-          // State qR  = reconstructTransverse(i+dxp, j+dyp, -dR);
-#endif
 
           auto reconstructTransverse = [&](ISide side, Pos &normal) -> Kokkos::Array<State, 2> {
             const IDir tdir = (dir == IX ? IY : IX); // 2d case

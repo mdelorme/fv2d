@@ -65,6 +65,26 @@ public:
     return c[0] + ri * c[1] + ri*ri * c[2] + ri*ri*ri * c[3];
   }
 
+  KOKKOS_INLINE_FUNCTION
+  real_t GetDerivative(real_t r) const
+  {
+    const int32_t N = static_cast<int32_t>(header.N);
+    const real_t r0 = header.r0;
+    const real_t dr = header.dr;
+
+
+    int32_t id = (r-r0)/dr;
+    id = (id <  0) ?   0 : id;
+    id = (id >= N) ? N-1 : id;
+
+    const real_t c[4] = {spline(id, 0), spline(id, 1), spline(id, 2), spline(id, 3)};
+    const real_t rs = r0 + id * dr;
+    const real_t ri = r-rs;
+
+    return c[1] + 2*ri * c[2] + 3*ri*ri * c[3];
+    // return c[0] + ri * c[1] + ri*ri * c[2] + ri*ri*ri * c[3];
+  }
+  
 private:
   // struct {
   //   uint32_t N;

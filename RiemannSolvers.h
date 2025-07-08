@@ -815,26 +815,26 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     real_t LambdaMax = Kokkos::max(Kokkos::abs( uAvg[IX] + cf ), Kokkos::abs( uAvg[IX] - cf ));
 
     State Dmatrix{};
-    // Dmatrix[0] = (1.-phi)*Kokkos::abs( uAvg[IX] + cf ) + phi*LambdaMax;
-    // Dmatrix[1] = (1.-phi)*Kokkos::abs( uAvg[IX] + ca ) + phi*LambdaMax;
-    // Dmatrix[2] = (1.-phi)*Kokkos::abs( uAvg[IX] + cs ) + phi*LambdaMax;
-    // Dmatrix[3] = (1.-phi)*Kokkos::abs( uAvg[IX] + ch ) + phi*LambdaMax;
-    // Dmatrix[4] = (1.-phi)*Kokkos::abs( uAvg[IX]      ) + phi*LambdaMax;
-    // Dmatrix[5] = (1.-phi)*Kokkos::abs( uAvg[IX] - ch ) + phi*LambdaMax;
-    // Dmatrix[6] = (1.-phi)*Kokkos::abs( uAvg[IX] - cs ) + phi*LambdaMax;
-    // Dmatrix[7] = (1.-phi)*Kokkos::abs( uAvg[IX] - ca ) + phi*LambdaMax;
-    // Dmatrix[8] = (1.-phi)*Kokkos::abs( uAvg[IX] - cf ) + phi*LambdaMax;
+    Dmatrix[0] = (1.-phi)*Kokkos::abs( uAvg[IX] + cf ) + phi*LambdaMax;
+    Dmatrix[1] = (1.-phi)*Kokkos::abs( uAvg[IX] + ca ) + phi*LambdaMax;
+    Dmatrix[2] = (1.-phi)*Kokkos::abs( uAvg[IX] + cs ) + phi*LambdaMax;
+    Dmatrix[3] = (1.-phi)*Kokkos::abs( uAvg[IX] + ch ) + phi*LambdaMax;
+    Dmatrix[4] = (1.-phi)*Kokkos::abs( uAvg[IX]      ) + phi*LambdaMax;
+    Dmatrix[5] = (1.-phi)*Kokkos::abs( uAvg[IX] - ch ) + phi*LambdaMax;
+    Dmatrix[6] = (1.-phi)*Kokkos::abs( uAvg[IX] - cs ) + phi*LambdaMax;
+    Dmatrix[7] = (1.-phi)*Kokkos::abs( uAvg[IX] - ca ) + phi*LambdaMax;
+    Dmatrix[8] = (1.-phi)*Kokkos::abs( uAvg[IX] - cf ) + phi*LambdaMax;
 
 //     ! Pure 9waves solver (no LLF)
-    Dmatrix[0] = Kokkos::abs( uAvg[IX] + cf ); // ! + fast magnetoacoustic wave
-    Dmatrix[1] = Kokkos::abs( uAvg[IX] + ca ); //! + Alfven wave
-    Dmatrix[2] = Kokkos::abs( uAvg[IX] + cs ); //! + slow magnetoacoustic wave
-    Dmatrix[3] = Kokkos::abs( uAvg[IX] + ch ); //! + GLM wave
-    Dmatrix[4] = Kokkos::abs( uAvg[IX]      ); //! / Entropy wave
-    Dmatrix[5] = Kokkos::abs( uAvg[IX] - ch ); //! - GLM wave
-    Dmatrix[6] = Kokkos::abs( uAvg[IX] - cs ); //! - slow magnetoacoustic wave
-    Dmatrix[7] = Kokkos::abs( uAvg[IX] - ca ); //! - Alfven wave
-    Dmatrix[8] = Kokkos::abs( uAvg[IX] - cf ); //! - fast magnetoacoustic wave
+    // Dmatrix[0] = Kokkos::abs( uAvg[IX] + cf ); // ! + fast magnetoacoustic wave
+    // Dmatrix[1] = Kokkos::abs( uAvg[IX] + ca ); //! + Alfven wave
+    // Dmatrix[2] = Kokkos::abs( uAvg[IX] + cs ); //! + slow magnetoacoustic wave
+    // Dmatrix[3] = Kokkos::abs( uAvg[IX] + ch ); //! + GLM wave
+    // Dmatrix[4] = Kokkos::abs( uAvg[IX]      ); //! / Entropy wave
+    // Dmatrix[5] = Kokkos::abs( uAvg[IX] - ch ); //! - GLM wave
+    // Dmatrix[6] = Kokkos::abs( uAvg[IX] - cs ); //! - slow magnetoacoustic wave
+    // Dmatrix[7] = Kokkos::abs( uAvg[IX] - ca ); //! - Alfven wave
+    // Dmatrix[8] = Kokkos::abs( uAvg[IX] - cf ); //! - fast magnetoacoustic wave
 
     // ! Diagonal scaling matrix as described in Winters et al., eq. (4.15)
     // Tmatrix = 0.0

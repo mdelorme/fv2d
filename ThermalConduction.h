@@ -63,7 +63,7 @@ public:
     : full_params(full_params) {};
   ~ThermalConductionFunctor() = default;
 
-  void applyThermalConduction(Array Q, Array Unew, real_t dt, int ite) {
+  void applyThermalConduction(Array Q, Array Unew, real_t dt) {
     auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
@@ -128,8 +128,8 @@ public:
         thermal_contrib += dt/dx * (FR - FL) + dt/dy * (FD - FU);
       }, Kokkos::Sum<real_t>(total_thermal_contrib));
 
-    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
-      std::cout << "Total thermal contribution to energy : " << total_thermal_contrib << std::endl;
+    // if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
+    //   std::cout << "Total thermal contribution to energy : " << total_thermal_contrib << std::endl;
   }
 };
 

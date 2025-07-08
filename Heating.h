@@ -75,7 +75,7 @@ public:
     : full_params(params) {};
   ~HeatingFunctor() = default;
 
-  void applyHeating(Array Q, Array Unew, real_t dt, int ite) {
+  void applyHeating(Array Q, Array Unew, real_t dt) {
     auto params = full_params.device_params;
 
     real_t total_heating = 0.0;
@@ -96,9 +96,6 @@ public:
 
         total_heating += dt * q;
       }, Kokkos::Sum<real_t>(total_heating));
-
-    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
-      std::cout << "Total heating contribution to energy : " << total_heating << std::endl;
   }
 };
 

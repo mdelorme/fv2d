@@ -33,7 +33,7 @@ public:
     : full_params(full_params) {};
   ~ViscosityFunctor() = default;
 
-  void applyViscosity(Array Q, Array Unew, real_t dt, int ite) {
+  void applyViscosity(Array Q, Array Unew, real_t dt) {
     auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
@@ -124,8 +124,8 @@ public:
 
       }, Kokkos::Sum<real_t>(total_viscous_contrib));
 
-    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
-      std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
+    // if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
+    //   std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
   }
 };
 

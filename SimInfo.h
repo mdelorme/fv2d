@@ -335,7 +335,7 @@ struct DeviceParams {
       {"tri_layer", HM_C2020_TRI},
       {"isothermal_cooling", HM_COOLING_ISO}
     };
-    heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
+    heating_mode = read_map(reader, heating_map, "heating", "mode", "tri_layer");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
 
     // H84

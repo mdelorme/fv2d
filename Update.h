@@ -46,7 +46,7 @@ public:
   UpdateFunctor(const Params &full_params)
     : full_params(full_params), bc_manager(full_params),
       tc_functor(full_params), visc_functor(full_params),
-      sources_functor(full_params) {
+      heat_functor(full_params), sources_functor(full_params) {
       auto device_params = full_params.device_params;
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
       slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
@@ -87,7 +87,7 @@ public:
 
   }
 
-  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt, int ite) const {
+  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
@@ -99,7 +99,7 @@ public:
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j, real_t &hydro_contrib) {
+      KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
         real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
@@ -183,10 +183,7 @@ public:
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
-          const real_t dh = (dir == IX ? params.dx : params.dy);
-          un_loc += dt*(fluxL - fluxR)/dh;
-
-          // hydro_contrib += dt * (fluxL[IE]-fluxR[IE])/dh;
+          un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
@@ -203,7 +200,7 @@ public:
   }
   
 
-  void euler_step(Array Q, Array Unew, real_t dt, int ite) {
+  void euler_step(Array Q, Array Unew, real_t dt) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
     // Hyperbolic update
@@ -216,7 +213,7 @@ public:
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
     if (full_params.device_params.heating_active)
-      heat_functor.applyHeating(Q, Unew, dt, ite);
+      heat_functor.applyHeating(Q, Unew, dt);
     sources_functor.applySources(Q, Unew, dt);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
@@ -235,7 +232,7 @@ public:
 
   void update(Array Q, Array Unew, real_t dt) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt, ite);
+      euler_step(Q, Unew, dt);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);

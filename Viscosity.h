@@ -6,9 +6,23 @@ namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
 real_t computeMu(int i, int j, const DeviceParams &params) {
+  real_t res;
   switch (params.viscosity_mode) {
-    default: return params.mu; break;
+    // default:
+    //   {
+        // const real_t y1 = params.iso3_dy0;
+        // const real_t y2 = y1 + params.iso3_dy1;
+        // const real_t y = getPos(params, i, j)[IY];
+        // const real_t th = 0.05; // Thickness of transition layer
+        // const real_t tr1 = (tanh((y-y1)/th) + 1.0) * 0.5;
+        // const real_t tr2 = (tanh((y2-y)/th) + 1.0) * 0.5;
+        // const real_t tr = tr1;
+        // res = params.mu * (1.0 * (1.0-tr) + 10.0 * tr);
+      // break;
+      // }
+    default: res = params.mu; break;
   }
+  return res;
 }
 
 class ViscosityFunctor {
@@ -19,15 +33,17 @@ public:
     : full_params(full_params) {};
   ~ViscosityFunctor() = default;
 
-  void applyViscosity(Array Q, Array Unew, real_t dt) {
+  void applyViscosity(Array Q, Array Unew, real_t dt, int ite) {
     auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
 
-    Kokkos::parallel_for(
+    real_t total_viscous_contrib = 0.0;
+
+    Kokkos::parallel_reduce(
       "Viscosity",
       full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
+      KOKKOS_LAMBDA(const int i, const int j, real_t &viscous_contrib) {
         Pos pos = getPos(params, i, j);
         real_t x = pos[IX];
         real_t y = pos[IY];
@@ -56,7 +72,7 @@ public:
 
           for (int side=1; side < 3; ++side) {
             real_t sign = (side == 1 ? -1.0 : 1.0);
-            
+
             if (dir == IX) {
               State qi = 0.5 * (stencil[1][side] + stencil[1][side-1]);
 
@@ -83,7 +99,7 @@ public:
                                               +  stencil[side-1][2][IU] - stencil[side-1][0][IU]);
               real_t dvdx = 0.25 * one_over_dx * (stencil[side][2][IV]   - stencil[side][0][IV]
                                               +  stencil[side-1][2][IV] - stencil[side-1][0][IV]);
-                                              
+
               const real_t tau_yy = four_thirds * dvdy - two_thirds * dudx;
               const real_t tau_xy = dvdx + dudy;
 
@@ -91,7 +107,7 @@ public:
               flux[IU] += sign * mu * tau_xy;
               flux[IV] += sign * mu * tau_yy;
               flux[IE] += sign * mu * (tau_xy*qi[IU] + tau_yy*qi[IV]);
-            } 
+            }
           }
 
           return flux;
@@ -102,9 +118,14 @@ public:
 
         State un_loc = getStateFromArray(Unew, i, j);
         un_loc += dt * (vf_x + vf_y);
+
+        viscous_contrib += dt * (vf_x[IE] + vf_y[IE]);
         setStateInArray(Unew, i, j, un_loc);
 
-      });
+      }, Kokkos::Sum<real_t>(total_viscous_contrib));
+
+    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
+      std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
   }
 };
 

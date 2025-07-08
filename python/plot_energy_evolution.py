@@ -65,5 +65,7 @@ ax[0,1].set_ylabel('Kinetic energy')
 ax[1,0].set_ylabel('Internal energy')
 ax[1,1].set_ylabel('Total energy')
 
+plt.tight_layout()
+
 plt.show()
 

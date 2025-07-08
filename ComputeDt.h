@@ -15,6 +15,7 @@ public:
   ~ComputeDtFunctor() = default;
 
   real_t computeDt(Array Q, real_t max_dt, real_t t, bool diag) const {
+    using DtArray = Kokkos::Array<real_t, 3>;
     auto params = full_params.device_params;
 
     real_t inv_dt_hyp = 0.0;
@@ -69,11 +70,11 @@ public:
                                Kokkos::Max<real_t>(inv_dt_par_visc));
   
     if (diag) {
-      std::cout << "Computing dts at (t=" << t << ") : dt_hyp=" << 1.0/inv_dt_hyp;
+      std::cout << "Computing dts at (t=" << t << ") : dt_hyp=" << full_params.device_params.CFL/inv_dt_hyp;
       if(params.thermal_conductivity_active)
-        std::cout << "; dt_TC="   << 1.0/inv_dt_par_tc;
+        std::cout << "; dt_TC="   << full_params.device_params.CFL/inv_dt_par_tc;
       if(params.viscosity_active)
-        std::cout << "; dt_visc=" << 1.0/inv_dt_par_visc;
+        std::cout << "; dt_visc=" << full_params.device_params.CFL/inv_dt_par_visc;
       std::cout << std::endl; 
     }
 

@@ -88,7 +88,8 @@ enum DivCleaning {
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_TRILAYER_DAMPING
 };
 
 enum TimeStepping {
@@ -99,19 +100,30 @@ enum TimeStepping {
 enum ReconstructionType {
   PCM,
   PCM_WB,
+  PCM_WB2,
   PLM
 };
 
 enum ThermalConductivityMode {
   TCM_CONSTANT,
   TCM_B02,
+  TCM_C2020_TRI,
+  TCM_ISO3
+};
+
+enum HeatingMode {
+  HM_C2020,
+  HM_C2020_TRI,
+  HM_COOLING_ISO,
 };
 
 // Thermal conduction at boundary
 enum BCTC_Mode {
   BCTC_NONE,              // Nothing special done
   BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
-  BCTC_FIXED_GRADIENT     // Lock the gradient at the boundary
+  BCTC_FIXED_GRADIENT,    // Lock the gradient at the boundary
+  BCTC_NO_FLUX,           // Thermal Flux is set to 0 at the boundary
+  BCTC_NO_CONDUCTION,     // Top and bottom flux of cell are matched
 };
 
 enum ViscosityMode {
@@ -139,6 +151,11 @@ struct DeviceParams {
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
   
+  // Heating
+  bool heating_active;
+  HeatingMode heating_mode;
+  bool log_total_heating;
+
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
@@ -161,6 +178,24 @@ struct DeviceParams {
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
+
+  // Currie 2020
+  real_t c20_H;
+  real_t c20_heating_fac;
+
+  // Tri-Layer
+  real_t tri_y1, tri_y2;
+  real_t tri_pert;
+  real_t tri_k1, tri_k2;
+  real_t T0, rho0;
+
+  // Isothermal triple layer
+  real_t iso3_dy0, iso3_dy1, iso3_dy2;
+  real_t iso3_theta1, iso3_theta2;
+  real_t iso3_m1, iso3_m2;
+  real_t iso3_pert;
+  real_t iso3_k1, iso3_k2;
+  real_t iso3_T0, iso3_rho0;
   
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
@@ -221,13 +256,15 @@ struct DeviceParams {
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
-      {"periodic",           BC_PERIODIC}
+      {"periodic",           BC_PERIODIC},
+      {"tri_layer_damping",  BC_TRILAYER_DAMPING}
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},
+      {"pcm_wb2", PCM_WB2},
       {"plm",    PLM}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
@@ -265,14 +302,18 @@ struct DeviceParams {
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
       {"constant", TCM_CONSTANT},
-      {"B02",      TCM_B02}
+      {"B02",      TCM_B02},
+      {"tri_layer", TCM_C2020_TRI},
+      {"iso-three", TCM_ISO3},
     };
     thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
     std::map<std::string, BCTC_Mode> bctc_map{
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
-      {"fixed_gradient",    BCTC_FIXED_GRADIENT}
+      {"fixed_gradient",    BCTC_FIXED_GRADIENT},
+      {"no_flux",           BCTC_NO_FLUX},
+      {"no_conduction",     BCTC_NO_CONDUCTION},
     };
     bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_ymin", "none");
     bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_ymax", "none");
@@ -287,11 +328,48 @@ struct DeviceParams {
     viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
 
+    // Heating function 
+    heating_active = reader.GetBoolean("heating", "active", false);
+    std::map<std::string, HeatingMode> heating_map{
+      {"C2020", HM_C2020},
+      {"tri_layer", HM_C2020_TRI},
+      {"isothermal_cooling", HM_COOLING_ISO}
+    };
+    heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
+    log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
+
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
 
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
+
+    // C20
+    c20_H = reader.GetFloat("C20", "H", 0.2);
+    c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
+
+    // Tri-layer
+    tri_y1   = reader.GetFloat("tri_layer", "y1", 1.0);
+    tri_y2   = reader.GetFloat("tri_layer", "y2", 2.0);
+    tri_pert = reader.GetFloat("tri_layer", "perturbation", 1.0e-3);
+    tri_k1   = reader.GetFloat("tri_layer", "kappa1", 0.07);
+    tri_k2   = reader.GetFloat("tri_layer", "kappa2", 1.5);
+    T0       = reader.GetFloat("tri_layer", "T0", 1.0);
+    rho0     = reader.GetFloat("tri_layer", "rho0", 1.0);
+
+    // Isothermal triple layer
+    iso3_dy0    = reader.GetFloat("iso_three_layer", "dy0", 1.0);
+    iso3_dy1    = reader.GetFloat("iso_three_layer", "dy1", 2.0);
+    iso3_dy2    = reader.GetFloat("iso_three_layer", "dy2", 2.0);
+    iso3_theta1 = reader.GetFloat("iso_three_layer", "theta1", 2.0);
+    iso3_theta2 = reader.GetFloat("iso_three_layer", "theta2", 2.0);
+    iso3_pert   = reader.GetFloat("iso_three_layer", "perturbation", 1.0e-3);
+    iso3_k1     = reader.GetFloat("iso_three_layer", "k1", 0.07);
+    iso3_k2     = reader.GetFloat("iso_three_layer", "k2", 1.5);
+    iso3_m1     = reader.GetFloat("iso_three_layer", "m1", 1.0);
+    iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
+    iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
+    iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
   }
 };
 
@@ -322,6 +400,8 @@ struct Params {
   // Misc 
   int seed;
   int log_frequency;
+  bool log_energy_contributions;
+  int log_energy_frequency;
   
   struct value_container {
     std::string value;
@@ -406,6 +486,76 @@ Pos getPos(const DeviceParams& params, int i, int j) {
           params.ymin + (j-params.jbeg+0.5) * params.dy};
 }
 
+// Printing every single parameter of the run
+void print_ini_file(const Params &p) {
+  std::cout << std::endl << std::endl;
+  std::cout << "===========================================" << std::endl;
+  std::cout << "== Parameters read : " << std::endl;
+  std::cout << std::endl << "[HOST]" << std::endl;
+  std::cout << "Problem          = " << p.problem << std::endl;
+  std::cout << "Filename out     = " << p.filename_out << std::endl;
+  std::cout << "T end            = " << p.tend << std::endl;
+  std::cout << "Save frequency   = " << p.save_freq << std::endl;
+  std::cout << "Restart file     = " << p.restart_file << std::endl;
+  std::cout << "Multiple outputs = " << p.multiple_outputs << std::endl;
+  std::cout << "Time stepping    = " << p.time_stepping << std::endl;
+  
+  std::cout << std::endl << "[DEVICE]" << std::endl;
+  auto &dp = p.device_params;
+  std::cout << " -- Grid -- " << std::endl;
+  std::cout << "Nx                 = " << dp.Nx << std::endl;
+  std::cout << "Ny                 = " << dp.Ny << std::endl;
+  std::cout << "Nghosts            = " << dp.Ng << std::endl;
+  std::cout << "xmin               = " << dp.xmin << std::endl;
+  std::cout << "xmax               = " << dp.xmax << std::endl;
+  std::cout << "ymin               = " << dp.ymin << std::endl;
+  std::cout << "ymax               = " << dp.ymax << std::endl;
+  std::cout << "Ntx                = " << dp.Ntx << std::endl;
+  std::cout << "Nty                = " << dp.Nty << std::endl;
+  std::cout << "ibeg, iend         = " << dp.ibeg << " " << dp.iend << std::endl;
+  std::cout << "jbeg, jend         = " << dp.jbeg << " " << dp.jend << std::endl;
+  std::cout << "dx, dy             = " << dp.dx << " " << dp.dy << std::endl;
+  std::cout << "boundary X         = " << dp.boundary_x << std::endl;
+  std::cout << "boundary Y         = " << dp.boundary_y << std::endl;
+  
+  std::cout << std::endl << " -- Numerics -- " << std::endl;
+  std::cout << "reconstruction     = " << dp.reconstruction << std::endl;
+  std::cout << "riemann_solver     = " << dp.riemann_solver << std::endl;
+  std::cout << "CFL                = " << dp.CFL << std::endl;
+  std::cout << "epsilon            = " << dp.epsilon << std::endl;
+
+  std::cout << std::endl << " -- Physics -- " << std::endl;
+  std::cout << "gamma0             = " << dp.gamma0 << std::endl;
+  std::cout << "gravity active     = " << dp.gravity << std::endl;
+  std::cout << "g                  = " << dp.g << std::endl;
+  std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
+  std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;
+  std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;
+  std::cout << "thermal conduction = " << dp.thermal_conductivity_active << std::endl;
+  std::cout << "TC mode            = " << dp.thermal_conductivity_mode << std::endl;
+  std::cout << "kappa              = " << dp.kappa << std::endl;
+  std::cout << "bctc_ymin          = " << dp.bctc_ymin << std::endl; 
+  std::cout << "bctc_ymax          = " << dp.bctc_ymax << std::endl;
+  std::cout << "bctc_ymin_value    = " << dp.bctc_ymin_value << std::endl; 
+  std::cout << "bctc_ymax_value    = " << dp.bctc_ymax_value << std::endl;
+  std::cout << "viscosity          = " << dp.viscosity_active << std::endl;
+  std::cout << "mu                 = " << dp.mu << std::endl;
+  std::cout << "viscosity_mode     = " << dp.viscosity_mode << std::endl;
+  std::cout << "heating            = " << dp.heating_active << std::endl;
+  std::cout << "heating_mode       = " << dp.heating_mode << std::endl;
+  std::cout << "iso3_dy0           = " << dp.iso3_dy0 << std::endl;
+  std::cout << "iso3_dy1           = " << dp.iso3_dy1 << std::endl;
+  std::cout << "iso3_dy2           = " << dp.iso3_dy2 << std::endl;
+  std::cout << "iso3_theta1        = " << dp.iso3_theta1 << std::endl;
+  std::cout << "iso3_theta2        = " << dp.iso3_theta2 << std::endl;
+  std::cout << "iso3_m1            = " << dp.iso3_m1 << std::endl;
+  std::cout << "iso3_m2            = " << dp.iso3_m2 << std::endl;
+  std::cout << "iso3_k1            = " << dp.iso3_k1 << std::endl;
+  std::cout << "iso3_k2            = " << dp.iso3_k2 << std::endl;
+  std::cout << "iso3_T0            = " << dp.iso3_T0 << std::endl;
+  std::cout << "iso3_rho0          = " << dp.iso3_rho0 << std::endl;
+}
+
 Params readInifile(std::string filename) {
   // Params reader(filename);
   Params res;
@@ -427,10 +577,11 @@ Params readInifile(std::string filename) {
   res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
   res.problem = res.Get("physics", "problem", "blast");
 
-
   // Misc
   res.seed = res.GetInteger("misc", "seed", 12345);
   res.log_frequency = res.GetInteger("misc", "log_frequency", 10);
+  res.log_energy_contributions = res.GetBoolean("misc", "log_energy_contributions", false);
+  res.log_energy_frequency = res.GetFloat("misc", "log_energy_frequency", 10);
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);
@@ -442,9 +593,11 @@ Params readInifile(std::string filename) {
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
 
+  print_ini_file(res);
 
   return res;
 } 
+
 }
 
 

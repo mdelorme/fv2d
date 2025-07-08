@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
 
     // Misc vars for iteration
     real_t t = 0.0;
+    int save_ite = 0;
     int ite = 0;
     real_t next_save = 0.0;
     
@@ -48,10 +49,10 @@ int main(int argc, char **argv) {
     if (params.restart_file != "") {
       auto restart_info = ioManager.loadSnapshot(Q);
       t = restart_info.time;
-      ite = restart_info.iteration;
+      save_ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
       next_save = t + params.save_freq;
-      ite++;
+      save_ite++;
     }
     else
       init.init(Q);
@@ -69,22 +70,29 @@ int main(int argc, char **argv) {
       else
         next_log--;
 
-      if (save_needed) {
-        std::cout << " - Saving at time " << t << std::endl;
-        ioManager.saveSolution(Q, ite++, t, dt);
-        next_save += params.save_freq;
+      if (dt < 1.0e-10) {
+        std::cout << "DT too small : Aborting (dt=" << dt << ")" << std::endl;
+        break;
       }
 
-      update.update(Q, U, dt);
+      if (save_needed) {
+        std::cout << " - Saving at time " << t << std::endl;
+        ioManager.saveSolution(Q, save_ite++, t, dt);
+        next_save += params.save_freq;
+
+      }
+
+      update.update(Q, U, dt, ite);
       consToPrim(U, Q, params);
       checkNegatives(Q, params);
 
       t += dt;
+      ite++;
     }
 
     std::cout << "Time at end is " << t << std::endl;
 
-    ioManager.saveSolution(Q, ite++, t, dt);
+    ioManager.saveSolution(Q, save_ite++, t, dt);
   }
   Kokkos::finalize();
 

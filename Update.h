@@ -4,6 +4,7 @@
 #include "RiemannSolvers.h"
 #include "BoundaryConditions.h"
 #include "ThermalConduction.h"
+#include "Heating.h"
 #include "Viscosity.h"
 #include "Sources.h"
 
@@ -38,6 +39,7 @@ public:
   ThermalConductionFunctor tc_functor;
   ViscosityFunctor visc_functor;
   SourcesFunctor sources_functor;
+  HeatingFunctor heat_functor;
 
   Array slopesX, slopesY;
 
@@ -66,8 +68,8 @@ public:
         for (int ivar=0; ivar < Nfields; ++ivar) {
           real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
           real_t dR = Q(j, i+1, ivar) - Q(j, i, ivar);
-          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar); 
-          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar); 
+          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar);
+          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar);
 
           auto minmod = [](real_t dL, real_t dR) -> real_t {
             if (dL*dR < 0.0)
@@ -85,7 +87,7 @@ public:
 
   }
 
-  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
+  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt, int ite) const {
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
@@ -97,7 +99,7 @@ public:
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
+      KOKKOS_LAMBDA(const int i, const int j, real_t &hydro_contrib) {
         // Lambda to update the cell along a direction
         real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
@@ -181,7 +183,11 @@ public:
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
+          const real_t dh = (dir == IX ? params.dx : params.dy);
+          un_loc += dt*(fluxL - fluxR)/dh;
+
+          // hydro_contrib += dt * (fluxL[IE]-fluxR[IE])/dh;
+
           if (dir == IY && params.gravity) {
             un_loc[IV] += dt * Q(j, i, IR) * params.g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
@@ -197,7 +203,7 @@ public:
   }
   
 
-  void euler_step(Array Q, Array Unew, real_t dt) {
+  void euler_step(Array Q, Array Unew, real_t dt, int ite) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
     // Hyperbolic update
@@ -206,9 +212,11 @@ public:
     computeFluxesAndUpdate(Q, Unew, dt);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-    tc_functor.applyThermalConduction(Q, Unew, dt);
+      tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
-    visc_functor.applyViscosity(Q, Unew, dt);
+      visc_functor.applyViscosity(Q, Unew, dt);
+    if (full_params.device_params.heating_active)
+      heat_functor.applyHeating(Q, Unew, dt, ite);
     sources_functor.applySources(Q, Unew, dt);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
@@ -227,12 +235,12 @@ public:
 
   void update(Array Q, Array Unew, real_t dt) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, ite);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
       Array Ustar = Array("Ustar", params.Nty, params.Ntx, Nfields);
-      
+
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);

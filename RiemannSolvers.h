@@ -853,7 +853,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     Dmatrix = Dmatrix*Tmatrix;
     Matrix RT = transpose(Rmatrix);
     State V_jump = getEntropyJumpState(qL, qR, params);
-    State res = 0.5*matvecmul(Rmatrix,Dmatrix*matvecmul(RT,V_jump));
+    State res = matvecmul(Rmatrix,Dmatrix*matvecmul(RT,V_jump));
 
     return res;
   }

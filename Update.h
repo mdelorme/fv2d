@@ -136,7 +136,7 @@ public:
                 break;
               }
               case IDEALGLM: {
-                IdealGLM(qL, qR, flux, pout, ch, params);
+                IdealGLM(qL, qR, flux, pout, ch_global, params);
                 break;
               }
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;

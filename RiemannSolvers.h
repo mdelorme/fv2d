@@ -550,13 +550,13 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
 
 KOKKOS_INLINE_FUNCTION
 State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &params) {
-  real_t srho_L, srho_R, u2_L, u2_R, B2_L, B2_R, p_L, p_R, beta_L, beta_R, rho_L, rho_R;
+  real_t  u2_L, u2_R, p_L, p_R, beta_L, beta_R, rho_L, rho_R;
   real_t u_L, v_L, w_L, u_R, v_R, w_R;
   real_t Bx_L, By_L, Bz_L, Bx_R, By_R, Bz_R, psi_L, psi_R;
-  srho_L = 1./rho_L;
-  srho_R = 1./rho_R;
   rho_L = qL[IR];
   rho_R = qR[IR];
+  // real_t srho_R = 1./rho_R;
+  // real_t srho_L = 1./rho_L;
   u_L = qL[IU];
   v_L = qL[IV];
   w_L = qL[IW];
@@ -573,8 +573,8 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   psi_R = qR[IPSI];
   u2_L = u_L*u_L + v_L*v_L + w_L*w_L;
   u2_R = u_R*u_R + v_R*v_R + w_R*w_R;
-  B2_R = Bx_R*Bx_R + By_R*By_R + Bz_R*Bz_R;
-  B2_L = Bx_L*Bx_L + By_L*By_L + Bz_L*Bz_L;
+  // real_t B2_R = Bx_R*Bx_R + By_R*By_R + Bz_R*Bz_R;
+  // real_t B2_L = Bx_L*Bx_L + By_L*By_L + Bz_L*Bz_L;
   p_L    = qL[IP];
   p_R    = qR[IP];
   beta_L = 0.5*rho_L/p_L; //!beta=rho/(2*p)
@@ -586,14 +586,14 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   // uAvg       = 0.5 * (u_L +  u_R);
   real_t u2Avg      = 0.5 * (u2_L + u2_R);
   // BAvg       = 0.5 * (B_L +  B_R);
-  real_t B2Avg      = 0.5 * (B2_L + B2_R);
-  real_t u1_B2Avg   = 0.5 * (u_L*B2_L + u_R*B2_R);
-  real_t uB_Avg     = 0.5 * (u_L*Bx_L + v_L*By_L + w_L*Bz_L  + u_R*Bx_R + v_R*By_R + w_R*Bz_R);
+  // real_t B2Avg      = 0.5 * (B2_L + B2_R);
+  // real_t u1_B2Avg   = 0.5 * (u_L*B2_L + u_R*B2_R);
+  // real_t uB_Avg     = 0.5 * (u_L*Bx_L + v_L*By_L + w_L*Bz_L  + u_R*Bx_R + v_R*By_R + w_R*Bz_R);
   real_t betaAvg    = 0.5 * (beta_L + beta_R);
   real_t pAvg       = 0.5*(rho_L+rho_R)/(beta_L+beta_R); //!rhoMEAN/(2*betaMEAN)
   real_t psiAvg     = 0.5*(psi_L+psi_R);
 
-  real_t pTilde     = pAvg + 0.5 * B2Avg; //!+1/(2mu_0)({{|B|^2}}...)
+  // real_t pTilde     = pAvg + 0.5 * B2Avg; //!+1/(2mu_0)({{|B|^2}}...)
   Vect uAvg = {0.5*(u_L + u_R), 0.5*(v_L + v_R), 0.5*(w_L + w_R)};
   Vect Bavg = {0.5*(Bx_L + Bx_R), 0.5*(By_L + By_R), 0.5*(Bz_L + Bz_R)};
   // ! Entropy conserving and kinetic energy conserving flux
@@ -616,8 +616,8 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     // ! Compute additional averages
     real_t rhoAvg = 0.5*(rho_L + rho_R);
     real_t pLN = 0.5*rhoLN*sbetaLN;
-           u2Avg = u_L*u_R + u_L*u_R + u_L*u_R;  //! Redefinition of u2Avg -> \bar{\norm{u}^2}
-    real_t srhoLN = 1./rhoLN;
+           u2Avg = u_L*u_R + v_L*v_R + w_L*w_R;  //! Redefinition of u2Avg -> \bar{\norm{u}^2}
+    // real_t srhoLN = 1./rhoLN;
     real_t aA = Kokkos::sqrt(params.gamma0*pAvg/rhoLN);
     real_t aLN = Kokkos::sqrt(params.gamma0*pLN/rhoLN);
     real_t abeta = Kokkos::sqrt(0.5*params.gamma0/betaAvg);
@@ -718,7 +718,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     // ! Derigs et al. (2018), (4.67)
     Rmatrix[0][1] = 0.0;
     Rmatrix[1][1] = 0.0;
-    Rmatrix[2][1] = -rhoLN*Kokkos::sqrt(rhoAvg)*beta3A;
+    Rmatrix[2][1] = rhoLN*Kokkos::sqrt(rhoAvg)*beta3A;
     Rmatrix[3][1] = -rhoLN*Kokkos::sqrt(rhoAvg)*beta2A;
     Rmatrix[4][1] = -rhoLN*Kokkos::sqrt(rhoAvg)*(beta2A*uAvg[IZ] - beta3A*uAvg[IY]);
     Rmatrix[5][1] = 0.0;
@@ -815,40 +815,26 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     real_t LambdaMax = Kokkos::max(Kokkos::abs( uAvg[IX] + cf ), Kokkos::abs( uAvg[IX] - cf ));
 
     State Dmatrix{};
-    Dmatrix[0] = (1.-phi)*Kokkos::abs( uAvg[IX] + cf ) + phi*LambdaMax;
-    Dmatrix[1] = (1.-phi)*Kokkos::abs( uAvg[IX] + ca ) + phi*LambdaMax;
-    Dmatrix[2] = (1.-phi)*Kokkos::abs( uAvg[IX] + cs ) + phi*LambdaMax;
-    Dmatrix[3] = (1.-phi)*Kokkos::abs( uAvg[IX] + ch ) + phi*LambdaMax;
-    Dmatrix[4] = (1.-phi)*Kokkos::abs( uAvg[IX]      ) + phi*LambdaMax;
-    Dmatrix[5] = (1.-phi)*Kokkos::abs( uAvg[IX] - ch ) + phi*LambdaMax;
-    Dmatrix[6] = (1.-phi)*Kokkos::abs( uAvg[IX] - cs ) + phi*LambdaMax;
-    Dmatrix[7] = (1.-phi)*Kokkos::abs( uAvg[IX] - ca ) + phi*LambdaMax;
-    Dmatrix[8] = (1.-phi)*Kokkos::abs( uAvg[IX] - cf ) + phi*LambdaMax;
+    // Dmatrix[0] = (1.-phi)*Kokkos::abs( uAvg[IX] + cf ) + phi*LambdaMax;
+    // Dmatrix[1] = (1.-phi)*Kokkos::abs( uAvg[IX] + ca ) + phi*LambdaMax;
+    // Dmatrix[2] = (1.-phi)*Kokkos::abs( uAvg[IX] + cs ) + phi*LambdaMax;
+    // Dmatrix[3] = (1.-phi)*Kokkos::abs( uAvg[IX] + ch ) + phi*LambdaMax;
+    // Dmatrix[4] = (1.-phi)*Kokkos::abs( uAvg[IX]      ) + phi*LambdaMax;
+    // Dmatrix[5] = (1.-phi)*Kokkos::abs( uAvg[IX] - ch ) + phi*LambdaMax;
+    // Dmatrix[6] = (1.-phi)*Kokkos::abs( uAvg[IX] - cs ) + phi*LambdaMax;
+    // Dmatrix[7] = (1.-phi)*Kokkos::abs( uAvg[IX] - ca ) + phi*LambdaMax;
+    // Dmatrix[8] = (1.-phi)*Kokkos::abs( uAvg[IX] - cf ) + phi*LambdaMax;
 
 //     ! Pure 9waves solver (no LLF)
-// !#
-// !#      Dmatrix(1) = Kokkos::abs( uAvg[IX] + cf ) ! + fast magnetoacoustic wave
-// !#      Dmatrix(2) = Kokkos::abs( uAvg[IX] + ca ) ! + Alfven wave
-// !#      Dmatrix(3) = Kokkos::abs( uAvg[IX] + cs ) ! + slow magnetoacoustic wave
-// !#      Dmatrix(4) = Kokkos::abs( uAvg[IX] + ch ) ! + GLM wave
-// !#      Dmatrix(5) = Kokkos::abs( uAvg[IX]      ) ! / Entropy wave
-// !#      Dmatrix(6) = Kokkos::abs( uAvg[IX] - ch ) ! - GLM wave
-// !#      Dmatrix(7) = Kokkos::abs( uAvg[IX] - cs ) ! - slow magnetoacoustic wave
-// !#      Dmatrix(8) = Kokkos::abs( uAvg[IX] - ca ) ! - Alfven wave
-// !#      Dmatrix(9) = Kokkos::abs( uAvg[IX] - cf ) ! - fast magnetoacoustic wave
-
-//     ! LLF solver
-// !#      LambdaMax = MAX(Kokkos::abs( uAvg[IX] + cf ),Kokkos::abs( uAvg[IX] - cf ))
-// !#
-// !#      Dmatrix(1) = LambdaMax
-// !#      Dmatrix(2) = LambdaMax
-// !#      Dmatrix(3) = LambdaMax
-// !#      Dmatrix(4) = LambdaMax
-// !#      Dmatrix(5) = LambdaMax
-// !#      Dmatrix(6) = LambdaMax
-// !#      Dmatrix(7) = LambdaMax
-// !#      Dmatrix(8) = LambdaMax
-// !#      Dmatrix(9) = LambdaMax
+    Dmatrix[0] = Kokkos::abs( uAvg[IX] + cf ); // ! + fast magnetoacoustic wave
+    Dmatrix[1] = Kokkos::abs( uAvg[IX] + ca ); //! + Alfven wave
+    Dmatrix[2] = Kokkos::abs( uAvg[IX] + cs ); //! + slow magnetoacoustic wave
+    Dmatrix[3] = Kokkos::abs( uAvg[IX] + ch ); //! + GLM wave
+    Dmatrix[4] = Kokkos::abs( uAvg[IX]      ); //! / Entropy wave
+    Dmatrix[5] = Kokkos::abs( uAvg[IX] - ch ); //! - GLM wave
+    Dmatrix[6] = Kokkos::abs( uAvg[IX] - cs ); //! - slow magnetoacoustic wave
+    Dmatrix[7] = Kokkos::abs( uAvg[IX] - ca ); //! - Alfven wave
+    Dmatrix[8] = Kokkos::abs( uAvg[IX] - cf ); //! - fast magnetoacoustic wave
 
     // ! Diagonal scaling matrix as described in Winters et al., eq. (4.15)
     // Tmatrix = 0.0
@@ -867,8 +853,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
     Dmatrix = Dmatrix*Tmatrix;
     Matrix RT = transpose(Rmatrix);
     State V_jump = getEntropyJumpState(qL, qR, params);
-    State res {};
-    res = 0.5*matvecmul(Rmatrix,Dmatrix*matvecmul(RT,V_jump));
+    State res = 0.5*matvecmul(Rmatrix,Dmatrix*matvecmul(RT,V_jump));
 
     return res;
   }

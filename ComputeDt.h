@@ -20,7 +20,6 @@ public:
     real_t inv_dt_hyp = 0.0;
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
-
     Kokkos::parallel_reduce("Computing DT",
                             full_params.range_dom,
                             KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
@@ -28,6 +27,8 @@ public:
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
                               real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dy;
+                              if (mhd_run) // In this case, we compute the MHD time-step below.
+                                inv_dt_hyp_loc = 0.0; 
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active)
@@ -49,15 +50,15 @@ public:
                               const real_t B2 = Bx*Bx + By*By + Bz*Bz;
                               const real_t cf1 = gr-B2;
                               const real_t V [] = {q[IU], q[IV], q[IW]};
-                              const real_t D [] = {params.dx, params.dy};
+                              const real_t dl [] = {params.dx, params.dy};
                               
                               const int ndim = 2;
                               for (int i=0; i < ndim; ++i) {
                                 const real_t cf2 = gr + B2 + sqrt(cf1*cf1 + 4.0*gr*Bt2[i]);
                                 const real_t cf = sqrt(0.5 * cf2 / q[IR]);
                       
-                                const real_t cmax = fmax(std::abs(V[i] - cf), std::abs(V[i] + cf));
-                                inv_dt_hyp_loc = fmax(inv_dt_hyp_loc, cmax/D[i]);
+                                const real_t lambdaMax = fmax(Kokkos::abs(V[i] - cf), Kokkos::abs(V[i] + cf));
+                                inv_dt_hyp_loc = fmax(inv_dt_hyp_loc, lambdaMax/dl[i]);
                               }
                               #endif
 
@@ -67,7 +68,7 @@ public:
                             }, Kokkos::Max<real_t>(inv_dt_hyp), 
                                Kokkos::Max<real_t>(inv_dt_par_tc), 
                                Kokkos::Max<real_t>(inv_dt_par_visc));
-  
+
     if (diag) {
       std::cout << "Computing dts at (t=" << t << ") : dt_hyp=" << 1.0/inv_dt_hyp;
       if(params.thermal_conductivity_active)
@@ -76,7 +77,7 @@ public:
         std::cout << "; dt_visc=" << 1.0/inv_dt_par_visc;
       std::cout << std::endl; 
     }
-
+    
     return full_params.device_params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});
   }
 };

@@ -13,13 +13,13 @@ public:
         : full_params(full_params) {};
     ~SourcesFunctor() = default;
 
-    void applySources(Array Q, Array Unew, real_t dt) const {
+    void applySources(Array Q, Array Unew, real_t dt, real_t GLM_ch1) const {
         auto params = full_params.device_params;
         const real_t dx = params.dx;
         const real_t dy = params.dy;
-        real_t ch_global = 0.0;
-        if (mhd_run && params.riemann_solver == IDEALGLM)
-            ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
+        real_t ch_global = GLM_ch1 / dt;
+        // if (mhd_run && params.riemann_solver == IDEALGLM)
+        //     ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
         Kokkos::parallel_for(
             "Apply sources",
             full_params.range_dom,
@@ -34,6 +34,8 @@ public:
                 if (params.riemann_solver == IDEALGLM) {
                     // Ideal GLM source term
                     State q = getStateFromArray(Q, i, j);
+                    // const real_t GLM_scale = 1.0;
+                    // real_t ch_global = GLM_scale / dt;
                     real_t alpha = ch_global/params.cr;
                     
                 //     // TODO: passer à un ordre 2 en espace pour la PLM

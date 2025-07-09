@@ -85,14 +85,13 @@ public:
 
   }
 
-  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
+  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt, real_t GLM_ch1) const {
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    real_t ch_global = 0.0;
-    // real_t lambda_max = ComputeLambdaMax(Q, full_params);
-    if (params.riemann_solver == IDEALGLM)
-      ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
+    real_t ch_global = GLM_ch1/dt;
+    // if (params.riemann_solver == IDEALGLM)
+    //   ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
     
     Kokkos::parallel_for(
       "Update", 
@@ -136,6 +135,8 @@ public:
                 break;
               }
               case IDEALGLM: {
+                // const real_t GLM_scale = 1.0;
+                // const real_t GLM_ch = GLM_scale / dt;
                 IdealGLM(qL, qR, flux, pout, ch_global, params);
                 break;
               }
@@ -197,19 +198,20 @@ public:
   }
   
 
-  void euler_step(Array Q, Array Unew, real_t dt) {
+  void euler_step(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
     // Hyperbolic update
     if (full_params.device_params.reconstruction == PLM)
     computeSlopes(Q);
-    computeFluxesAndUpdate(Q, Unew, dt);
+    computeFluxesAndUpdate(Q, Unew, dt, GLM_ch1);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-    tc_functor.applyThermalConduction(Q, Unew, dt);
+      tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
-    visc_functor.applyViscosity(Q, Unew, dt);
-    sources_functor.applySources(Q, Unew, dt);
+      visc_functor.applyViscosity(Q, Unew, dt);
+
+    sources_functor.applySources(Q, Unew, dt, GLM_ch1);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
         "Clean values", 
@@ -225,9 +227,9 @@ public:
   }
 
 
-  void update(Array Q, Array Unew, real_t dt) {
+  void update(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, GLM_ch1);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
@@ -236,11 +238,11 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
-      euler_step(Q, Ustar, dt);
+      euler_step(Q, Ustar, dt, GLM_ch1);
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, GLM_ch1);
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 

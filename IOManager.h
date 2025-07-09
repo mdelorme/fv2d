@@ -78,9 +78,10 @@ class IOManager {
 public:
   Params params;
   DeviceParams &device_params;
+  Geometry geometry;
 
   IOManager(Params &params)
-    : params(params), device_params(params.device_params) {};
+    : params(params), device_params(params.device_params), geometry(params.device_params) {};
 
   ~IOManager() = default;
 
@@ -117,8 +118,9 @@ public:
     // -- vertex pos
     for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
       for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
-        x.push_back((i-device_params.ibeg) * device_params.dx);
-        y.push_back((j-device_params.jbeg) * device_params.dy);
+        Pos pos = geometry.map_to_physical_vertex(i, j);
+        x.push_back(pos[IX]);
+        y.push_back(pos[IY]);
       }
     }
 
@@ -191,8 +193,10 @@ public:
       for (int j=device_params.jbeg; j <= device_params.jend; ++j)
         for (int i=device_params.ibeg; i <= device_params.iend; ++i)
         {
-          x.push_back((i-device_params.ibeg) * device_params.dx);
-          y.push_back((j-device_params.jbeg) * device_params.dy);
+          Pos pos = geometry.map_to_physical_vertex(i, j);
+
+          x.push_back(pos[IX]);
+          y.push_back(pos[IY]);
         }
       file.createDataSet("x", x);
       file.createDataSet("y", y);

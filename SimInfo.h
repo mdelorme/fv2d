@@ -25,7 +25,6 @@ namespace {
 
 using real_t = double;
 constexpr int Nfields = 4;
-using Pos   = Kokkos::Array<real_t, 2>;
 using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
@@ -38,6 +37,11 @@ struct RestartInfo {
 enum IDir : uint8_t {
   IX = 0,
   IY = 1
+};
+
+enum ISide : uint8_t {
+  ILEFT  = 0,
+  IRIGHT = 1
 };
 
 enum IVar : uint8_t {
@@ -67,7 +71,9 @@ enum TimeStepping {
 enum ReconstructionType {
   PCM,
   PCM_WB,
-  PLM
+  PLM,
+
+  RECONS_GRADIENT
 };
 
 enum ThermalConductivityMode {
@@ -94,6 +100,13 @@ enum GravityMode {
 
 enum AnalyticalGravityMode {
   AGM_HOT_BUBBLE
+};
+
+enum GeometryType { 
+  GEO_CARTESIAN,
+  GEO_RADIAL,
+  GEO_DEFORMED_CARTESIAN,
+  GEO_RING,
 };
 
 // All parameters that should be copied on the device
@@ -167,6 +180,12 @@ struct DeviceParams {
   real_t dx;   // Space step
   real_t dy;
 
+  // Geometry
+  GeometryType geometry_type = GEO_CARTESIAN;
+  real_t geometry_deformation = 0.6 / (2.0 * M_PI);
+  real_t rmin = 0.0;
+  real_t rmax = 1.0;
+
   // Misc stuff
   real_t epsilon = 1.0e-6;
   
@@ -202,9 +221,10 @@ struct DeviceParams {
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
 
     std::map<std::string, ReconstructionType> recons_map{
-      {"pcm",    PCM},
-      {"pcm_wb", PCM_WB},
-      {"plm",    PLM}
+      {"pcm",      PCM},
+      {"pcm_wb",   PCM_WB},
+      {"plm",      PLM},
+      {"gradient", RECONS_GRADIENT}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
 
@@ -274,6 +294,18 @@ struct DeviceParams {
 
     // Hot bubble
     hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
+
+    // Geometry
+    std::map<std::string, GeometryType> geo_map{
+      {"cartesian",          GEO_CARTESIAN},
+      {"radial",             GEO_RADIAL},
+      {"deformed_cartesian", GEO_DEFORMED_CARTESIAN},
+      {"ring",               GEO_RING},
+    };
+    geometry_type        = read_map(reader, geo_map, "mesh", "geometry", "cartesian");
+    geometry_deformation = reader.GetFloat("mesh", "deformation_param", 0.6 / (2.0 * M_PI));
+    rmin                 = reader.GetFloat("mesh", "rmin", 0.0);
+    rmax                 = reader.GetFloat("mesh", "rmax", 1.0);
   }
 };
 
@@ -380,14 +412,6 @@ struct Params {
   }
 };
 
-
-// Helper to get the position in the mesh
-KOKKOS_INLINE_FUNCTION
-Pos getPos(const DeviceParams& params, int i, int j) {
-  return {params.xmin + (i-params.ibeg+0.5) * params.dx,
-          params.ymin + (j-params.jbeg+0.5) * params.dy};
-}
-
 Params readInifile(std::string filename) {
   // Params reader(filename);
   Params res;
@@ -432,6 +456,7 @@ Params readInifile(std::string filename) {
 
 // All states operations
 #include "States.h"
+#include "Helpers.h"
 
 namespace fv2d {
 void consToPrim(Array U, Array Q, const Params &full_params) {

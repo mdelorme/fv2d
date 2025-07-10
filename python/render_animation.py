@@ -2,6 +2,7 @@ import os
 import shutil
 import h5py
 from tqdm import tqdm
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -9,6 +10,7 @@ import sys
 if os.path.exists('render'):
   shutil.rmtree('render')
 os.mkdir('render')
+cwd = Path().absolute()
 
 show_grid = False
 
@@ -17,7 +19,18 @@ if '--field' in sys.argv:
   i = sys.argv.index('--field')
   field = sys.argv[i+1]
 
-f = h5py.File('run.h5', 'r')
+if '--file' in sys.argv:
+  i = sys.argv.index('--file')
+  if i+1 >= len(sys.argv):
+    print('[ERROR] Please provide a filename after --file')
+    sys.exit(1)
+  filename = sys.argv[i+1]
+else:
+  filename = 'run.h5'
+if not os.path.exists(filename):
+  print(f'[ERROR] File {cwd/filename} does not seem to exist.')
+  sys.exit(1)
+f = h5py.File(filename, 'r')
 Nf = len(f)-2
 
 x = np.array(f['x'])
@@ -57,7 +70,7 @@ def plot_field(field, cax, i):
     cax.tick_params(which='minor', bottom=False, left=False)
 
   
-print('Rendering animation')
+print(f'Rendering animation for file: {cwd / filename}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(3, 3, figsize=(12, 12)) if is_mhd else plt.subplots(2, 2, figsize=(10, 10))
   t = f['ite_{:04d}'.format(i)].attrs['time']

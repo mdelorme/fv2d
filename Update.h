@@ -89,23 +89,23 @@ public:
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    real_t ch_global = GLM_ch1/dt;
     // if (params.riemann_solver == IDEALGLM)
-    //   ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
+    //   ch_derigs = ComputeGlobalDivergenceSpeed(Q, full_params);
     
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+        const real_t ch_derigs = params.GLM_scale * GLM_ch1/dt;
+        const real_t ch_dedner = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
           int dxp = (dir == IX ?  1 : 0);
           int dym = (dir == IY ? -1 : 0);
           int dyp = (dir == IY ?  1 : 0);
-
+          
           State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
           State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
           State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
@@ -116,14 +116,14 @@ public:
             #ifdef MHD
             real_t Bx_m, psi_m;
             if (params.div_cleaning == DEDNER) {
-              Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
-              psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+              Bx_m  = qL[IBX]  + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch_dedner) * (qR[IPSI] - qL[IPSI]);
+              psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch_dedner * (qR[IBX] - qL[IBX]);
             } 
             else {
               Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]);
               psi_m = 0.0;
             }
-
+            
             switch (params.riemann_solver) {
               case HLL: hll(qL, qR, flux, pout, params);   break;
               case HLLD: {
@@ -135,16 +135,14 @@ public:
                 break;
               }
               case IDEALGLM: {
-                // const real_t GLM_scale = 1.0;
-                // const real_t GLM_ch = GLM_scale / dt;
-                IdealGLM(qL, qR, flux, pout, ch_global, params);
+                IdealGLM(qL, qR, flux, pout, ch_derigs, params);
                 break;
               }
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
             }
             if (params.div_cleaning == DEDNER){
               flux[IBX] = psi_m;
-              flux[IPSI] = ch*ch*Bx_m;
+              flux[IPSI] = ch_dedner*ch_dedner*Bx_m;
             }
             #else
             switch (params.riemann_solver) {

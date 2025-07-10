@@ -880,7 +880,7 @@ void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const 
   // 2. Compute the dissipation term for the KEPES flux
   // State dissipative_term = getScalarDissipation(qL, qR, params);
   State dissipative_term = getMatrixDissipation(qL, qR, ch, params);
-  flux -= 0.5 * dissipative_term; // Subtract the dissipation term
+  flux -= 0.5 * dissipative_term;
 }
 
 #endif

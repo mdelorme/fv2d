@@ -17,7 +17,6 @@ public:
         auto params = full_params.device_params;
         const real_t dx = params.dx;
         const real_t dy = params.dy;
-        real_t ch_global = GLM_ch1 / dt;
         // if (mhd_run && params.riemann_solver == IDEALGLM)
         //     ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
         Kokkos::parallel_for(
@@ -32,17 +31,15 @@ public:
                     Unew(j, i, IPSI) *= parabolic;
                 }
                 if (params.riemann_solver == IDEALGLM) {
+                    const real_t ch_global = params.GLM_scale * GLM_ch1 / dt;
                     // Ideal GLM source term
                     State q = getStateFromArray(Q, i, j);
-                    // const real_t GLM_scale = 1.0;
-                    // real_t ch_global = GLM_scale / dt;
                     real_t alpha = ch_global/params.cr;
                     
-                //     // TODO: passer à un ordre 2 en espace pour la PLM
-                // Déjà inclus dans le flux KEPEC (?)
+                    // TODO: passer à un ordre 2 en espace pour la PLM
                     State SMag{}, SPsi{};
                     
-                    // // Magnetic divergence source term
+                    // Magnetic divergence source term
                     State VMag {0.0, q[IBX], q[IBY], q[IBZ], q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ], q[IU], q[IV], q[IW], 0.0};
                     SMag = (0.5 * (Q(j, i+1, IBX) - Q(j, i-1, IBX)) / dx) * VMag + (0.5 * (Q(j+1, i, IBY) - Q(j-1, i, IBY)) / dy) * VMag;
                     

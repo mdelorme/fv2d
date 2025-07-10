@@ -175,6 +175,7 @@ struct DeviceParams {
   // Divergence Cleaning - MHD only
   DivCleaning div_cleaning = NO_DC;
   real_t cr = 0.18; // GLMMHD
+  real_t GLM_scale = 1.0; // \in ]0;1] - IdealGLM scale factor for value of cleaning speed ch
   
   
   // Mesh
@@ -261,6 +262,7 @@ struct DeviceParams {
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
     well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
     cr      = reader.GetFloat("physics", "cr", 0.18);
+    GLM_scale = reader.GetFloat("physics", "GLM_scale", 1.0);
     
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);

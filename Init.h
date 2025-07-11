@@ -165,12 +165,12 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     else {
       Q(j, i, IR) = 2.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     
     if (y > -1.0/3.0 && y < 1.0/3.0)

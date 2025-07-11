@@ -7,6 +7,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
+# Pass from field name to Latex representation
+latexify = {
+  'rho': r'$\rho$',
+  'prs': r'$p$',
+  'u': r'$u$',
+  'v': r'$v$',
+  'bx': r'$B_x$',
+  'by': r'$B_y$',
+  'bz': r'$B_z$',
+  'psi': r'$\psi$',
+  'divB': r'$\nabla \cdot \mathbf{B}$'
+}
+
+
 if os.path.exists('render'):
   shutil.rmtree('render')
 os.mkdir('render')
@@ -55,9 +69,10 @@ is_mhd = True if 'bx' in f['ite_0000'] else False
 def plot_field(field, cax, i):
   path = f'ite_{i:04d}/{field}'
   arr = np.array(f[path]).reshape((Ny, Nx))
-
+  if field == 'psi': # for the loop advection i want to check the mag field intensity
+    arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
   cax.imshow(arr, extent=ext, origin='lower')
-  cax.set_title(field)
+  cax.set_title(latexify[field])
 
   if show_grid:
     cax.set_xticks(np.arange(ext[0], ext[1], dx), minor=True)

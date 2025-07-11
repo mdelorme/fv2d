@@ -645,8 +645,8 @@ namespace {
     Q(j,i,IPSI) = 0.0;
     
     if (r < r0) {
-      Q(j, i, IBX) = -pos[IX]*A0/r;
-      Q(j, i, IBY) = pos[IY]*A0/r;
+      Q(j, i, IBX) = -pos[IY]*A0/r;
+      Q(j, i, IBY) = pos[IX]*A0/r;
     }
     else {
       Q(j, i, IBX) = 0.0;

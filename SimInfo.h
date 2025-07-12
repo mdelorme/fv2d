@@ -118,14 +118,31 @@ struct Reader {
     constexpr std::string::size_type value_width = 20;
     auto initial_format = o.flags();
     std::string problem = this->_values["physics"]["problem"].value;
-    o << "Parameters used for the problem: " << problem << std::endl;
+    o << "; Parameters used for the problem: " << problem << std::endl;
     o << std::left;
+    
     for( auto p_section : this->_values )
     {
       const std::string& section_name = p_section.first;
       const std::map<std::string, value_container>& map_section = p_section.second;
 
-      o << "\n[" << section_name << "]" << std::endl;
+      bool is_default_section = true;
+      for( auto p_var : map_section ) 
+      {
+        is_default_section = p_var.second.is_default_value;
+        if (!is_default_section)
+          break;
+      }
+
+      o << "\n[" << section_name << "]";
+      if (is_default_section) {
+        o << std::right << std::setw(name_width + 2*value_width - 1 - section_name.length()) << " ; default section" << std::left << std::endl;
+        continue;
+      }
+      else {
+        o << std::endl;
+      }
+      
       for( auto p_var : map_section )
       {
         const std::string& var_name = p_var.first;

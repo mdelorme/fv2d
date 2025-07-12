@@ -75,6 +75,9 @@ struct Reader {
     if constexpr (std::is_same_v<T, std::string>){
       this->_values[section][name].value = value;
     }
+    else if constexpr (std::is_same_v<T, bool>) {
+      this->_values[section][name].value = (value) ? "true" : "false";
+    }
     else {
       this->_values[section][name].value = std::to_string(value);
     }

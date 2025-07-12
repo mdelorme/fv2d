@@ -7,12 +7,103 @@
 #include "INIReader.h"
 #include <Kokkos_Core.hpp>
 
+// Add functions HasSection and HasValue to INIReader, remove this when jtilly/inih.git will be updated
+struct IniReader : INIReader {
+  using INIReader::INIReader, INIReader::GetBoolean, INIReader::GetInteger, INIReader::GetFloat, INIReader::Get;
+
+  bool HasSection(const std::string& section) const
+  {
+      const std::string key = MakeKey(section, "");
+      std::map<std::string, std::string>::const_iterator pos = _values.lower_bound(key);
+      if (pos == _values.end())
+          return false;
+      // Does the key at the lower_bound pos start with "section"?
+      return pos->first.compare(0, key.length(), key) == 0;
+  }
+
+  bool HasValue(const std::string& section, const std::string& name) const
+  {
+      std::string key = MakeKey(section, name);
+      return _values.count(key);
+  }
+};
+
 namespace fv2d {
 
-namespace {
-  auto read_map(INIReader &reader, const auto& map, const std::string& section, const std::string& name, const std::string& default_value){
+using real_t = double;
+constexpr int Nfields = 4;
+using Pos   = Kokkos::Array<real_t, 2>;
+using State = Kokkos::Array<real_t, Nfields>;
+using Array = Kokkos::View<real_t***>;
+using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
+
+struct Reader {
+  Reader() = default;
+  Reader(const std::string &filename) 
+  : reader(filename) {};
+  ~Reader() = default;
+
+  struct value_container {
+    std::string value;
+    bool from_file = false;
+    bool used = false;
+    bool is_default_value = true;
+  };
+  std::map<std::string, std::map<std::string, value_container>> _values;
+  IniReader reader;
+
+  template<typename T>
+  void registerValue(std::string section, std::string name, const T& value, bool is_default_value) {
+    auto isAlreadyPresent = [&](const std::string& section, const std::string& name) {
+      return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0);
+    };
+    auto isPresent = [&](const std::string& section, const std::string& name) {
+      return (this->reader.HasSection(section) && this->reader.HasValue(section, name));
+    };
+
+    bool is_already_present_in_file = isAlreadyPresent(section, name);
+    if (is_already_present_in_file) {
+      throw std::runtime_error(std::string("parameter already set : ") + name);
+    }
+    bool is_present_in_file = isPresent(section, name);
+    if (is_present_in_file) {
+      this->_values[section][name].used = true;
+      this->_values[section][name].from_file = true;
+      this->_values[section][name].is_default_value = is_default_value;
+    }
+
+    if constexpr (std::is_same_v<T, std::string>){
+      this->_values[section][name].value = value;
+    }
+    else {
+      this->_values[section][name].value = std::to_string(value);
+    }
+  }
+  bool GetBoolean(std::string section, std::string name, bool default_value){
+    bool res = this->reader.GetBoolean(section, name, default_value); 
+    registerValue(section, name, res, res == default_value);
+    return res;
+  }
+  
+  int GetInteger(std::string section, std::string name, int default_value){
+    int res = this->reader.GetInteger(section, name, default_value);
+    registerValue(section, name, res, res == default_value);
+    return res;
+  }
+  
+  real_t GetFloat(std::string section, std::string name, real_t default_value){
+    real_t res = this->reader.GetFloat(section, name, default_value);
+    registerValue(section, name, res, res == default_value);
+    return res;
+  }
+  std::string Get(std::string section, std::string name, std::string default_value){
+    std::string res = this->reader.Get(section, name, default_value);
+    registerValue(section, name, res, res == default_value);
+    return res;
+  }
+  auto GetMapValue(const auto& map, const std::string& section, const std::string& name, const std::string& default_value){
     std::string tmp;
-    tmp = reader.Get(section, name, default_value);
+    tmp = this->Get(section, name, default_value);
 
     if (map.count(tmp) == 0) {
       tmp = "\nallowed values: ";
@@ -21,14 +112,35 @@ namespace {
     }
     return map.at(tmp);
   };
-}
 
-using real_t = double;
-constexpr int Nfields = 4;
-using Pos   = Kokkos::Array<real_t, 2>;
-using State = Kokkos::Array<real_t, Nfields>;
-using Array = Kokkos::View<real_t***>;
-using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
+  void outputValues(std::ostream& o){
+    constexpr std::string::size_type name_width = 26;
+    constexpr std::string::size_type value_width = 20;
+    auto initial_format = o.flags();
+    std::string problem = this->_values["physics"]["problem"].value;
+    o << "Parameters used for the problem: " << problem << std::endl;
+    o << std::left;
+    for( auto p_section : this->_values )
+    {
+      const std::string& section_name = p_section.first;
+      const std::map<std::string, value_container>& map_section = p_section.second;
+
+      o << "\n[" << section_name << "]" << std::endl;
+      for( auto p_var : map_section )
+      {
+        const std::string& var_name = p_var.first;
+        const value_container& val = p_var.second;
+
+        o << std::setw(std::max(var_name.length(),name_width)) << var_name 
+          << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value 
+          << (val.is_default_value ? " ; default " : "")
+          << std::endl;
+      }
+    }
+    o.flags(initial_format);
+  }
+};
+
 
 struct RestartInfo {
   real_t time;
@@ -170,7 +282,7 @@ struct DeviceParams {
   // Misc stuff
   real_t epsilon = 1.0e-6;
   
-  void init_from_inifile(INIReader &reader) {
+  void init_from_inifile(Reader &reader) {
     
     
     // Mesh
@@ -198,21 +310,21 @@ struct DeviceParams {
       {"absorbing",          BC_ABSORBING},
       {"periodic",           BC_PERIODIC}
     };
-    boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
-    boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
+    boundary_x = reader.GetMapValue(bc_map, "run", "boundaries_x", "reflecting");
+    boundary_y = reader.GetMapValue(bc_map, "run", "boundaries_y", "reflecting");
 
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},
       {"plm",    PLM}
     };
-    reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
+    reconstruction = reader.GetMapValue(recons_map, "solvers", "reconstruction", "pcm");
 
     std::map<std::string, RiemannSolver> riemann_map{
       {"hll", HLL},
       {"hllc", HLLC}
     };
-    riemann_solver = read_map(reader, riemann_map, "solvers", "riemann_solver", "hllc");
+    riemann_solver = reader.GetMapValue(riemann_map, "solvers", "riemann_solver", "hllc");
 
     // Physics
     epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
@@ -229,7 +341,7 @@ struct DeviceParams {
       {"constant",   GRAV_CONSTANT},
       {"analytical", GRAV_ANALYTICAL}
     };
-    gravity_mode = read_map(reader, gravity_map, "gravity", "mode", "none");
+    gravity_mode = reader.GetMapValue(gravity_map, "gravity", "mode", "none");
 
     gx = reader.GetFloat("gravity", "gx", 0.0);
     gy = reader.GetFloat("gravity", "gy", 0.0);
@@ -237,7 +349,7 @@ struct DeviceParams {
     std::map<std::string, AnalyticalGravityMode> analytical_gravity_map{
       {"hot_bubble", AGM_HOT_BUBBLE}
     };
-    analytical_gravity_mode = read_map(reader, analytical_gravity_map, "gravity", "analytical_mode", "hot_bubble");
+    analytical_gravity_mode = reader.GetMapValue(analytical_gravity_map, "gravity", "analytical_mode", "hot_bubble");
 
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
@@ -245,7 +357,7 @@ struct DeviceParams {
       {"constant", TCM_CONSTANT},
       {"B02",      TCM_B02}
     };
-    thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
+    thermal_conductivity_mode = reader.GetMapValue(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
 
     std::map<std::string, BCTC_Mode> bctc_map{
@@ -253,8 +365,8 @@ struct DeviceParams {
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
       {"fixed_gradient",    BCTC_FIXED_GRADIENT}
     };
-    bctc_ymin = read_map(reader, bctc_map, "thermal_conduction", "bc_ymin", "none");
-    bctc_ymax = read_map(reader, bctc_map, "thermal_conduction", "bc_ymax", "none");
+    bctc_ymin = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymin", "none");
+    bctc_ymax = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymax", "none");
     bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
     bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);
 
@@ -263,7 +375,7 @@ struct DeviceParams {
     std::map<std::string, ViscosityMode> viscosity_map{
       {"constant", VSC_CONSTANT},
     };
-    viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
+    viscosity_mode = reader.GetMapValue(viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
 
     // H84
@@ -281,7 +393,7 @@ struct DeviceParams {
 struct Params {
   real_t save_freq;
   real_t tend;
-  INIReader reader;
+  Reader reader;
   std::string filename_out = "run";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
@@ -304,80 +416,6 @@ struct Params {
   // Misc 
   int seed;
   int log_frequency;
-  
-  struct value_container {
-    std::string value;
-    bool from_file = false;
-    bool used = false;
-  };
-  std::map<std::string, std::map<std::string, value_container>> _values;
-  
-  template<typename T>
-  void registerValue(std::string section, std::string name, const T& default_value) {
-    // TODO: revoir la logique car affiche unused et default à chaque paramètre.
-    // Les valeurs sont par contre correctes.
-    auto hasValue = [&](const std::string& section, const std::string& name) {
-      return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0);
-    };
-
-    bool is_present_in_file = hasValue(section, name);
-    if (is_present_in_file) {
-      this->_values[section][name].used = true;
-      this->_values[section][name].from_file = true;
-    }
-    if constexpr (std::is_same_v<T, std::string>){
-      this->_values[section][name].value = default_value;
-    }
-    else {
-      this->_values[section][name].value = std::to_string(default_value);
-    }
-  }
-  bool GetBoolean(std::string section, std::string name, bool default_value){
-    bool res = this->reader.GetBoolean(section, name, default_value);
-    registerValue(section, name, res);
-    return res;
-  }
-  
-  int GetInteger(std::string section, std::string name, int default_value){
-    int res = this->reader.GetInteger(section, name, default_value);
-    registerValue(section, name, res);
-    return res;
-  }
-  
-  real_t GetFloat(std::string section, std::string name, real_t default_value){
-    real_t res = this->reader.GetFloat(section, name, default_value);
-    registerValue(section, name, res);
-    return res;
-  }
-  std::string Get(std::string section, std::string name, std::string default_value){
-    std::string res = this->reader.Get(section, name, default_value);
-    registerValue(section, name, res);
-    return res;
-  }
-
-  void outputValues(std::ostream& o){
-    constexpr std::string::size_type name_width = 20;
-    constexpr std::string::size_type value_width = 20;
-    auto initial_format = o.flags();
-    std::string problem = this->Get("physics", "problem", "unknown");
-    o << "Parameters used for the problem: " << problem << std::endl;
-    o << std::left;
-    for( auto p_section : this->_values )
-    {
-      const std::string& section_name = p_section.first;
-      const std::map<std::string, value_container>& map_section = p_section.second;
-
-      o << "\n[" << section_name << "]" << std::endl;
-      for( auto p_var : map_section )
-      {
-        const std::string& var_name = p_var.first;
-        const value_container& val = p_var.second;
-
-        o << std::setw(std::max(var_name.length(),name_width)) << var_name << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value << std::endl;
-      }
-    }
-    o.flags(initial_format);
-  }
 };
 
 
@@ -391,28 +429,30 @@ Pos getPos(const DeviceParams& params, int i, int j) {
 Params readInifile(std::string filename) {
   // Params reader(filename);
   Params res;
-  res.reader = INIReader(filename);
+  res.reader = Reader(filename);
+  auto &reader = res.reader;
+  
   // Run
-  res.tend = res.GetFloat("run", "tend", 1.0);
-  res.multiple_outputs = res.GetBoolean("run", "multiple_outputs", false);
-  res.restart_file = res.Get("run", "restart_file", "");
+  res.tend = reader.GetFloat("run", "tend", 1.0);
+  res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
+  res.restart_file = reader.Get("run", "restart_file", "");
   if (res.restart_file != "" && !res.multiple_outputs)
     throw std::runtime_error("Restart one unique files is not implemented yet !");
     
-  res.save_freq = res.GetFloat("run", "save_freq", 1.0e-1);
-  res.filename_out = res.Get("run", "output_filename", "run");
+  res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
+  res.filename_out = reader.Get("run", "output_filename", "run");
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
     {"RK2",   TS_RK2}
   };
-  res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
-  res.problem = res.Get("physics", "problem", "blast");
+  res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");
+  res.problem = reader.Get("physics", "problem", "blast");
 
 
   // Misc
-  res.seed = res.GetInteger("misc", "seed", 12345);
-  res.log_frequency = res.GetInteger("misc", "log_frequency", 10);
+  res.seed = reader.GetInteger("misc", "seed", 12345);
+  res.log_frequency = reader.GetInteger("misc", "log_frequency", 10);
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);

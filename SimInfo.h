@@ -7,6 +7,81 @@
 #include "INIReader.h"
 #include <Kokkos_Core.hpp>
 
+namespace fv2d {
+
+using real_t = double;
+constexpr int Nfields = 4;
+using Pos   = Kokkos::Array<real_t, 2>;
+using State = Kokkos::Array<real_t, Nfields>;
+using Array = Kokkos::View<real_t***>;
+using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
+
+struct RestartInfo {
+  real_t time;
+  int iteration;
+};
+
+enum IDir : uint8_t {
+  IX = 0,
+  IY = 1
+};
+
+enum IVar : uint8_t {
+  IR = 0,
+  IU = 1,
+  IV = 2,
+  IP = 3,
+  IE = 3
+};
+
+enum RiemannSolver {
+  HLL,
+  HLLC
+};
+
+enum BoundaryType {
+  BC_ABSORBING,
+  BC_REFLECTING,
+  BC_PERIODIC
+};
+
+enum TimeStepping {
+  TS_EULER,
+  TS_RK2
+};
+
+enum ReconstructionType {
+  PCM,
+  PCM_WB,
+  PLM
+};
+
+enum ThermalConductivityMode {
+  TCM_CONSTANT,
+  TCM_B02,
+};
+
+// Thermal conduction at boundary
+enum BCTC_Mode {
+  BCTC_NONE,              // Nothing special done
+  BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
+  BCTC_FIXED_GRADIENT     // Lock the gradient at the boundary
+};
+
+enum ViscosityMode {
+  VSC_CONSTANT
+};
+
+enum GravityMode {
+  GRAV_NONE,
+  GRAV_CONSTANT,
+  GRAV_ANALYTICAL
+};
+
+enum AnalyticalGravityMode {
+  AGM_HOT_BUBBLE
+};
+
 // Add functions HasSection and HasValue to INIReader, remove this when jtilly/inih.git will be updated
 struct IniReader : INIReader {
   using INIReader::INIReader, INIReader::GetBoolean, INIReader::GetInteger, INIReader::GetFloat, INIReader::Get;
@@ -28,15 +103,7 @@ struct IniReader : INIReader {
   }
 };
 
-namespace fv2d {
-
-using real_t = double;
-constexpr int Nfields = 4;
-using Pos   = Kokkos::Array<real_t, 2>;
-using State = Kokkos::Array<real_t, Nfields>;
-using Array = Kokkos::View<real_t***>;
-using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
-
+// Reader 
 struct Reader {
   Reader() = default;
   Reader(const std::string &filename) 
@@ -104,7 +171,8 @@ struct Reader {
     registerValue(section, name, res, res == default_value);
     return res;
   }
-  auto GetMapValue(const auto& map, const std::string& section, const std::string& name, const std::string& default_value){
+  template<typename T>
+  auto GetMapValue(const std::map<std::string, T>& map, const std::string& section, const std::string& name, const std::string& default_value){
     std::string tmp;
     tmp = this->Get(section, name, default_value);
 
@@ -129,22 +197,17 @@ struct Reader {
       const std::string& section_name = p_section.first;
       const std::map<std::string, value_container>& map_section = p_section.second;
 
-      bool is_default_section = true;
+      bool is_unset_section = false;
       for( auto p_var : map_section ) 
       {
-        is_default_section = p_var.second.is_default_value;
-        if (!is_default_section)
+        is_unset_section = p_var.second.from_file;
+        if ( is_unset_section )
           break;
       }
 
-      o << "\n[" << section_name << "]";
-      if (is_default_section) {
-        o << std::right << std::setw(name_width + 2*value_width - 1 - section_name.length()) << " ; default section" << std::left << std::endl;
+      if ( ! is_unset_section )
         continue;
-      }
-      else {
-        o << std::endl;
-      }
+      o << "\n[" << section_name << "]" << std::endl;
       
       for( auto p_var : map_section )
       {
@@ -153,79 +216,12 @@ struct Reader {
 
         o << std::setw(std::max(var_name.length(),name_width)) << var_name 
           << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value 
-          << (val.is_default_value ? " ; default " : "")
+          << (val.from_file ? "" : " ; default ")
           << std::endl;
       }
     }
     o.flags(initial_format);
   }
-};
-
-
-struct RestartInfo {
-  real_t time;
-  int iteration;
-};
-
-enum IDir : uint8_t {
-  IX = 0,
-  IY = 1
-};
-
-enum IVar : uint8_t {
-  IR = 0,
-  IU = 1,
-  IV = 2,
-  IP = 3,
-  IE = 3
-};
-
-enum RiemannSolver {
-  HLL,
-  HLLC
-};
-
-enum BoundaryType {
-  BC_ABSORBING,
-  BC_REFLECTING,
-  BC_PERIODIC
-};
-
-enum TimeStepping {
-  TS_EULER,
-  TS_RK2
-};
-
-enum ReconstructionType {
-  PCM,
-  PCM_WB,
-  PLM
-};
-
-enum ThermalConductivityMode {
-  TCM_CONSTANT,
-  TCM_B02,
-};
-
-// Thermal conduction at boundary
-enum BCTC_Mode {
-  BCTC_NONE,              // Nothing special done
-  BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
-  BCTC_FIXED_GRADIENT     // Lock the gradient at the boundary
-};
-
-enum ViscosityMode {
-  VSC_CONSTANT
-};
-
-enum GravityMode {
-  GRAV_NONE,
-  GRAV_CONSTANT,
-  GRAV_ANALYTICAL
-};
-
-enum AnalyticalGravityMode {
-  AGM_HOT_BUBBLE
 };
 
 // All parameters that should be copied on the device

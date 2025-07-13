@@ -10,66 +10,63 @@ using namespace H5Easy;
 
 namespace fv2d {
 
+constexpr int ite_nzeros = 4;
+constexpr std::string_view ite_prefix = "ite_";
+
   // xdmf strings
-  namespace {
-    char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
-<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-<Xdmf Version="2.0">
-  <Domain CollectionType="Temporal">
-    <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">
-
-      <Topology Name="Main Topology" TopologyType="2DSMesh" NumberOfElements="%d %d"/>
-      <Geometry Name="Main Geometry" GeometryType="X_Y">
-        <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/x</DataItem>
-        <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/y</DataItem>
-      </Geometry>
-      )xml";
-    #define format_xdmf_header(params, path)                                          \
-           params.Ny + 1, params.Nx + 1,                                        \
-           params.Ny + 1, params.Nx + 1, (path + ".h5").c_str(), \
-           params.Ny + 1, params.Nx + 1, (path + ".h5").c_str()
-
-    char str_xdmf_footer[] =
-    R"xml(
-    </Grid>
-  </Domain>
+namespace {
+  char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" [
+<!ENTITY file "%s:">
+<!ENTITY fdim "%d %d">
+<!ENTITY gdim "%d %d">
+<!ENTITY GridEntity '
+<Topology TopologyType="2DSMesh" Dimensions="&gdim;"/>
+<Geometry GeometryType="X_Y">
+  <DataItem Dimensions="&gdim;" NumberType="Float" Precision="8" Format="HDF">&file;/x</DataItem>
+  <DataItem Dimensions="&gdim;" NumberType="Float" Precision="8" Format="HDF">&file;/y</DataItem>
+</Geometry>'>
+]>
+<Xdmf Version="3.0">
+<Domain>
+  <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+    )xml";
+  #define format_xdmf_header(params, filename) \
+          (filename).c_str(),                  \
+          params.Ny,     params.Nx,            \
+          params.Ny + 1, params.Nx + 1
+  char str_xdmf_footer[] =
+  R"xml(
+  </Grid>
+</Domain>
 </Xdmf>)xml";
 
-    char str_xdmf_ite_header[] =
-    R"xml(
-    <Grid Name="Cells" GridType="Uniform">
-      <Time TimeType="Single" Value="%lf" />
-      <Topology Reference="//Topology[@Name='Main Topology']" />
-      <Geometry Reference="//Geometry[@Name='Main Geometry']" />)xml";
-
-    char str_xdmf_scalar_field[] =
-    R"xml(
+  char str_xdmf_ite_header[] =
+  R"xml(
+    <Grid Name="%s" GridType="Uniform">
+      <Time Value="%lf" />
+      &GridEntity;)xml";
+  #define format_xdmf_ite_header(name, time) \
+          (name).c_str(), time
+  char str_xdmf_scalar_field[] =
+  R"xml(
       <Attribute Name="%s" AttributeType="Scalar" Center="Cell">
-        <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/%s/%s</DataItem>
+        <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
       </Attribute>)xml";
-    #define format_xdmf_scalar_field(params, path, group, field)              \
-            field,                                                      \
-            params.Ny, params.Nx,                                       \
-            (path + ".h5").c_str(), group.c_str(), field
-
-    char str_xdmf_vector_field[] =
-    R"xml(
+  #define format_xdmf_scalar_field(group, field) \
+          field, (group).c_str(), field
+  char str_xdmf_vector_field[] =
+  R"xml(
       <Attribute Name="%s" AttributeType="Vector" Center="Cell">
-        <DataItem Dimensions="%d %d 2" ItemType="Function" Function="JOIN($0, $1)">
-          <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/%s/%s</DataItem>
-          <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/%s/%s</DataItem>
+        <DataItem Dimensions="&fdim; 2" ItemType="Function" Function="JOIN($0, $1)">
+          <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
+          <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
         </DataItem>
       </Attribute>)xml";
-    #define format_xdmf_vector_field(params, path, group, name, field_x, field_y) \
-            name,                                                           \
-            params.Ny, params.Nx,                                           \
-            params.Ny, params.Nx,                                           \
-            (path + ".h5").c_str(), group.c_str(), field_x,  \
-            params.Ny, params.Nx,                                           \
-            (path + ".h5").c_str(), group.c_str(), field_y
-
-    char str_xdmf_ite_footer[] =
-    R"xml(
+  #define format_xdmf_vector_field(group, name, field_x, field_y) \
+          name, (group).c_str(), field_x, (group).c_str(), field_y
+  char str_xdmf_ite_footer[] =
+  R"xml(
     </Grid>
     )xml";
   } // anonymous namespace
@@ -94,8 +91,8 @@ public:
   void saveSolutionMultiple(const Array &Q, int iteration, real_t t, real_t dt) {
     std::ostringstream oss;
     
-    oss << params.filename_out << "_" << std::setw(4) << std::setfill('0') << iteration;
-    std::string path = oss.str();
+    oss << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << iteration;
+    std::string iteration_str = oss.str();
     std::string h5_filename  = oss.str() + ".h5";
     std::string xmf_filename = oss.str() + ".xmf";
 
@@ -152,13 +149,13 @@ public:
     file.createDataSet("prs", tprs);
     file.createAttribute("time", t);
 
-    std::string empty_string = "";
+    std::string group = "";
 
-    fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, path));
-    fprintf(xdmf_fd, str_xdmf_ite_header, t);
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "rho"));
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, path, empty_string, "velocity", "u", "v"));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, path, empty_string, "prs"));
+    fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, h5_filename));
+    fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho"));
+    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);
@@ -167,9 +164,9 @@ public:
   void saveSolutionUnique(const Array &Q, int iteration, real_t t, real_t dt) {
     std::ostringstream oss;
     
-    oss << "ite_" << std::setw(4) << std::setfill('0') << iteration;
-    std::string path = oss.str();
-
+    oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
+    std::string iteration_str = oss.str();
+      
     auto flag_h5 = (iteration == 0 ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (iteration == 0 ? "w+" : "r+");
     File file(params.filename_out + ".h5", flag_h5);
@@ -197,7 +194,7 @@ public:
       file.createDataSet("x", x);
       file.createDataSet("y", y);
 
-      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out));
+      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out + ".h5"));
       fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
 
@@ -228,25 +225,33 @@ public:
       tprs.push_back(rprs);
     }
 
-    auto group = file.createGroup(path);
-    group.createDataSet("rho", trho);
-    group.createDataSet("u", tu);
-    group.createDataSet("v", tv);
-    group.createDataSet("prs", tprs);
-    group.createAttribute("time", t);
+    auto ite_group = file.createGroup(iteration_str);
+    ite_group.createDataSet("rho", trho);
+    ite_group.createDataSet("u", tu);
+    ite_group.createDataSet("v", tv);
+    ite_group.createDataSet("prs", tprs);
+    ite_group.createAttribute("time", t);
+
+    const std::string group = iteration_str + "/";
 
     fseek(xdmf_fd, -sizeof(str_xdmf_footer), SEEK_END);
-    fprintf(xdmf_fd, str_xdmf_ite_header, t);
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "rho"));
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(device_params, params.filename_out, path, "velocity", "u", "v"));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(device_params, params.filename_out, path, "prs"));
+    fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho"));
+    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);
   }
 
   RestartInfo loadSnapshot(Array &Q) {
-    File file(params.restart_file, File::ReadOnly);
+    std::string restart_file = params.restart_file;
+    std::string ite_group = "";
+    if (params.multiple_outputs) {
+
+    }
+
+    File file(restart_file, File::ReadOnly);
 
     auto Nt = getShape(file, "rho")[0];
 
@@ -272,8 +277,8 @@ public:
       }
     };
     load_and_copy("rho", IR);
-    load_and_copy("u", IU);
-    load_and_copy("v", IV);
+    load_and_copy("u",   IU);
+    load_and_copy("v",   IV);
     load_and_copy("prs", IP);
 
     Kokkos::deep_copy(Q, Qhost);

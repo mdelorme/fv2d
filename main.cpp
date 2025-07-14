@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     Array Q    = Kokkos::View<real_t***>("Q", device_params.Nty, device_params.Ntx, Nfields);
 
 
+    real_t GLM_ch1; // GLM wave speed, computed only once
     // Misc vars for iteration
     real_t t = 0.0;
     int save_ite = 0;
@@ -56,6 +57,7 @@ int main(int argc, char **argv) {
     }
     else
       init.init(Q);
+      GLM_ch1 = init.initGLMch(Q, params);
     primToCons(Q, U, params);
 
     real_t dt;
@@ -82,7 +84,7 @@ int main(int argc, char **argv) {
 
       }
 
-      update.update(Q, U, dt);
+      update.update(Q, U, dt, GLM_ch1);
       consToPrim(U, Q, params);
       checkNegatives(Q, params);
 

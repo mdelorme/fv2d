@@ -165,12 +165,12 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     else {
       Q(j, i, IR) = 2.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     
     if (y > -1.0/3.0 && y < 1.0/3.0)
@@ -818,8 +818,8 @@ namespace {
     Q(j,i,IPSI) = 0.0;
     
     if (r < r0) {
-      Q(j, i, IBX) = -pos[IX]*A0/r;
-      Q(j, i, IBY) = pos[IY]*A0/r;
+      Q(j, i, IBX) = -pos[IY]*A0/r;
+      Q(j, i, IBY) = pos[IX]*A0/r;
     }
     else {
       Q(j, i, IBX) = 0.0;
@@ -956,6 +956,32 @@ public:
     BoundaryManager bc(full_params);
     bc.fillBoundaries(Q);
   }
-};
 
+  real_t initGLMch(Array Q, const Params &full_params) const {
+  // > Calculate the time step for the GLM wave system, assuming ch=1. 
+  // > This is computed only once, then ch is computed frm the current timestep:
+  // > dt~1/ch -> dt/dtch1 = 1/ch -> ch=dtch1/dt
+    auto params = full_params.device_params;
+    real_t lambda_x = 0.0;
+    real_t lambda_y = 0.0;
+    Kokkos::parallel_reduce("Compute inital GLM Wave Speed",
+      full_params.range_dom,
+      KOKKOS_LAMBDA(int i, int j, real_t& lambda_x, real_t& lambda_y) {
+        State q = getStateFromArray(Q, i, j);
+        real_t bx = q[IBX];
+        real_t by = q[IBY];
+        real_t cs = speedOfSound(q, params);
+        real_t va = Kokkos::sqrt((bx*bx + by*by) / (4 * M_PI * q[IR]));
+        real_t v_fast = Kokkos::sqrt(0.5 * (va*va + cs*cs + Kokkos::sqrt((va*va + cs*cs)*(va*va + cs*cs) - 4.0*va*va * cs*cs * (bx*bx / (bx*bx + by*by)))));
+        real_t lambdaloc_x = Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX));
+        real_t lambdaloc_y = Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY));
+        lambda_x = Kokkos::max(lambda_x, lambdaloc_x);
+        lambda_y = Kokkos::max(lambda_y, lambdaloc_y);
+      },
+      Kokkos::Max<real_t>(lambda_x),
+      Kokkos::Max<real_t>(lambda_y)
+    );
+    return params.CFL * 2.0 / (lambda_x/params.dx + lambda_y/params.dy);
+    }
+};
 }

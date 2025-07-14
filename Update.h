@@ -7,6 +7,7 @@
 #include "Heating.h"
 #include "Viscosity.h"
 #include "Sources.h"
+#include "Gravity.h"
 
 namespace fv2d {
 
@@ -22,9 +23,7 @@ namespace {
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
-        res[IP] = (dir == IX ? q[IP] : q[IP] + sign * q[IR] * params.g * params.dy * 0.5);
-        // TODO Lucas : Ajouter les éléments mhd si le run est mhd (en constexpr)
-        break;
+        res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
       default:  res = q; // Piecewise Constant
     }
 
@@ -87,28 +86,27 @@ public:
 
   }
 
-  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const {
+  void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt, real_t GLM_ch1) const {
     auto params = full_params.device_params;
     auto slopesX = this->slopesX;
     auto slopesY = this->slopesY;
-    real_t ch_global = 0.0;
-    // real_t lambda_max = ComputeLambdaMax(Q, full_params);
-    if (params.riemann_solver == IDEALGLM)
-      ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
+    // if (params.riemann_solver == IDEALGLM)
+    //   ch_derigs = ComputeGlobalDivergenceSpeed(Q, full_params);
     
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
-        real_t ch = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
+        const real_t ch_derigs = params.GLM_scale * GLM_ch1/dt;
+        const real_t ch_dedner = 0.5 * params.CFL * fmin(params.dx, params.dy)/dt;
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           auto& slopes = (dir == IX ? slopesX : slopesY);
           int dxm = (dir == IX ? -1 : 0);
           int dxp = (dir == IX ?  1 : 0);
           int dym = (dir == IY ? -1 : 0);
           int dyp = (dir == IY ?  1 : 0);
-
+          
           State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
           State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
           State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
@@ -119,14 +117,14 @@ public:
             #ifdef MHD
             real_t Bx_m, psi_m;
             if (params.div_cleaning == DEDNER) {
-              Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch) * (qR[IPSI] - qL[IPSI]);
-              psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch * (qR[IBX] - qL[IBX]);
+              Bx_m  = qL[IBX]  + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*ch_dedner) * (qR[IPSI] - qL[IPSI]);
+              psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*ch_dedner * (qR[IBX] - qL[IBX]);
             } 
             else {
               Bx_m = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]);
               psi_m = 0.0;
             }
-
+            
             switch (params.riemann_solver) {
               case HLL: hll(qL, qR, flux, pout, params);   break;
               case HLLD: {
@@ -138,14 +136,14 @@ public:
                 break;
               }
               case IDEALGLM: {
-                IdealGLM(qL, qR, flux, pout, ch, params);
+                IdealGLM(qL, qR, flux, pout, ch_derigs, params);
                 break;
               }
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
             }
             if (params.div_cleaning == DEDNER){
               flux[IBX] = psi_m;
-              flux[IPSI] = ch*ch*Bx_m;
+              flux[IPSI] = ch_dedner*ch_dedner*Bx_m;
             }
             #else
             switch (params.riemann_solver) {
@@ -168,17 +166,18 @@ public:
           // Remove mechanical flux in a well-balanced fashion
           // TODO: Vérifier s'il faut pas changer params en device_params ici
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
+            real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
               #ifdef MHD
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
               #else
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
               #endif
             else
               #ifdef MHD
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
               #else
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*params.g*params.dy, 0.0};
+              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
               #endif
           }
 
@@ -200,13 +199,13 @@ public:
   }
   
 
-  void euler_step(Array Q, Array Unew, real_t dt) {
+  void euler_step(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
     // Hyperbolic update
     if (full_params.device_params.reconstruction == PLM)
     computeSlopes(Q);
-    computeFluxesAndUpdate(Q, Unew, dt);
+    computeFluxesAndUpdate(Q, Unew, dt, GLM_ch1);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
       tc_functor.applyThermalConduction(Q, Unew, dt);
@@ -214,7 +213,7 @@ public:
       visc_functor.applyViscosity(Q, Unew, dt);
     if (full_params.device_params.heating_active)
       heat_functor.applyHeating(Q, Unew, dt);
-    sources_functor.applySources(Q, Unew, dt);
+    sources_functor.applySources(Q, Unew, dt, GLM_ch1);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
         "Clean values", 
@@ -230,9 +229,9 @@ public:
   }
 
 
-  void update(Array Q, Array Unew, real_t dt) {
+  void update(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, GLM_ch1);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
@@ -241,11 +240,11 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
-      euler_step(Q, Ustar, dt);
+      euler_step(Q, Ustar, dt, GLM_ch1);
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, GLM_ch1);
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 

@@ -13,13 +13,12 @@ public:
         : full_params(full_params) {};
     ~SourcesFunctor() = default;
 
-    void applySources(Array Q, Array Unew, real_t dt) const {
+    void applySources(Array Q, Array Unew, real_t dt, real_t GLM_ch1) const {
         auto params = full_params.device_params;
         const real_t dx = params.dx;
         const real_t dy = params.dy;
-        real_t ch_global = 0.0;
-        if (mhd_run && params.riemann_solver == IDEALGLM)
-            ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
+        // if (mhd_run && params.riemann_solver == IDEALGLM)
+        //     ch_global = ComputeGlobalDivergenceSpeed(Q, full_params);
         Kokkos::parallel_for(
             "Apply sources",
             full_params.range_dom,
@@ -32,30 +31,76 @@ public:
                     Unew(j, i, IPSI) *= parabolic;
                 }
                 if (params.riemann_solver == IDEALGLM) {
-                    // Ideal GLM source term
-                    State q = getStateFromArray(Q, i, j);
-                    real_t alpha = ch_global/params.cr;
+                    const real_t ch_global = params.GLM_scale * GLM_ch1 / dt;
+                    const real_t alpha = ch_global/params.cr;
+                // En fait, les termes sources sont inclus dans le flux
+                    // // Ideal GLM source term
+                    // State q = getStateFromArray(Q, i, j);
+                    // // State qy = swap_component(qx, IY);
                     
-                //     // TODO: passer à un ordre 2 en espace pour la PLM
-                // Déjà inclus dans le flux KEPEC (?)
-                    State SMag{}, SPsi{};
+                    // // TODO: passer à un ordre 2 en espace pour la PLM
+                    // // Magnetic divergence source terms
+                    // State SourceMagX {
+                    //     0.0,
+                    //     q[IBX], 
+                    //     q[IBY], 
+                    //     q[IBZ],
+                    //     q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ],
+                    //     q[IU], 
+                    //     q[IV], 
+                    //     q[IW],
+                    //     0.0
+                    // };
                     
-                    // // Magnetic divergence source term
-                    State VMag {0.0, q[IBX], q[IBY], q[IBZ], q[IU]*q[IBX] + q[IV]*q[IBY] + q[IW]*q[IBZ], q[IU], q[IV], q[IW], 0.0};
-                    SMag = (0.5 * (Q(j, i+1, IBX) - Q(j, i-1, IBX)) / dx) * VMag + (0.5 * (Q(j+1, i, IBY) - Q(j-1, i, IBY)) / dy) * VMag;
-                    
+                    // State SourceMagY {
+                    //     0.0,
+                    //     q[IBY], 
+                    //     q[IBX], 
+                    //     q[IBZ],
+                    //     q[IV]*q[IBY] + q[IU]*q[IBX] + q[IW]*q[IBZ],
+                    //     q[IV], 
+                    //     q[IU], 
+                    //     q[IW],
+                    //     0.0
+                    // };
+                    // const real_t dBdx = 0.5 * (Q(j, i+1, IBX) - Q(j, i-1, IBX)) / dx;
+                    // const real_t dBdy = 0.5 * (Q(j+1, i, IBY) - Q(j-1, i, IBY)) / dy;
+                    // State SourceMag = dBdx * SourceMagX + dBdy * SourceMagY;
+                        
                     // // Psi correlated non-conservative term
-                    State SPsiX {0.0, 0.0, 0.0, 0.0, q[IU]*q[IPSI], 0.0, 0.0, 0.0, q[IU]};
-                    SPsiX *= 0.5 * (Q(j, i+1, IPSI) - Q(j, i-1, IPSI)) / dx;
-                    State SPsiY {0.0, 0.0, 0.0, 0.0, q[IV]*q[IPSI], 0.0, 0.0, 0.0, q[IV]};
-                    SPsiY *= 0.5 * (Q(j+1, i, IPSI) - Q(j-1, i, IPSI)) / dy;
-                    SPsi = SPsiX + SPsiY;
-                    
-                    for (int ivar = 0; ivar < Nfields; ++ivar) {
-                        Unew(j, i, ivar) += dt * (SMag[ivar] + SPsi[ivar]);
-                    }
+                    // State SourcePsiX {
+                    //     0.0,
+                    //     0.0,
+                    //     0.0,
+                    //     0.0, 
+                    //     q[IU] * q[IPSI], 
+                    //     0.0,
+                    //     0.0,
+                    //     0.0,
+                    //     q[IU]
+                    // };
+
+                    // State SourcePsiY {
+                    //     0.0,
+                    //     0.0,
+                    //     0.0,
+                    //     0.0,
+                    //     q[IV] * q[IPSI], 
+                    //     0.0,
+                    //     0.0,
+                    //     0.0,
+                    //     q[IV]
+                    // };
+
+                    // const real_t dPsidx = 0.5 * (Q(j, i+1, IPSI) - Q(j, i-1, IPSI)) / dx;
+                    // const real_t dPsidy = 0.5 * (Q(j+1, i, IPSI) - Q(j-1, i, IPSI)) / dy;
+                    // State SourcePsi = dPsidx * SourcePsiX + dPsidy * SourcePsiY;
+
+                    // for (int ivar = 0; ivar < Nfields; ++ivar) {
+                    //     Unew(j, i, ivar) += dt * (SourceMag[ivar] + SourcePsi[ivar]);
+                    // }
                     // Parabolic source term
-                    Unew(j, i, IPSI) -= dt * alpha*q[IPSI];
+                    Unew(j, i, IPSI) -= dt * alpha*Q(j, i, IPSI);
                 }
             });
     }

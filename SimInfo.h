@@ -145,6 +145,10 @@ struct Reader {
     else if constexpr (std::is_same_v<T, bool>) {
       this->_values[section][name].value = (value) ? "true" : "false";
     }
+    else if constexpr (std::is_floating_point_v<T>) {
+      std::ostringstream os; os << std::scientific << std::setprecision(12) << value;
+      this->_values[section][name].value = os.str();
+    }
     else {
       this->_values[section][name].value = std::to_string(value);
     }
@@ -197,16 +201,17 @@ struct Reader {
       const std::string& section_name = p_section.first;
       const std::map<std::string, value_container>& map_section = p_section.second;
 
-      bool is_unset_section = false;
-      for( auto p_var : map_section ) 
-      {
-        is_unset_section = p_var.second.from_file;
-        if ( is_unset_section )
-          break;
-      }
-
-      if ( ! is_unset_section )
+    // skip section if it doesn't appear in the .ini
+      if ( !this->reader.HasSection(p_section.first) )
         continue;
+
+    // skip section if there is only default values
+      /*
+      for( auto p_var : map_section ) 
+        if ( p_var.second.from_file ) 
+          break;
+      */
+    
       o << "\n[" << section_name << "]" << std::endl;
       
       for( auto p_var : map_section )

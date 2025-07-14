@@ -559,8 +559,9 @@ void print_ini_file(const Params &p) {
 
   std::cout << std::endl << " -- Physics -- " << std::endl;
   std::cout << "gamma0             = " << dp.gamma0 << std::endl;
-  std::cout << "gravity active     = " << dp.gravity << std::endl;
-  std::cout << "g                  = " << dp.g << std::endl;
+  std::cout << "gravity active     = " << dp.gravity_mode << std::endl;
+  std::cout << "gx                 = " << dp.gx << std::endl;
+  std::cout << "gy                 = " << dp.gy << std::endl;
   std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
   std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;
   std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;

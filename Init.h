@@ -230,6 +230,9 @@ namespace {
       Q(j, i, IV) = 0.0;
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
+    real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = B0 * 4.0;
   }
   
   KOKKOS_INLINE_FUNCTION
@@ -292,6 +295,9 @@ namespace {
       Q(j, i, IV) = 0.0;
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
+    real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = B0 * 4.0;
   }
   
   KOKKOS_INLINE_FUNCTION
@@ -302,7 +308,7 @@ namespace {
     const real_t p1 = rho1 * T1;
     
     const real_t T0 = T1;
-    const real_t rho0 = rho1 * exp(-params.iso3_dy0 * params.g / T0);
+    const real_t rho0 = rho1 * exp(-params.iso3_dy0 * params.gy / T0);
     const real_t p0 = rho0 * T0;
     
     const real_t T2   = T1 + params.iso3_theta1 * params.iso3_dy1;
@@ -318,8 +324,9 @@ namespace {
     // Top layer (iso-thermal)
     real_t rho, p;
     real_t T;
+    real_t B0 = 1.0 / std::sqrt(4. * M_PI);
     if (d <= y1) {
-      p   = p0 * exp(params.g * d / T0);
+      p   = p0 * exp(params.gy * d / T0);
       rho = p / T0;
     }
     // Middle layer (convective)
@@ -348,6 +355,8 @@ namespace {
     Q(j, i, IU) = 0.0;
     Q(j, i, IV) = 0.0;
     Q(j, i, IP) = p;
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = B0 * 4.0;
   }
 
 

@@ -184,9 +184,9 @@ public:
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
-          if (dir == IY && params.gravity) {
-            un_loc[IV] += dt * Q(j, i, IR) * params.g;
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
+          if (params.gravity_mode != GRAV_NONE) {
+            un_loc[IV] += dt * Q(j, i, IR) * params.gy;
+            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.gy;
           }
           setStateInArray(Unew, i, j, un_loc);
         };

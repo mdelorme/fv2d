@@ -79,13 +79,13 @@ namespace fv2d {
     if (dir == IY && j < 0) {
       Pos pos = getPos(params, i, j);
       const real_t T0 = params.iso3_T0;
-      const real_t rho0 = params.iso3_rho0 * exp(-params.iso3_dy0 * params.g / T0);
+      const real_t rho0 = params.iso3_rho0 * exp(-params.iso3_dy0 * params.gy / T0);
       const real_t p0 = rho0*T0;
       const real_t d = pos[IY];
 
       // Top layer (iso-thermal)
       real_t rho, p;
-      p   = p0 * exp(params.g * d / T0);
+      p   = p0 * exp(params.gy * d / T0);
       rho = p / T0;
 
       State q;

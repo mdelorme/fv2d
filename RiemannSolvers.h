@@ -414,7 +414,9 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
     Bstar = qL[IBX];
   }
   const real_t beta_min = 1.0e-3;
+  const real_t alfven_max = 10.0;
   const real_t beta = q[IP] / (0.5*(q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]));
+  const real_t alfven_number = Kokkos::sqrt(q[IR]*q[IU]/ (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]));
   bool is_low_beta = (beta < beta_min);
   State u = primToCons(q, params);
   //3. Commpute flux
@@ -424,7 +426,7 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   flux[IV]  = u[IV]  * uS + Pstar[IY];
   flux[IW]  = u[IW]  * uS + Pstar[IZ];
   flux[IE]  = u[IE]  * uS + Pstar[IX]*uS + Pstar[IY]*Ustar[IY] + Pstar[IZ]*Ustar[IZ];
-  if (is_low_beta) {
+  if (is_low_beta || (alfven_number > alfven_max)) {
     flux[IBX] = u[IBX] * uS - q[IBX] * Ustar[IX];
     flux[IBY] = u[IBY] * uS - q[IBX] * Ustar[IY];
     flux[IBZ] = u[IBZ] * uS - q[IBX] * Ustar[IZ];

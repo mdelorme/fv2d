@@ -22,10 +22,11 @@ namespace {
 <!ENTITY fdim "%d %d">
 <!ENTITY gdim "%d %d">
 <!ENTITY GridEntity '
-<Topology TopologyType="2DSMesh" Dimensions="&gdim;"/>
-<Geometry GeometryType="X_Y">
-  <DataItem Dimensions="&gdim;" NumberType="Float" Precision="8" Format="HDF">&file;/x</DataItem>
-  <DataItem Dimensions="&gdim;" NumberType="Float" Precision="8" Format="HDF">&file;/y</DataItem>
+<Topology TopologyType="Quadrilateral" NodesPerElement="4" NumberOfElements="&fdim;">
+  <DataItem Dimensions="&fdim; 4" NumberType="UInt" Precision="4" Format="HDF">&file;/connectivity</DataItem>
+</Topology>
+<Geometry GeometryType="XY">
+  <DataItem Dimensions="&gdim; 2" NumberType="Float" Precision="8" Format="HDF">&file;/coordinate</DataItem>
 </Geometry>'>
 ]>
 <Xdmf Version="3.0">
@@ -112,17 +113,24 @@ public:
     file.createAttribute("jend", device_params.jend);
     file.createAttribute("problem", params.problem);
 
-    std::vector<real_t> x, y;
+    std::vector<std::array<real_t, 2>> coordinate;
     // -- vertex pos
     for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
       for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
-        x.push_back((i-device_params.ibeg) * device_params.dx);
-        y.push_back((j-device_params.jbeg) * device_params.dy);
+        coordinate.push_back({(i-device_params.ibeg) * device_params.dx, (j-device_params.jbeg) * device_params.dy});
       }
     }
-
-    file.createDataSet("x", x);
-    file.createDataSet("y", y);
+    file.createDataSet("coordinate", coordinate);
+    
+    std::vector<std::array<uint32_t, 4>> connectivity;
+    // -- connectivity
+    for (int j=device_params.jbeg; j < device_params.jend; ++j) {
+      for (int i=device_params.ibeg; i < device_params.iend; ++i) {
+        auto vertex_id = [&](int i, int j) -> uint32_t { return (i-device_params.ibeg) + (j-device_params.jbeg) * (device_params.Nx + 1); };
+        connectivity.push_back({vertex_id(i, j), vertex_id(i+1, j), vertex_id(i+1, j+1), vertex_id(i, j+1)});
+      }
+    }
+    file.createDataSet("connectivity", connectivity);
 
     using Table = std::vector<real_t>;
 
@@ -189,16 +197,24 @@ public:
       file.createAttribute("jend", device_params.jend);
       file.createAttribute("problem", params.problem);
 
-      std::vector<real_t> x, y;
+      std::vector<std::array<real_t, 2>> coordinate;
       // -- vertex pos
-      for (int j=device_params.jbeg; j <= device_params.jend; ++j)
-        for (int i=device_params.ibeg; i <= device_params.iend; ++i)
-        {
-          x.push_back((i-device_params.ibeg) * device_params.dx);
-          y.push_back((j-device_params.jbeg) * device_params.dy);
+      for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
+        for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
+          coordinate.push_back({(i-device_params.ibeg) * device_params.dx, (j-device_params.jbeg) * device_params.dy});
         }
-      file.createDataSet("x", x);
-      file.createDataSet("y", y);
+      }
+      file.createDataSet("coordinate", coordinate);
+
+      std::vector<std::array<uint32_t, 4>> connectivity;
+      // -- connectivity
+      for (int j=device_params.jbeg; j < device_params.jend; ++j) {
+        for (int i=device_params.ibeg; i < device_params.iend; ++i) {
+          auto vertex_id = [&](int i, int j) -> uint32_t { return (i-device_params.ibeg) + (j-device_params.jbeg) * (device_params.Nx + 1); };
+          connectivity.push_back({vertex_id(i, j), vertex_id(i+1, j), vertex_id(i+1, j+1), vertex_id(i, j+1)});
+        }
+      }
+      file.createDataSet("connectivity", connectivity);
 
       fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out + ".h5"));
       fprintf(xdmf_fd, "%s", str_xdmf_footer);

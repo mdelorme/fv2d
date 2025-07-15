@@ -85,7 +85,13 @@ public:
   bool force_file_truncation = false;
 
   IOManager(Params &params)
-    : params(params), device_params(params.device_params), geo(params.device_params) {};
+    : params(params), device_params(params.device_params), geo(params.device_params) 
+    {
+      if (!std::filesystem::exists(params.output_path)) {
+        std::cout << "Output path does not exist, creating directory `" << params.output_path << "`." << std::endl;
+        std::filesystem::create_directory(params.output_path);
+      }
+    };
 
   ~IOManager() = default;
 
@@ -104,9 +110,10 @@ public:
     std::string iteration_str = oss.str();
     std::string h5_filename  = oss.str() + ".h5";
     std::string xmf_filename = oss.str() + ".xmf";
+    std::string output_path = params.output_path + "/";
 
-    File file(h5_filename, File::Truncate);
-    FILE* xdmf_fd = fopen(xmf_filename.c_str(), "w+");
+    File file(output_path + h5_filename, File::Truncate);
+    FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), "w+");
 
     file.createAttribute("Ntx",  device_params.Ntx);
     file.createAttribute("Nty",  device_params.Nty);
@@ -223,14 +230,16 @@ public:
     
     oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
     std::string iteration_str = oss.str();
-    // std::string filepath = params.path_out + "/" + params.filename_out;
+    std::string h5_filename  = params.filename_out + ".h5";
+    std::string xmf_filename = params.filename_out + ".xmf";
+    std::string output_path = params.output_path + "/";
 
     force_file_truncation = (force_file_truncation || iteration == 0);
       
     auto flag_h5 = (force_file_truncation ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (force_file_truncation ? "w+" : "r+");
-    File file(params.filename_out + ".h5", flag_h5);
-    FILE* xdmf_fd = fopen((params.filename_out + ".xdmf").c_str(), flag_xdmf);
+    File file(output_path + h5_filename, flag_h5);
+    FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), flag_xdmf);
 
     if (force_file_truncation) {
       force_file_truncation = false;
@@ -271,7 +280,7 @@ public:
       file.createDataSet("center_x", x);
       file.createDataSet("center_y", y);
 
-      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out + ".h5"));
+      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, h5_filename));
       fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
 
@@ -363,7 +372,7 @@ public:
       restart_file = restart_file.substr(0, delim_multi + 3);
     }
 
-    if ( !params.multiple_outputs && std::filesystem::equivalent(restart_file, params.filename_out + ".h5") ) {
+    if ( !params.multiple_outputs && std::filesystem::equivalent(restart_file, params.output_path + "/" + params.filename_out + ".h5") ) {
       if (delim_multi != std::string::npos) {
         std::cerr << "Invalid restart file : if your restart file and output file are "
                      "the same, you can only start from the last iteration." << std::endl << std::endl;

@@ -236,7 +236,7 @@ namespace {
     real_t r = sqrt(x*x + y*y);
 
     
-    real_t g = - params.g;
+    real_t g = - Kokkos::max(params.gx, params.gy);
     const real_t rho_in = params.ring_rho_in;
     const real_t rho_out = params.ring_rho_out;
 
@@ -439,12 +439,12 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     else {
       Q(j, i, IR) = 2.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.g * y;
+      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
 
     if (y > -1.0/3.0 && y < 1.0/3.0)
@@ -460,7 +460,7 @@ namespace {
 
     real_t y0 = 0.5;
 
-    real_t g = - params.g;
+    real_t g = - Kokkos::max(params.gx, params.gy);
     const real_t rho_in = params.ring_rho_in;
     const real_t rho_out = params.ring_rho_out;
 
@@ -493,9 +493,10 @@ namespace {
     real_t x = pos[IX];
     real_t y = pos[IY];
     
+    real_t g = Kokkos::max(params.gx, params.gy);
     real_t rho0 = 1.2;
     real_t p0 = 1.0;
-    real_t phi = 0.5 * (x*x + y*y) * params.g;
+    real_t phi = 0.5 * (x*x + y*y) * g;
 
     // auto generator = random_pool.get_state();
     // real_t pert = params.ring_velocity * (generator.drand(-1.0, 1.0));
@@ -624,7 +625,7 @@ public:
                               // case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               // case H84:             initH84(Q, i, j, params, random_pool); break;
                               // case C91:             initC91(Q, i, j, params, random_pool); break;
-                              case ISOTH_STATIC: initIsothermalStatic(Q, i, j, params, geometry, random_pool); break;
+                              case ISOTH_STATIC:    initIsothermalStatic(Q, i, j, params, geometry, random_pool); break;
                               
                               case RING_BLAST:      initRingBlast(Q, i, j, params, geometry); break;
                               case RING_KE:         initRing_KelvinHelmholtz(Q, i, j, params, geometry); break;

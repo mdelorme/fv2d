@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
     // Reading parameters from .ini file
     auto params = readInifile(argv[1]);
     std::ofstream out_ini("last.ini");
-    params.outputValues(out_ini);
+    params.reader.outputValues(out_ini);
     auto device_params = params.device_params;
 
     // Allocating main views
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 
       if (save_needed) {
         std::cout << " - Saving at time " << t << std::endl;
-        ioManager.saveSolution(Q, ite++, t, dt);
+        ioManager.saveSolution(Q, ite++, t);
         next_save += params.save_freq;
       }
 
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Time at end is " << t << std::endl;
 
-    ioManager.saveSolution(Q, ite++, t, dt);
+    ioManager.saveSolution(Q, ite++, t);
   }
   Kokkos::finalize();
 

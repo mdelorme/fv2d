@@ -146,10 +146,12 @@ namespace fv2d {
   State fillIsothermalDirichlet(Array Q, int i, int j, IDir dir, const DeviceParams &params, const Geometry &geo) {
     State q{0};
 
+    const real_t g = Kokkos::max(params.gx, params.gy);
+
     auto [x, y] = geo.mapc2p_center(i,j);
     real_t rho0 = 1.2;
     real_t p0 = 1.0;
-    real_t phi = 0.5 * (x*x + y*y) * params.g;
+    real_t phi = 0.5 * (x*x + y*y) * g;
 
     q[IR] = rho0 * exp(-rho0 * phi / p0);
     q[IP] = p0 * exp(-rho0 * phi / p0);

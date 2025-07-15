@@ -7,7 +7,8 @@ namespace fv2d {
 KOKKOS_INLINE_FUNCTION
 Pos computeGravity(int i, int j, const DeviceParams &params, const Geometry &geometry) {
   Pos g{0};
-  switch (params.gravity) {
+
+  switch (params.gravity_mode) {
     case GRAV_READFILE:
     {
       Pos pos = geometry.mapc2p_center(i,j);
@@ -16,10 +17,10 @@ Pos computeGravity(int i, int j, const DeviceParams &params, const Geometry &geo
       break;
     }
     case GRAV_RADIAL_LIN:
-      g = -params.g * geometry.mapc2p_center(i,j);
+      g = -params.gy * geometry.mapc2p_center(i,j);
       break;
     case GRAV_CONST: default:
-      g[IY] = params.g;
+      g[IY] = params.gy;
       break;
   }
 

@@ -23,8 +23,7 @@ namespace {
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
-        res[IP] = (dir == IX ? q[IP] : q[IP] + 2.0 * length * q[IR] * params.g * params.dy * 0.5);
-        break;
+        res[IP] = q[IP] + length * q[IR] * params.gy; // getGravity(i, j, dir, params)
       default:  res = q; // Piecewise Constant
     }
     return res;

@@ -506,7 +506,7 @@ enum InitType {
   DIFFUSION,
   H84,
   C91,
-  KELVIN_HELMHOLTZ
+  KELVIN_HELMHOLTZ,
   HSE,
   PROFILE,
   GRESHO_VORTEX,
@@ -533,8 +533,8 @@ public:
       {"H84", H84},
       {"C91", C91},
       {"kelvin_helmholtz", KELVIN_HELMHOLTZ},
-      {"profile", PROFILE}
-      {"gresho_vortex", GRESHO_VORTEX}
+      {"profile", PROFILE},
+      {"gresho_vortex", GRESHO_VORTEX},
       {"lax_liu_3", LAXLIU3},
       {"lax_liu_13", LAXLIU13},
       {"implosion", IMPLOSION}

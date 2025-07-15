@@ -162,7 +162,6 @@ public:
           fluxR = swap_component(fluxR, dir);
 
           // Remove mechanical flux in a well-balanced fashion
-          // TODO: Vérifier s'il faut pas changer params en device_params ici
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
@@ -181,7 +180,12 @@ public:
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
-        
+          
+          if (params.riemann_solver == IDEALGLM) {
+            State MagPsiSources = IdealGLMSources(qL, qCL, qCR, qR, params);
+            un_loc += dt * MagPsiSources;
+          }
+
           if (params.gravity_mode != GRAV_NONE) {
             real_t g = getGravity(i, j, dir, params);
             un_loc[IV] += dt * Q(j, i, IR) * g;
@@ -211,7 +215,7 @@ public:
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
 
-    sources_functor.applySources(Q, Unew, dt, GLM_ch1);
+    sources_functor.applySources(Q, Unew, dt, GLM_ch1); // Celle-ci diminue PSI
     auto params = full_params.device_params;
     Kokkos::parallel_for(
         "Clean values", 

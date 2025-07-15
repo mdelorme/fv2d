@@ -89,9 +89,9 @@ class IOManager {
 public:
   Params params;
   DeviceParams &device_params;
-
+  
   IOManager(Params &params)
-    : params(params), device_params(params.device_params) {};
+    : params(params), device_params(params.device_params){};
 
   ~IOManager() = default;
 
@@ -112,6 +112,8 @@ public:
 
     File file(h5_filename, File::Truncate);
     FILE* xdmf_fd = fopen(xmf_filename.c_str(), "w+");
+    BoundaryManager bc(params);
+    bc.fillBoundaries(Q);
 
     file.createAttribute("Ntx",  device_params.Ntx);
     file.createAttribute("Nty",  device_params.Nty);
@@ -220,6 +222,8 @@ public:
     auto flag_xdmf = (iteration == 0 ? "w+" : "r+");
     File file(params.filename_out + ".h5", flag_h5);
     FILE* xdmf_fd = fopen((params.filename_out + ".xdmf").c_str(), flag_xdmf);
+    BoundaryManager bc(params);
+    bc.fillBoundaries(Q);
 
     if (iteration == 0) {
       file.createAttribute("Ntx",  device_params.Ntx);

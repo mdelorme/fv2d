@@ -2,7 +2,6 @@ import os
 import shutil
 import h5py
 from tqdm import tqdm
-from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -26,7 +25,7 @@ latexify = {
 if os.path.exists('render'):
   shutil.rmtree('render')  
 os.mkdir('render')
-cwd = Path().absolute()
+cwd = os.getcwd()
 
 show_grid = False
 
@@ -52,7 +51,7 @@ if '--file' in sys.argv:
 else:
   filename = 'run.h5'
 if not os.path.exists(filename):
-  print(f'[ERROR] File {cwd/filename} does not seem to exist.')
+  print(f'[ERROR] File {cwd}/{filename} does not seem to exist.')
   sys.exit(1)
 f = h5py.File(filename, 'r')
 Nf = len(f)-2
@@ -73,7 +72,7 @@ dy = y[1]-y[0]
 ext = [xmin-0.5*dx, xmax+0.5*dx, ymin-0.5*dy, ymax+0.5*dy]
 # vmin, vmax = -15, 0.5
 vmin, vmax = None, None
-print(f'Rendering animation for file: {cwd / filename} and field: {field}')
+print(f'Rendering animation for file: {cwd}/{filename} and field: {field}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(figsize=(12, 12))
   t = f['ite_{:04d}'.format(i)].attrs['time']

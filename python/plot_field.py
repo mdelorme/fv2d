@@ -59,10 +59,8 @@ Nf = len(f)-2
 
 x = np.array(f['x'])
 y = np.array(f['y'])
-# Ne donne pas Nx et Ny mais Nx*Ny, impossible (a priori) de retrouver les valeurs de Nx et Ny
-# Nx = x.shape[0]
-# Ny = y.shape[0]
-Ny, Nx = f['ite_0000/rho'].shape # TODO: trouver une manière plus robuste de récupérer Nx et Ny
+Nx = f.attrs['Nx']
+Ny = f.attrs['Ny']
 
 xmin=x.min()
 xmax=x.max()

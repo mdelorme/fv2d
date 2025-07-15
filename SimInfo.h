@@ -456,7 +456,7 @@ struct DeviceParams {
       {"green-gauss-wide",   GREEN_GAUSS_WIDE},
     };
     gradient_type = reader.GetMapValue(gradient_map, "solvers", "gradient", "least-square");
-    use_pressure_gradient = reader.GetBoolean("solvers", "use_pressure_gradient", false);
+    use_pressure_gradient = reader.GetBoolean("solvers", "use_pressure_gradient", false); // delete this
 
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
@@ -614,6 +614,7 @@ struct DeviceParams {
 
 // All the parameters
 struct Params {
+  bool save_at_each_iteration;
   real_t save_freq;
   real_t tend;
   Reader reader;
@@ -664,13 +665,15 @@ Params readInifile(std::string filename) {
   
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
+  res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
+  res.save_at_each_iteration = reader.GetBoolean("run", "save_at_each_iteration", false);
+  
   res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
   res.restart_file = reader.Get("run", "restart_file", "");
-  
-  res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
   res.output_path = reader.Get("run", "output_path", ".");
 
+  // Godounov
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
     {"RK2",   TS_RK2}

@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     int next_log = 0;
 
     while (t + device_params.epsilon < params.tend) {
-      bool save_needed = (t + device_params.epsilon > next_save);
+      bool save_needed = (t + device_params.epsilon > next_save) || params.save_at_each_iteration;
 
       dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save-t), t, next_log == 0);
       if (next_log == 0)

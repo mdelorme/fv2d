@@ -69,10 +69,12 @@ is_mhd = True if 'bx' in f['ite_0000'] else False
 def plot_field(field, cax, i):
   path = f'ite_{i:04d}/{field}'
   arr = np.array(f[path]).reshape((Ny, Nx))
-  if field == 'psi': # for the loop advection i want to check the mag field intensity
+  legend = latexify[field]
+  if field == 'bz': # for the loop advection i want to check the mag field intensity
     arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
+    legend = r'$\sqrt{B_x^2 + B_y^2}$'
   cax.imshow(arr, extent=ext, origin='lower')
-  cax.set_title(latexify[field])
+  cax.set_title(legend)
 
   if show_grid:
     cax.set_xticks(np.arange(ext[0], ext[1], dx), minor=True)

@@ -175,6 +175,33 @@ namespace {
     if (y > -1.0/3.0 && y < 1.0/3.0)
       Q(j, i, IV) = 0.01 * (1.0 + cos(4*M_PI*x)) * (1 + cos(3.0*M_PI*y))/4.0;
   }
+
+  /**
+   * @brief Kelvin-Helmholtz instability setup
+   * 
+   * Taken from Lecoanet et al, "A validated non-linear Kelvin–Helmholtz benchmark for numerical hydrodynamics"
+   * 2016, MNRAS
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    const real_t q1 = Kokkos::tanh((y-params.kh_y1)/params.kh_a);
+    const real_t q2 = Kokkos::tanh((y-params.kh_y2)/params.kh_a);
+    const real_t s2 = params.kh_sigma*params.kh_sigma;
+    const real_t dy1 = (y-params.kh_y1)*(y-params.kh_y1);
+    const real_t dy2 = (y-params.kh_y2)*(y-params.kh_y2);
+    const real_t rho = 1.0 + params.kh_rho_fac*0.5*(q1-q2);
+    const real_t u   = params.kh_uflow * (q1-q2-1.0);
+    const real_t v   = params.kh_amp * Kokkos::sin(2.0*M_PI*x)*(Kokkos::exp(-dy1/s2) + Kokkos::exp(-dy2/s2));
+    
+    Q(j, i, IR) = rho;
+    Q(j, i, IU) = u;
+    Q(j, i, IV) = v;
+    Q(j, i, IP) = params.kh_P0;
+  }
 }
 
 
@@ -189,7 +216,8 @@ enum InitType {
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
-  C91
+  C91,
+  KELVIN_HELMHOLTZ
 };
 
 struct InitFunctor {
@@ -206,7 +234,8 @@ public:
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
-      {"C91", C91}
+      {"C91", C91},
+      {"kelvin_helmholtz", KELVIN_HELMHOLTZ}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -227,13 +256,14 @@ public:
                           full_params.range_dom, 
                           KOKKOS_LAMBDA(const int i, const int j) {
                             switch(init_type) {
-                              case SOD_X:           initSodX(Q, i, j, params); break;
-                              case SOD_Y:           initSodY(Q, i, j, params); break;
-                              case BLAST:           initBlast(Q, i, j, params); break;
-                              case DIFFUSION:       initDiffusion(Q, i, j, params); break;
-                              case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
-                              case H84:             initH84(Q, i, j, params, random_pool); break;
-                              case C91:             initC91(Q, i, j, params, random_pool); break;
+                              case SOD_X:            initSodX(Q, i, j, params); break;
+                              case SOD_Y:            initSodY(Q, i, j, params); break;
+                              case BLAST:            initBlast(Q, i, j, params); break;
+                              case DIFFUSION:        initDiffusion(Q, i, j, params); break;
+                              case RAYLEIGH_TAYLOR:  initRayleighTaylor(Q, i, j, params); break;
+                              case H84:              initH84(Q, i, j, params, random_pool); break;
+                              case C91:              initC91(Q, i, j, params, random_pool); break;
+                              case KELVIN_HELMHOLTZ: initKelvinHelmholtz(Q, i, j, params); break;
                             }
                           });
   

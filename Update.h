@@ -342,10 +342,12 @@ public:
         dry = dry + r / r0 * dr0 * u_r[IY];
         dpx = dpx + p / p0 * dp0 * u_r[IX];
         dpy = dpy + p / p0 * dp0 * u_r[IY];
+
+        const real_t fac = p0 / r0; // facteur de correction, valide ???
         
         Q(j, i, IR) = r - dt_half * (u * drx + r * dux          +  v * dry + r * dvy)        ;
-        Q(j, i, IU) = u - dt_half * (u * dux + dpx / r          +  v * duy)                  ;
-        Q(j, i, IV) = v - dt_half * (u * dvx                    +  v * dvy + dpy / r)        ;
+        Q(j, i, IU) = u - dt_half * (u * dux + fac * dpx / r    +  v * duy)                  ;
+        Q(j, i, IV) = v - dt_half * (u * dvx                    +  v * dvy + fac * dpy / r)  ;
         Q(j, i, IP) = p - dt_half * (gamma * p * dux + u * dpx  +  gamma * p * dvy + v * dpy);
       });
   }
@@ -385,8 +387,14 @@ public:
               const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
 
               q[IR] = params.spl_rho(r);
-              q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
-              q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
+              if (params.zero_velocity_boundary) {
+                q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
+                q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
+              }
+              else {
+                q[IU] = 0;
+                q[IV] = 0;
+              }
               q[IP] = params.spl_prs(r);
             }
             if (dir==IY && (j==params.jbeg || j==params.jend-1)) { 
@@ -397,8 +405,14 @@ public:
               const real_t normal_vel = Q(j, i, IU) * u_r[IX] + Q(j, i, IV) * u_r[IY];
 
               q[IR] = params.spl_rho(r);
-              q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
-              q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
+              if (params.zero_velocity_boundary) {
+                q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
+                q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
+              }
+              else {
+                q[IU] = 0;
+                q[IV] = 0;
+              }
               q[IP] = params.spl_prs(r);
             }
           }
@@ -626,11 +640,11 @@ public:
     computeSlopes(Q);
     if (full_params.device_params.reconstruction == RECONS_BJ)
       computeLimiterBJ(Q);
-    if (full_params.device_params.hancock_ts)
+    if (full_params.hancock_ts)
       computeHancockStep(Q, dt);
 
     // Hyperbolic udpate
-    switch(full_params.device_params.flux_solver) { 
+    switch(full_params.flux_solver) { 
       case FLUX_GODOUNOV: computeFluxesAndUpdate(Q, Unew, dt); break;
       case FLUX_CTU:      computeFluxesAndUpdate_CTU(Q, Unew, dt); break;
     }

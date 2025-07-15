@@ -366,17 +366,14 @@ struct DeviceParams {
   BoundaryType boundary_y = BC_REFLECTING;
 
   // impose flux at boundaries
-  bool reflective_flux=false;
-  bool reflective_flux_wb=false;
-  bool fixed_spline_boundaries=false;
+  bool reflective_flux;
+  bool reflective_flux_wb;
+  bool fixed_spline_boundaries;
+  bool zero_velocity_boundary;
 
   // Godunov
-  bool hancock_ts = false; 
-  
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
-  TimeStepping time_stepping = TS_EULER;
-  FluxSolver flux_solver = FLUX_GODOUNOV;
   real_t CFL = 0.1;
   
   // Mesh
@@ -430,12 +427,6 @@ struct DeviceParams {
   real_t epsilon = 1.0e-6;
   
   void init_from_inifile(Reader &reader) {
-
-    std::map<std::string, FluxSolver> flux_solver_map{
-      {"ctu",      FLUX_CTU},
-      {"godounov", FLUX_GODOUNOV}
-    };
-    flux_solver = reader.GetMapValue(flux_solver_map, "solvers", "flux_solver", "godounov");
 
     // Geometry
     std::map<std::string, GeometryType> geo_map{
@@ -497,6 +488,11 @@ struct DeviceParams {
     };
     boundary_x = reader.GetMapValue(bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = reader.GetMapValue(bc_map, "run", "boundaries_y", "reflecting");
+
+    reflective_flux = reader.GetBoolean("run", "reflective_flux", false); 
+    reflective_flux_wb = reader.GetBoolean("run", "reflective_flux_wb", false); 
+    fixed_spline_boundaries = reader.GetBoolean("run", "fixed_spline_boundaries", false); 
+    zero_velocity_boundary = reader.GetBoolean("run", "zero_velocity_boundary", false); 
 
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",          PCM},
@@ -587,12 +583,6 @@ struct DeviceParams {
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
 
-    reflective_flux = reader.GetBoolean("run", "reflective_flux", false); 
-    reflective_flux_wb = reader.GetBoolean("run", "reflective_flux_wb", false); 
-    fixed_spline_boundaries = reader.GetBoolean("run", "fixed_spline_boundaries", false); 
-    hancock_ts = reader.GetBoolean("solvers", "hancock", false);
-
-
     // Spline
     std::string spline_data_path = reader.Get("physics", "spline_data", "spline.data");
     if (reader._values["physics"]["problem"].value == "readfile") {
@@ -630,7 +620,12 @@ struct Params {
   std::string output_path = ".";
   std::string filename_out = "run";
   std::string restart_file = "";
+
+
+  // Godunov
+  bool hancock_ts; 
   TimeStepping time_stepping = TS_EULER;
+  FluxSolver flux_solver = FLUX_GODOUNOV;
 
   bool multiple_outputs = false;
 
@@ -681,6 +676,14 @@ Params readInifile(std::string filename) {
     {"RK2",   TS_RK2}
   };
   res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");
+
+  std::map<std::string, FluxSolver> flux_solver_map{
+    {"ctu",      FLUX_CTU},
+    {"godounov", FLUX_GODOUNOV}
+  };
+  res.flux_solver = reader.GetMapValue(flux_solver_map, "solvers", "flux_solver", "godounov");
+
+  res.hancock_ts = reader.GetBoolean("solvers", "hancock", false);
   res.problem = reader.Get("physics", "problem", "blast");
 
   // Misc

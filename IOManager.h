@@ -91,6 +91,12 @@ public:
         std::cout << "Output path does not exist, creating directory `" << params.output_path << "`." << std::endl;
         std::filesystem::create_directory(params.output_path);
       }
+      
+      std::ofstream out_ini_local("last.ini");
+      params.reader.outputValues(out_ini_local);
+
+      std::ofstream out_ini(params.output_path + "/last.ini");
+      params.reader.outputValues(out_ini);
     };
 
   ~IOManager() = default;

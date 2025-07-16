@@ -230,9 +230,11 @@ namespace {
       Q(j, i, IV) = 0.0;
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
+    #ifdef MHD
     real_t B0 = 1.0 / std::sqrt(4. * M_PI);
     Q(j, i, IBX) = 0.0;
     Q(j, i, IBY) = B0 * 4.0;
+    #endif
   }
   
   KOKKOS_INLINE_FUNCTION
@@ -324,8 +326,10 @@ namespace {
     // Top layer (iso-thermal)
     real_t rho, p;
     real_t T;
+    #ifdef MHD
     // real_t B0 = 1.0 / std::sqrt(4. * M_PI);
     real_t B0 = 0.0;
+    #endif
     if (d <= y1) {
       p   = p0 * exp(params.gy * d / T0);
       rho = p / T0;
@@ -356,8 +360,10 @@ namespace {
     Q(j, i, IU) = 0.0;
     Q(j, i, IV) = 0.0;
     Q(j, i, IP) = p;
+    #ifdef MHD
     Q(j, i, IBX) = 0.0;
     Q(j, i, IBY) = B0 * 4.0;
+    #endif
   }
 
 

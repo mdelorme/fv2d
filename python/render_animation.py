@@ -5,19 +5,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-
-# Pass from field name to Latex representation
-latexify = {
-  'rho': r'$\rho$',
-  'prs': r'$p$',
-  'u': r'$u$',
-  'v': r'$v$',
-  'bx': r'$B_x$',
-  'by': r'$B_y$',
-  'bz': r'$B_z$',
-  'psi': r'$\psi$',
-  'divB': r'$\nabla \cdot \mathbf{B}$'
-}
+from fv2d_utils import latexify
 
 
 if os.path.exists('render'):

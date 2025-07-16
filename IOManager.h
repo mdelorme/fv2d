@@ -95,7 +95,7 @@ public:
       std::ofstream out_ini_local("last.ini");
       params.reader.outputValues(out_ini_local);
 
-      std::ofstream out_ini(params.output_path + "/" + filename_out + ".ini");
+      std::ofstream out_ini(params.output_path + "/" + params.filename_out + ".ini");
       params.reader.outputValues(out_ini);
     };
 

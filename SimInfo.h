@@ -416,6 +416,7 @@ struct Params {
   real_t tend;
   Reader reader;
   std::string filename_out = "run";
+  std::string output_path = "./";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
 
@@ -461,6 +462,7 @@ Params readInifile(std::string filename) {
   
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
+  res.output_path = reader.Get("run", "output_path", "./");
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},

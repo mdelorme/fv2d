@@ -324,7 +324,8 @@ namespace {
     // Top layer (iso-thermal)
     real_t rho, p;
     real_t T;
-    real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    // real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    real_t B0 = 0.0;
     if (d <= y1) {
       p   = p0 * exp(params.gy * d / T0);
       rho = p / T0;

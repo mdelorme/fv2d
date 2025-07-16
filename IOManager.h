@@ -311,6 +311,29 @@ public:
     Table tgradP[2];
     #endif
 
+    Table twb_factor;
+    Array wb_factor_dev_dev = Array("wb_factor_dev", device_params.Nty, device_params.Ntx, 1);
+    auto wb_factor_dev_host = Kokkos::create_mirror(wb_factor_dev_dev);
+    {
+      auto dparams = device_params;
+      auto geometry = this->geo; 
+      Kokkos::parallel_for(
+        "PressureGradient", 
+        params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+
+          real_t wb_factor = 1;
+          const real_t r = norm(geometry.mapc2p_center(i,j));
+
+          if      (dparams.wb_grav_factor == WBGF_PRS) wb_factor = Q(j, i, IP) / dparams.spl_prs(r);
+          else if (dparams.wb_grav_factor == WBGF_RHO) wb_factor = Q(j, i, IR) / dparams.spl_rho(r);
+          wb_factor_dev_dev(j, i, 0) = wb_factor;
+        });
+
+    Kokkos::deep_copy(wb_factor_dev_host, wb_factor_dev_dev);
+    }
+
+
     Table trho, tu, tv, tprs;
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
       for (int i=device_params.ibeg; i<device_params.iend; ++i) {
@@ -328,6 +351,8 @@ public:
         tgradP[IX].push_back(gradP(j, i, IX));
         tgradP[IY].push_back(gradP(j, i, IY));
         #endif
+
+        twb_factor.push_back(wb_factor_dev_host(j, i, 0));
       }
     }
 
@@ -354,6 +379,10 @@ public:
     #ifdef SAVE_PRESSURE_GRADIENT
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "dp", "dp_x", "dp_y"));
     #endif
+
+    ite_group.createDataSet("wb_factor", twb_factor);
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "wb_factor"));
+
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);

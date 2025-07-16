@@ -181,10 +181,10 @@ public:
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
           
-          if (params.riemann_solver == IDEALGLM) {
-            State MagPsiSources = IdealGLMSources(qL, qCL, qCR, qR, params);
-            un_loc += dt * MagPsiSources;
-          }
+          // if (params.riemann_solver == IDEALGLM) {
+          //   State MagPsiSources = IdealGLMSources(qL, qCL, qCR, qR, params);
+          //   un_loc += dt * MagPsiSources;
+          // }
 
           if (params.gravity_mode != GRAV_NONE) {
             real_t g = getGravity(i, j, dir, params);
@@ -215,7 +215,7 @@ public:
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
 
-    sources_functor.applySources(Q, Unew, dt, GLM_ch1); // Celle-ci diminue PSI
+    sources_functor.applySources(Q, Unew, dt, GLM_ch1);
     auto params = full_params.device_params;
     Kokkos::parallel_for(
         "Clean values", 

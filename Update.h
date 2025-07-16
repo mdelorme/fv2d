@@ -316,8 +316,8 @@ public:
     auto slopesY = this->slopesY;
 
     const real_t dt_half = 0.5 * dt;
-    auto dparams = this->full_params.device_params;
-    const real_t gamma = dparams.gamma0;
+    auto params = this->full_params.device_params;
+    const real_t gamma = params.gamma0;
     auto geometry = this->geometry;
 
     // not compatible with plm + non-cartesian
@@ -333,17 +333,18 @@ public:
         Pos u_r = geometry.mapc2p_center(i,j);
         const real_t radius = norm(u_r);
         u_r = u_r / radius;
-        const real_t r0 = dparams.spl_rho(radius);
-        const real_t p0 = dparams.spl_prs(radius);
-        const real_t dr0 = dparams.spl_rho.GetDerivative(radius);
-        const real_t dp0 = dparams.spl_prs.GetDerivative(radius);
+        const real_t r0 = params.spl_rho(radius);
+        const real_t p0 = params.spl_prs(radius);
+        const real_t dr0 = params.spl_rho.GetDerivative(radius);
+        const real_t dp0 = params.spl_prs.GetDerivative(radius);
 
         drx = drx + r / r0 * dr0 * u_r[IX];
         dry = dry + r / r0 * dr0 * u_r[IY];
         dpx = dpx + p / p0 * dp0 * u_r[IX];
         dpy = dpy + p / p0 * dp0 * u_r[IY];
 
-        const real_t fac = p0 / r0; // facteur de correction, valide ???
+        real_t fac = 1;
+        if (params.wb_hancock_factor) fac = p0 / r0; // facteur de correction, valide ???
         
         Q(j, i, IR) = r - dt_half * (u * drx + r * dux          +  v * dry + r * dvy)        ;
         Q(j, i, IU) = u - dt_half * (u * dux + fac * dpx / r    +  v * duy)                  ;
@@ -474,14 +475,18 @@ public:
           real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
           real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
           real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
-          const real_t prs0   = Q(j, i, IP);
+          // const real_t prs0   = Q(j, i, IP);
+          real_t factor = 1;
+          if      (params.wb_grav_factor == WBGF_PRS) factor = Q(j, i, IP);
+          else if (params.wb_grav_factor == WBGF_RHO) factor = Q(j, i, IR);
+          
           const real_t prs0l = params.spl_prs(rl);
           const real_t prs0r = params.spl_prs(rr);
           const real_t prs0d = params.spl_prs(rd);
           const real_t prs0u = params.spl_prs(ru);
 
-          const real_t sx = prs0 * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
-          const real_t sy = prs0 * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
+          const real_t sx = factor * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
+          const real_t sy = factor * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
           Unew(j, i, IU) += dt * sx;
           Unew(j, i, IV) += dt * sy;
           Unew(j, i, IE) += dt * (Q(j, i, IU) * sx + Q(j, i, IV) * sy);
@@ -622,15 +627,15 @@ public:
     bc_manager.fillBoundaries(Q);
 
 
-    auto dparams = full_params.device_params;
+    auto params = full_params.device_params;
     Geometry geometry = this->geometry;
     Kokkos::parallel_for(
       "alpha_beta conversion",
       full_params.range_tot,
       KOKKOS_LAMBDA(const int i, const int j) {
         const real_t r = norm(geometry.mapc2p_center(i,j));
-        const real_t rho0 = dparams.spl_rho(r);
-        const real_t prs0 = dparams.spl_prs(r);
+        const real_t rho0 = params.spl_rho(r);
+        const real_t prs0 = params.spl_prs(r);
         
         Q(j, i, IR) = Q(j, i, IR) / rho0;
         Q(j, i, IP) = Q(j, i, IP) / prs0;

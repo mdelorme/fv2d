@@ -135,6 +135,11 @@ enum AnalyticalGravityMode {
   AGM_HOT_BUBBLE
 };
 
+// Temporary
+enum WB_GravFactor{
+  WBGF_PRS, WBGF_RHO, WBGF_ONE
+};
+
 // Pos arithmetic
 
 KOKKOS_INLINE_FUNCTION
@@ -425,8 +430,19 @@ struct DeviceParams {
 
   // Misc stuff
   real_t epsilon = 1.0e-6;
-  
+
+  // Temporary
+  WB_GravFactor wb_grav_factor;
+  bool wb_hancock_factor;
+
   void init_from_inifile(Reader &reader) {
+    std::map<std::string, WB_GravFactor> wbgf_map{
+      {"prs",  WBGF_PRS},
+      {"rho",  WBGF_RHO},
+      {"one",  WBGF_ONE}
+    };
+    wb_grav_factor = reader.GetMapValue(wbgf_map, "run", "wb_grav_factor", "prs");
+    wb_hancock_factor = reader.GetBoolean("run", "wb_hancock_factor", false);
 
     // Geometry
     std::map<std::string, GeometryType> geo_map{

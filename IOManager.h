@@ -300,15 +300,58 @@ public:
     Array gradP_dev = Array("gradP", device_params.Nty, device_params.Ntx, 2);
     {
       auto geometry = this->geo; 
+      auto &device_params = this->device_params;
       auto gradient_type = device_params.gradient_type;
       Kokkos::parallel_for(
         "PressureGradient", 
         params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
-          auto getState = [](const Array& Q, int i, int j) -> real_t {return Q(j,i,IP);};
-          Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
-          gradP_dev(j,i,IX) = grad[IX];
-          gradP_dev(j,i,IY) = grad[IY];
+          
+          
+          // auto getState = [](const Array& Q, int i, int j) -> real_t {return Q(j,i,IP);};
+          // Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
+          // gradP_dev(j,i,IX) = grad[IX];
+          // gradP_dev(j,i,IY) = grad[IY];
+
+
+          const real_t cellArea = geometry.cellArea(i,j);
+          real_t len;
+          Pos lenL = geometry.getRotationMatrix(i, j, IX, ILEFT,  len); lenL = lenL * len;
+          Pos lenR = geometry.getRotationMatrix(i, j, IX, IRIGHT, len); lenR = lenR * len;
+          Pos lenD = geometry.getRotationMatrix(i, j, IY, ILEFT,  len); lenD = lenD * len;
+          Pos lenU = geometry.getRotationMatrix(i, j, IY, IRIGHT, len); lenU = lenU * len;
+          real_t r  = norm(geometry.mapc2p_center(i,j));
+          real_t rl = norm(geometry.faceCenter(i, j, IX, ILEFT));
+          real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
+          real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
+          real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
+          // const real_t prs0   = Q(j, i, IP);
+          real_t factor = 1;
+          if      (device_params.wb_grav_factor == WBGF_PRS) factor = Q(j, i, IP) / device_params.spl_prs(r);
+          else if (device_params.wb_grav_factor == WBGF_RHO) factor = Q(j, i, IR) / device_params.spl_rho(r);
+          else if (device_params.wb_grav_factor == WBGF_PRS_RHO) factor = Q(j, i, IP) / Q(j, i, IR) * device_params.spl_rho(r) / device_params.spl_prs(r);
+          
+          const real_t prs0l = device_params.spl_prs(rl);
+          const real_t prs0r = device_params.spl_prs(rr);
+          const real_t prs0d = device_params.spl_prs(rd);
+          const real_t prs0u = device_params.spl_prs(ru);
+
+          real_t sx = factor * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
+          real_t sy = factor * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
+
+          if (device_params.wb_grav_grad_correction) {
+            auto getState = [&](const Array& Q, int i, int j) -> real_t {
+              real_t r0  = norm(geometry.mapc2p_center(i,j));
+              return Q(j,i,IP) / device_params.spl_prs(r0);
+            };
+            Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
+            const real_t beta0 = device_params.spl_prs(r);
+            sx += beta0 * grad[IX];
+            sy += beta0 * grad[IY];
+          }
+
+          gradP_dev(j,i,IX) = sx;
+          gradP_dev(j,i,IY) = sy;
         });
     }
 
@@ -317,9 +360,9 @@ public:
     Table tgradP[2];
     #endif
 
-    Table twb_factor;
-    Array wb_factor_dev_dev = Array("wb_factor_dev", device_params.Nty, device_params.Ntx, 1);
-    auto wb_factor_dev_host = Kokkos::create_mirror(wb_factor_dev_dev);
+    Table t_rho_fluc, t_prs_fluc;
+    Array bg_dev = Array("rho_fluc_dev", device_params.Nty, device_params.Ntx, 2);
+    auto bg_host = Kokkos::create_mirror(bg_dev);
     {
       auto dparams = device_params;
       auto geometry = this->geo; 
@@ -328,15 +371,13 @@ public:
         params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
 
-          real_t wb_factor = 1;
           const real_t r = norm(geometry.mapc2p_center(i,j));
 
-          if      (dparams.wb_grav_factor == WBGF_PRS) wb_factor = Q(j, i, IP) / dparams.spl_prs(r);
-          else if (dparams.wb_grav_factor == WBGF_RHO) wb_factor = Q(j, i, IR) / dparams.spl_rho(r);
-          wb_factor_dev_dev(j, i, 0) = wb_factor;
+          bg_dev(j, i, 0) = Q(j, i, IR) / dparams.spl_rho(r);
+          bg_dev(j, i, 1) = Q(j, i, IP) / dparams.spl_prs(r);
         });
 
-    Kokkos::deep_copy(wb_factor_dev_host, wb_factor_dev_dev);
+    Kokkos::deep_copy(bg_host, bg_dev);
     }
 
 
@@ -358,7 +399,8 @@ public:
         tgradP[IY].push_back(gradP(j, i, IY));
         #endif
 
-        twb_factor.push_back(wb_factor_dev_host(j, i, 0));
+        t_rho_fluc.push_back(bg_host(j, i, 0));
+        t_prs_fluc.push_back(bg_host(j, i, 1));
       }
     }
 
@@ -383,11 +425,13 @@ public:
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
     #ifdef SAVE_PRESSURE_GRADIENT
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "dp", "dp_x", "dp_y"));
+    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "grad_prs", "dp_x", "dp_y"));
     #endif
 
-    ite_group.createDataSet("wb_factor", twb_factor);
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "wb_factor"));
+    ite_group.createDataSet("rho_fluc", t_rho_fluc);
+    ite_group.createDataSet("prs_fluc", t_prs_fluc);
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho_fluc"));
+    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs_fluc"));
 
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);

@@ -479,14 +479,22 @@ public:
           real_t factor = 1;
           if      (params.wb_grav_factor == WBGF_PRS) factor = Q(j, i, IP);
           else if (params.wb_grav_factor == WBGF_RHO) factor = Q(j, i, IR);
+          else if (params.wb_grav_factor == WBGF_PRS_RHO) factor = Q(j, i, IP) / Q(j, i, IR);
           
           const real_t prs0l = params.spl_prs(rl);
           const real_t prs0r = params.spl_prs(rr);
           const real_t prs0d = params.spl_prs(rd);
           const real_t prs0u = params.spl_prs(ru);
 
-          const real_t sx = factor * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
-          const real_t sy = factor * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
+          real_t sx = factor * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
+          real_t sy = factor * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
+
+          if (params.wb_grav_grad_correction) {
+            const real_t beta0 = params.spl_prs(r);
+            sx += beta0 * slopesX(j, i, IP);
+            sy += beta0 * slopesY(j, i, IP);
+          }
+
           Unew(j, i, IU) += dt * sx;
           Unew(j, i, IV) += dt * sy;
           Unew(j, i, IE) += dt * (Q(j, i, IU) * sx + Q(j, i, IV) * sy);

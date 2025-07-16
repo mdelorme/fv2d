@@ -137,7 +137,7 @@ enum AnalyticalGravityMode {
 
 // Temporary
 enum WB_GravFactor{
-  WBGF_PRS, WBGF_RHO, WBGF_ONE
+  WBGF_PRS, WBGF_RHO, WBGF_ONE, WBGF_PRS_RHO
 };
 
 // Pos arithmetic
@@ -434,15 +434,18 @@ struct DeviceParams {
   // Temporary
   WB_GravFactor wb_grav_factor;
   bool wb_hancock_factor;
+  bool wb_grav_grad_correction;
 
   void init_from_inifile(Reader &reader) {
     std::map<std::string, WB_GravFactor> wbgf_map{
       {"prs",  WBGF_PRS},
       {"rho",  WBGF_RHO},
-      {"one",  WBGF_ONE}
+      {"one",  WBGF_ONE},
+      {"prs_rho",  WBGF_PRS_RHO}
     };
     wb_grav_factor = reader.GetMapValue(wbgf_map, "run", "wb_grav_factor", "prs");
     wb_hancock_factor = reader.GetBoolean("run", "wb_hancock_factor", false);
+    wb_grav_grad_correction = reader.GetBoolean("run", "wb_grav_grad_correction", false); 
 
     // Geometry
     std::map<std::string, GeometryType> geo_map{

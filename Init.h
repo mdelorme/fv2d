@@ -168,8 +168,8 @@ namespace {
       Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     else {
-      Q(j, i, IR) = 2.0;
       Q(j, i, IU) = 0.0;
+      Q(j, i, IR) = 2.0;
       Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     
@@ -297,9 +297,11 @@ namespace {
       Q(j, i, IV) = 0.0;
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
+    #ifdef MHD
     real_t B0 = 1.0 / std::sqrt(4. * M_PI);
     Q(j, i, IBX) = 0.0;
     Q(j, i, IBY) = B0 * 4.0;
+    #endif
   }
   
   KOKKOS_INLINE_FUNCTION
@@ -326,10 +328,7 @@ namespace {
     // Top layer (iso-thermal)
     real_t rho, p;
     real_t T;
-    #ifdef MHD
-    // real_t B0 = 1.0 / std::sqrt(4. * M_PI);
-    real_t B0 = 0.0;
-    #endif
+
     if (d <= y1) {
       p   = p0 * exp(params.gy * d / T0);
       rho = p / T0;
@@ -345,22 +344,24 @@ namespace {
       
       if (d-y1 < 0.1 || y2-d < 0.1)
       pert = 0.0;
-      
-      rho = rho1 * pow(T/T1, params.iso3_m1);
-      p   = p1 * (1.0 + pert) * pow(T/T1, params.iso3_m1+1.0);
-    }
-    // Bottom layer (stable)
-    else {
-      T = T2 + params.iso3_theta2 * (d-y2);
-      rho = rho2 * pow(T/T2, params.iso3_m2);
-      p   = p2 * pow(T/T2, params.iso3_m2+1.0);
-    }
     
-    Q(j, i, IR) = rho;
-    Q(j, i, IU) = 0.0;
-    Q(j, i, IV) = 0.0;
-    Q(j, i, IP) = p;
-    #ifdef MHD
+    rho = rho1 * pow(T/T1, params.iso3_m1);
+    p   = p1 * (1.0 + pert) * pow(T/T1, params.iso3_m1+1.0);
+  }
+  // Bottom layer (stable)
+  else {
+    T = T2 + params.iso3_theta2 * (d-y2);
+    rho = rho2 * pow(T/T2, params.iso3_m2);
+    p   = p2 * pow(T/T2, params.iso3_m2+1.0);
+  }
+  
+  Q(j, i, IR) = rho;
+  Q(j, i, IU) = 0.0;
+  Q(j, i, IV) = 0.0;
+  Q(j, i, IP) = p;
+  #ifdef MHD
+  // real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    real_t B0 = 0.0;
     Q(j, i, IBX) = 0.0;
     Q(j, i, IBY) = B0 * 4.0;
     #endif
@@ -972,7 +973,7 @@ public:
     BoundaryManager bc(full_params);
     bc.fillBoundaries(Q);
   }
-
+  #ifdef MHD
   real_t initGLMch(Array Q, const Params &full_params) const {
   // > Calculate the time step for the GLM wave system, assuming ch=1. 
   // > This is computed only once, then ch is computed frm the current timestep:
@@ -999,5 +1000,6 @@ public:
     );
     return params.CFL * 2.0 / (lambda_x/params.dx + lambda_y/params.dy);
     }
+  #endif //MHD
 };
 }

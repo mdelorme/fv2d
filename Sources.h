@@ -23,6 +23,7 @@ public:
             "Apply sources",
             full_params.range_dom,
             KOKKOS_LAMBDA(const int i, const int j) {
+                #ifdef MHD
                 if (mhd_run && params.div_cleaning == DEDNER) {
                     // Dedner's div-cleaning source term
                     real_t ch = 0.5 * params.CFL * fmin(dx, dy) / dt;
@@ -103,68 +104,69 @@ public:
                         Unew(j, i, ivar) -= (SourceMag[ivar] + SourcePsi[ivar] + SourceParabolic[ivar])*dt;
                     }
                 }
+                #endif // MHD
             });
     }
 };
     
-State IdealGLMSources(State &qL, State &qCL, State &qCR, State &qR, const DeviceParams &params) {
-        const real_t dx = params.dx;
+// State IdealGLMSources(State &qL, State &qCL, State &qCR, State &qR, const DeviceParams &params) {
+//         const real_t dx = params.dx;
 
-        State SourceMagL {
-            0.0,
-            qL[IBX], 
-            qL[IBY], 
-            qL[IBZ],
-            qL[IU]*qL[IBX] + qL[IV]*qL[IBY] + qL[IW]*qL[IBZ],
-            qL[IU], 
-            qL[IV], 
-            qL[IW],
-            0.0
-        };
+//         State SourceMagL {
+//             0.0,
+//             qL[IBX], 
+//             qL[IBY], 
+//             qL[IBZ],
+//             qL[IU]*qL[IBX] + qL[IV]*qL[IBY] + qL[IW]*qL[IBZ],
+//             qL[IU], 
+//             qL[IV], 
+//             qL[IW],
+//             0.0
+//         };
         
-        State SourceMagR {
-            0.0,
-            qR[IBX], 
-            qR[IBY], 
-            qR[IBZ],
-            qR[IU]*qR[IBX] + qR[IV]*qR[IBY] + qR[IW]*qR[IBZ],
-            qR[IU], 
-            qR[IV], 
-            qR[IW],
-            0.0
-        };
+//         State SourceMagR {
+//             0.0,
+//             qR[IBX], 
+//             qR[IBY], 
+//             qR[IBZ],
+//             qR[IU]*qR[IBX] + qR[IV]*qR[IBY] + qR[IW]*qR[IBZ],
+//             qR[IU], 
+//             qR[IV], 
+//             qR[IW],
+//             0.0
+//         };
         
-        State SourcePsiR {
-            0.0,
-            0.0,
-            0.0,
-            0.0, 
-            qR[IU] * qR[IPSI], 
-            0.0,
-            0.0,
-            0.0,
-            qR[IU]
-        };
+//         State SourcePsiR {
+//             0.0,
+//             0.0,
+//             0.0,
+//             0.0, 
+//             qR[IU] * qR[IPSI], 
+//             0.0,
+//             0.0,
+//             0.0,
+//             qR[IU]
+//         };
         
-        State SourcePsiL {
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            qL[IU] * qL[IPSI], 
-            0.0,
-            0.0,
-            0.0,
-            qL[IV]
-        };
-        const real_t dBdxL   = 0.5 * (qCL[IBX] - qL [IBX]) / dx;
-        const real_t dBdxR   = 0.5 * (qR [IBX] - qCR[IBX]) / dx;
+//         State SourcePsiL {
+//             0.0,
+//             0.0,
+//             0.0,
+//             0.0,
+//             qL[IU] * qL[IPSI], 
+//             0.0,
+//             0.0,
+//             0.0,
+//             qL[IV]
+//         };
+//         const real_t dBdxL   = 0.5 * (qCL[IBX] - qL [IBX]) / dx;
+//         const real_t dBdxR   = 0.5 * (qR [IBX] - qCR[IBX]) / dx;
 
-        const real_t dPsidxL = 0.5 * (qCL[IPSI] - qL [IPSI]) / dx;
-        const real_t dPsidxR = 0.5 * (qR [IPSI] - qCR[IPSI]) / dx;
+//         const real_t dPsidxL = 0.5 * (qCL[IPSI] - qL [IPSI]) / dx;
+//         const real_t dPsidxR = 0.5 * (qR [IPSI] - qCR[IPSI]) / dx;
 
-        State SourceMag = dBdxL*SourceMagL + dBdxR*SourceMagR;
-        State SourcePsi = dPsidxL*SourcePsiL + dPsidxR*SourcePsiR;
-        return SourceMag + SourcePsi;
-    }
+//         State SourceMag = dBdxL*SourceMagL + dBdxR*SourceMagR;
+//         State SourcePsi = dPsidxL*SourcePsiL + dPsidxR*SourcePsiR;
+//         return SourceMag + SourcePsi;
+//     }
 } // namespace fv2d

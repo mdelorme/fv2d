@@ -76,8 +76,8 @@ print(f'Rendering animation for file: {cwd}/{filename}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(3, 3, figsize=(12, 12)) if is_mhd else plt.subplots(2, 2, figsize=(10, 10))
   t = f['ite_{:04d}'.format(i)].attrs['time']
-  problem = f.attrs['problem'].title()
-  plt.suptitle(f'{problem} - Time: {t:.3f}')
+  problem = f.attrs['problem'].title().replace('_', ' ')
+  plt.suptitle(rf'{problem} - Time: {t:.3f} - $N_x={Nx} \times N_y={Ny}$')
   plot_field('rho', ax[0,0], i)
   plot_field('prs', ax[0,1], i)
   plot_field('u', ax[1,0], i)

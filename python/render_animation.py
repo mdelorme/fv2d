@@ -2,29 +2,16 @@ import os
 import shutil
 import h5py
 from tqdm import tqdm
-from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-
-# Pass from field name to Latex representation
-latexify = {
-  'rho': r'$\rho$',
-  'prs': r'$p$',
-  'u': r'$u$',
-  'v': r'$v$',
-  'bx': r'$B_x$',
-  'by': r'$B_y$',
-  'bz': r'$B_z$',
-  'psi': r'$\psi$',
-  'divB': r'$\nabla \cdot \mathbf{B}$'
-}
+from fv2d_utils import latexify
 
 
 if os.path.exists('render'):
   shutil.rmtree('render')
 os.mkdir('render')
-cwd = Path().absolute()
+cwd = os.getcwd()
 
 show_grid = False
 
@@ -42,17 +29,15 @@ if '--file' in sys.argv:
 else:
   filename = 'run.h5'
 if not os.path.exists(filename):
-  print(f'[ERROR] File {cwd/filename} does not seem to exist.')
+  print(f'[ERROR] File {cwd}/{filename} does not seem to exist.')
   sys.exit(1)
 f = h5py.File(filename, 'r')
 Nf = len(f)-2
 
 x = np.array(f['x'])
 y = np.array(f['y'])
-# Ne donne pas Nx et Ny mais Nx*Ny, impossible (a priori) de retrouver les valeurs de Nx et Ny
-# Nx = x.shape[0]
-# Ny = y.shape[0]
-Ny, Nx = f['ite_0000/rho'].shape # TODO: trouver une manière plus robuste de récupérer Nx et Ny
+Nx = f.attrs['Nx']
+Ny = f.attrs['Ny']
 
 xmin=x.min()
 xmax=x.max()
@@ -70,9 +55,9 @@ def plot_field(field, cax, i):
   path = f'ite_{i:04d}/{field}'
   arr = np.array(f[path]).reshape((Ny, Nx))
   legend = latexify[field]
-  if field == 'bz': # for the loop advection i want to check the mag field intensity
-    arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
-    legend = r'$\sqrt{B_x^2 + B_y^2}$'
+  # if field == 'bz': # for the loop advection i want to check the mag field intensity
+  #   arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
+  #   legend = r'$\sqrt{B_x^2 + B_y^2}$'
   cax.imshow(arr, extent=ext, origin='lower')
   cax.set_title(legend)
 
@@ -87,7 +72,7 @@ def plot_field(field, cax, i):
     cax.tick_params(which='minor', bottom=False, left=False)
 
   
-print(f'Rendering animation for file: {cwd / filename}')
+print(f'Rendering animation for file: {cwd}/{filename}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(3, 3, figsize=(12, 12)) if is_mhd else plt.subplots(2, 2, figsize=(10, 10))
   t = f['ite_{:04d}'.format(i)].attrs['time']

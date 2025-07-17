@@ -2,31 +2,16 @@ import os
 import shutil
 import h5py
 from tqdm import tqdm
-from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
-# Pass from field name to Latex representation
-latexify = {
-  'rho': r'$\rho$',
-  'prs': r'$p$',
-  'u': r'$u$',
-  'v': r'$v$',
-  'bx': r'$B_x$',
-  'by': r'$B_y$',
-  'bz': r'$B_z$',
-  'psi': r'$\psi$',
-  'divB': r'$\nabla \cdot \mathbf{B}$',
-  'Bmag': r'$|\mathbf{B}|$',  # Added for magnetic field magnitude
-  'divBoverB': r'$\log_{10} \left(dx \frac{|\nabla \cdot \mathbf{B}|}{|\mathbf{B}|}\right)$'  # Added for divergence over magnitude
-}
-
+from fv2d_utils import latexify
 
 if os.path.exists('render'):
   shutil.rmtree('render')  
 os.mkdir('render')
-cwd = Path().absolute()
+cwd = os.getcwd()
 
 show_grid = False
 
@@ -52,17 +37,15 @@ if '--file' in sys.argv:
 else:
   filename = 'run.h5'
 if not os.path.exists(filename):
-  print(f'[ERROR] File {cwd/filename} does not seem to exist.')
+  print(f'[ERROR] File {cwd}/{filename} does not seem to exist.')
   sys.exit(1)
 f = h5py.File(filename, 'r')
 Nf = len(f)-2
 
 x = np.array(f['x'])
 y = np.array(f['y'])
-# Ne donne pas Nx et Ny mais Nx*Ny, impossible (a priori) de retrouver les valeurs de Nx et Ny
-# Nx = x.shape[0]
-# Ny = y.shape[0]
-Ny, Nx = f['ite_0000/rho'].shape # TODO: trouver une manière plus robuste de récupérer Nx et Ny
+Nx = f.attrs['Nx']
+Ny = f.attrs['Ny']
 
 xmin=x.min()
 xmax=x.max()
@@ -72,10 +55,10 @@ ymax=y.max()
 dx = x[1]-x[0]
 dy = y[1]-y[0]
 
-ext = [xmin-0.5*dx, xmax+0.5*dx, ymin-0.5*dy, ymax+0.5*dy]
+ext = [xmin+0.5*dx, xmax-0.5*dx, ymin+0.5*dy, ymax-0.5*dy]
 # vmin, vmax = -15, 0.5
 vmin, vmax = None, None
-print(f'Rendering animation for file: {cwd / filename} and field: {field}')
+print(f'Rendering animation for file: {cwd}/{filename} and field: {field}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(figsize=(12, 12))
   t = f['ite_{:04d}'.format(i)].attrs['time']

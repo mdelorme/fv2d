@@ -164,7 +164,6 @@ public:
           fluxR = swap_component(fluxR, dir);
 
           // Remove mechanical flux in a well-balanced fashion
-          // TODO: Vérifier s'il faut pas changer params en device_params ici
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)

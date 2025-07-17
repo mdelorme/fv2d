@@ -85,6 +85,7 @@ enum AnalyticalGravityMode {
 // Add functions HasSection and HasValue to INIReader, remove this when jtilly/inih.git will be updated
 struct IniReader : INIReader {
   using INIReader::INIReader, INIReader::GetBoolean, INIReader::GetInteger, INIReader::GetFloat, INIReader::Get;
+  using INIReader::_values, INIReader::_sections;
 
   bool HasSection(const std::string& section) const
   {
@@ -113,7 +114,6 @@ struct Reader {
   struct value_container {
     std::string value;
     bool from_file = false;
-    bool used = false;
     bool is_default_value = true;
   };
   std::map<std::string, std::map<std::string, value_container>> _values;
@@ -121,6 +121,10 @@ struct Reader {
 
   template<typename T>
   void registerValue(std::string section, std::string name, const T& value, bool is_default_value) {
+    
+    std::transform(section.begin(), section.end(), section.begin(), ::tolower);
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
     auto isAlreadyPresent = [&](const std::string& section, const std::string& name) {
       return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0);
     };
@@ -134,7 +138,6 @@ struct Reader {
     }
     bool is_present_in_file = isPresent(section, name);
     if (is_present_in_file) {
-      this->_values[section][name].used = true;
       this->_values[section][name].from_file = true;
       this->_values[section][name].is_default_value = is_default_value;
     }
@@ -201,14 +204,14 @@ struct Reader {
       const std::string& section_name = p_section.first;
       const std::map<std::string, value_container>& map_section = p_section.second;
 
-    // skip section if it doesn't appear in the .ini
+      // skip section if it doesn't appear in the .ini
       if ( !this->reader.HasSection(p_section.first) )
         continue;
 
-    // skip section if there is only default values
+      // skip section if there is only default values
       /*
       for( auto p_var : map_section ) 
-        if ( p_var.second.from_file ) 
+        if ( p_var.second.from_file ) // or p_var.second.is_default_value
           break;
       */
     
@@ -449,8 +452,30 @@ Pos getPos(const DeviceParams& params, int i, int j) {
           params.ymin + (j-params.jbeg+0.5) * params.dy};
 }
 
+void checkValidityIni(Params &params) {
+  auto &ini_sections = params.reader.reader._sections;
+  auto &ini_keyvalues = params.reader.reader._values; // format: { "section=key", "value" }
+  auto &valid_keyvalues = params.reader._values;      // format: { "key", struct value }
+
+  for (auto s : ini_sections) {
+    bool section_ok = valid_keyvalues.count(s) > 0;
+    if (!section_ok) {
+      std::cerr << "WARNING: section [" << s << "] is unknown." << std::endl;
+      continue;
+    }
+    
+    for (auto [k,v] : ini_keyvalues) {
+      if(k.starts_with(s + "=")) {
+        auto value = k.substr(s.length()+1);
+        bool value_ok = valid_keyvalues[s].count(value) > 0;
+        if (!value_ok)
+        std::cerr << "WARNING: parameter `" << value << "` in section [" << s << "] is unknown." << std::endl;
+      }
+    }
+  }
+}
+
 Params readInifile(std::string filename) {
-  // Params reader(filename);
   Params res;
   res.reader = Reader(filename);
   auto &reader = res.reader;
@@ -479,14 +504,15 @@ Params readInifile(std::string filename) {
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);
-
+  
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
   res.range_dom = ParallelRange({res.device_params.ibeg, res.device_params.jbeg}, {res.device_params.iend, res.device_params.jend});
   res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
-
+  
+  checkValidityIni(res);
 
   return res;
 } 

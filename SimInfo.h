@@ -176,6 +176,15 @@ struct DeviceParams {
 
   // Hot bubble
   real_t hot_bubble_g0;
+
+  // Kelvin-Helmholtz
+  real_t kh_y1, kh_y2;
+  real_t kh_a;
+  real_t kh_sigma;
+  real_t kh_rho_fac;
+  real_t kh_uflow;
+  real_t kh_amp;
+  real_t kh_P0;
   
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
@@ -327,6 +336,16 @@ struct DeviceParams {
 
     // Hot bubble
     hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
+
+    // Kelvin-Helmholtz
+    kh_a = reader.GetFloat("kelvin_helmholtz", "a", 0.05);
+    kh_amp = reader.GetFloat("kelvin_helmholtz", "amp", 0.01);
+    kh_P0  = reader.GetFloat("kelvin_helmholtz", "P0", 1.0);
+    kh_rho_fac = reader.GetFloat("kelvin_helmholtz", "rho_fac", 0.0);
+    kh_sigma = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
+    kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
+    kh_y1 = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
+    kh_y2 = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
   }
 };
 

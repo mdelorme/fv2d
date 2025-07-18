@@ -88,8 +88,8 @@ namespace {
     int jR = j + (side == IRIGHT && dir == IY);
 
     real_t r = norm(geometry.faceCenter(i, j, dir, side));
-    const real_t rho0 = params.spl_rho(r);
-    const real_t prs0 = params.spl_prs(r);  
+    const real_t alpha = params.spl_rho(r);
+    const real_t beta = params.spl_prs(r);  
 
     Kokkos::Array<State, 2> q;
 
@@ -118,10 +118,10 @@ namespace {
         break;
       }
     }
-    q[ILEFT][IR]  = q[ILEFT][IR]  * rho0;
-    q[ILEFT][IP]  = q[ILEFT][IP]  * prs0;
-    q[IRIGHT][IR] = q[IRIGHT][IR] * rho0;
-    q[IRIGHT][IP] = q[IRIGHT][IP] * prs0;
+    q[ILEFT][IR]  = q[ILEFT][IR]  * alpha;
+    q[ILEFT][IP]  = q[ILEFT][IP]  * beta;
+    q[IRIGHT][IR] = q[IRIGHT][IR] * alpha;
+    q[IRIGHT][IP] = q[IRIGHT][IP] * beta;
     return q;
   }
 
@@ -365,6 +365,8 @@ public:
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         const real_t cellArea = geometry.cellArea(i,j);
+        Pos grav_in_step{0};
+
         // Lambda to update the cell along a direction
         auto updateAlongDir = [&](int i, int j, IDir dir) {
           real_t lenL, lenR;
@@ -459,174 +461,35 @@ public:
           un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
 
           setStateInArray(Unew, i, j, un_loc);
+
+          {
+            real_t rl = norm(geometry.faceCenter(i, j, dir, ILEFT));
+            real_t rr = norm(geometry.faceCenter(i, j, dir, IRIGHT));
+            const real_t beta_l = params.spl_prs(rl);
+            const real_t beta_r = params.spl_prs(rr);
+            grav_in_step = grav_in_step + lenR * rotR * beta_r - lenL * rotL * beta_l;
+          }
         };
         
         updateAlongDir(i, j, IX);
         updateAlongDir(i, j, IY);
-
+        
         { // alpha beta scheme 
-          real_t len;
-          Pos lenL = geometry.getRotationMatrix(i, j, IX, ILEFT,  len); lenL = lenL * len;
-          Pos lenR = geometry.getRotationMatrix(i, j, IX, IRIGHT, len); lenR = lenR * len;
-          Pos lenD = geometry.getRotationMatrix(i, j, IY, ILEFT,  len); lenD = lenD * len;
-          Pos lenU = geometry.getRotationMatrix(i, j, IY, IRIGHT, len); lenU = lenU * len;
-          real_t r  = norm(geometry.mapc2p_center(i,j));
-          real_t rl = norm(geometry.faceCenter(i, j, IX, ILEFT));
-          real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
-          real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
-          real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
-          // const real_t prs0   = Q(j, i, IP);
-          real_t factor = 1;
-          if      (params.wb_grav_factor == WBGF_PRS) factor = Q(j, i, IP);
-          else if (params.wb_grav_factor == WBGF_RHO) factor = Q(j, i, IR);
-          else if (params.wb_grav_factor == WBGF_PRS_RHO) factor = Q(j, i, IP) / Q(j, i, IR);
-          
-          const real_t prs0l = params.spl_prs(rl);
-          const real_t prs0r = params.spl_prs(rr);
-          const real_t prs0d = params.spl_prs(rd);
-          const real_t prs0u = params.spl_prs(ru);
+          grav_in_step = Q(j, i, IR) / cellArea * grav_in_step;
 
-          real_t sx = factor * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
-          real_t sy = factor * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
-
-          if (params.wb_grav_grad_correction) {
-            const real_t beta0 = params.spl_prs(r);
-            sx += beta0 * slopesX(j, i, IP);
-            sy += beta0 * slopesY(j, i, IP);
+          if (params.wb_grav_grad_correction) { // surement a delete
+            const real_t r = norm(geometry.mapc2p_center(i,j));
+            const real_t beta = params.spl_prs(r);
+            grav_in_step[IX] += beta * slopesX(j, i, IP);
+            grav_in_step[IY] += beta * slopesY(j, i, IP);
           }
 
-          Unew(j, i, IU) += dt * sx;
-          Unew(j, i, IV) += dt * sy;
-          Unew(j, i, IE) += dt * (Q(j, i, IU) * sx + Q(j, i, IV) * sy);
+          Unew(j, i, IU) += dt * grav_in_step[IX];
+          Unew(j, i, IV) += dt * grav_in_step[IY];
+          Unew(j, i, IE) += dt * (Q(j, i, IU) * grav_in_step[IX] + Q(j, i, IV) * grav_in_step[IY]);
         }
 
         // Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
-      });
-  }
-
-  void computeFluxesAndUpdate_CTU(Array Q, Array Unew, real_t dt) const {
-    auto full_params = this->full_params;
-    auto params = full_params.device_params;
-    auto slopesX = this->slopesX;
-    auto slopesY = this->slopesY;
-    auto psi = this->psi;
-    auto &geometry = this->geometry;
-
-    Array Fhat[2] = { Array("Fhat_x", params.Nty, params.Ntx, Nfields),
-                      Array("Fhat_y", params.Nty, params.Ntx, Nfields) };
-
-    // predictor
-    Kokkos::parallel_for(
-      "Update CTU predictor", 
-      full_params.range_slopes,
-      KOKKOS_LAMBDA(const int i, const int j) {
-
-        // Calling the right Riemann solver
-        auto riemann = [&](State qL, State qR, State &flux, Pos &rot, real_t &pout) {
-          qL = rotate(qL , rot);
-          qR = rotate(qR , rot);
-          switch (params.riemann_solver) {
-            case HLL: hll(qL, qR, flux, pout, params); break;
-            default: hllc(qL, qR, flux, pout, params); break;
-          }
-          flux = rotate_back(flux, rot);
-        };
-
-        // Lambda to update the cell along a direction
-        auto updatePredictor = [&](int i, int j, IDir dir) {
-          auto [qL, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, ILEFT, geometry, params);
-
-          real_t lenL;
-          Pos rotL = geometry.getRotationMatrix(i, j, dir, ILEFT,  lenL);
-          
-          // Calculating flux "hat" left
-          State  fluxL;
-          real_t pout;
-
-          riemann(qL, qR, fluxL, rotL, pout);
-          setStateInArray(Fhat[dir], i, j, fluxL); // store the area length within the flux
-        };
-
-        updatePredictor(i, j, IX);
-        updatePredictor(i, j, IY);
-      });
-
-    // corrector
-    Kokkos::parallel_for(
-      "Update CTU corrector", 
-      full_params.range_dom,
-      KOKKOS_LAMBDA(const int i, const int j) {
-        State un_loc = getStateFromArray(Unew, i, j);
-
-        // Calling the right Riemann solver
-        auto riemann = [&](State qL, State qR, State &flux, Pos &rot, real_t &pout) {
-          qL = rotate(qL , rot);
-          qR = rotate(qR , rot);
-          switch (params.riemann_solver) {
-            case HLL: hll(qL, qR, flux, pout, params); break;
-            default: hllc(qL, qR, flux, pout, params); break;
-          }
-          flux = rotate_back(flux, rot);
-        };
-
-        // Lambda to update the cell along a direction
-        auto updateCorrector = [&](int i, int j, IDir dir) {
-
-          auto reconstructTransverse = [&](ISide side, Pos &normal) -> Kokkos::Array<State, 2> {
-            const IDir tdir = (dir == IX ? IY : IX); // 2d case
-            const int  dxp  = (dir == IX ?  1 :  0);
-            const int  dyp  = (dir == IY ?  1 :  0);
-            auto [qL, qR] = reconstruct(Q, slopesX, slopesY, psi, i, j, dir, side,  geometry, params);
-            Pos tangential = {normal[IY], -normal[IX]};
-            
-            auto applyTransverseFluxes = [&](State &U, ISide side2){
-              int ii = i + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IX);
-              int jj = j + (side == ILEFT ? -1 : 1) * (side == side2  && dir == IY);
-
-              real_t lenTL, lenTR;
-              {
-                Pos normalTL = geometry.getRotationMatrix(ii, jj, tdir, ILEFT,  lenTL);
-                Pos normalTR = geometry.getRotationMatrix(ii, jj, tdir, IRIGHT, lenTR);
-                lenTL = lenTL * fabs(dot(normalTL, tangential));
-                lenTR = lenTR * fabs(dot(normalTR, tangential));
-              }
-              const real_t cellAreaT = geometry.cellArea(ii, jj);
-
-              State FL = getStateFromArray(Fhat[tdir], ii,     jj);
-              State FR = getStateFromArray(Fhat[tdir], ii+dyp, jj+dxp); // flux direction transverse
-              U  = primToCons(U, params);
-              U = U + 0.5 * dt * (lenTL*FL - lenTR*FR) / cellAreaT;
-              U = consToPrim(U, params);
-            };
-
-            applyTransverseFluxes(qL, ILEFT);
-            applyTransverseFluxes(qR, IRIGHT);
-            return {qL, qR};
-          };
-
-          real_t lenL, lenR;
-          Pos rotL = geometry.getRotationMatrix(i, j, dir, ILEFT,  lenL);
-          Pos rotR = geometry.getRotationMatrix(i, j, dir, IRIGHT, lenR);
-          real_t cellArea = geometry.cellArea(i,j);
-
-          auto [qL, qCL] = reconstructTransverse(ILEFT, rotL);
-          auto [qCR, qR] = reconstructTransverse(IRIGHT, rotR);
-
-          // Calculating flux left and right of the cell
-          State fluxL, fluxR;
-          real_t poutL, poutR;
-
-          riemann(qL, qCL, fluxL, rotL, poutL);
-          riemann(qCR, qR, fluxR, rotR, poutR);
-
-          un_loc += dt * (lenL*fluxL - lenR*fluxR) / cellArea;
-        };
-        
-        updateCorrector(i, j, IX);
-        updateCorrector(i, j, IY);
-        
-        un_loc[IR] = fmax(1.0e-6, un_loc[IR]);
-        setStateInArray(Unew, i, j, un_loc);
       });
   }
 
@@ -642,11 +505,11 @@ public:
       full_params.range_tot,
       KOKKOS_LAMBDA(const int i, const int j) {
         const real_t r = norm(geometry.mapc2p_center(i,j));
-        const real_t rho0 = params.spl_rho(r);
-        const real_t prs0 = params.spl_prs(r);
+        const real_t alpha = params.spl_rho(r);
+        const real_t beta = params.spl_prs(r);
         
-        Q(j, i, IR) = Q(j, i, IR) / rho0;
-        Q(j, i, IP) = Q(j, i, IP) / prs0;
+        Q(j, i, IR) = Q(j, i, IR) / alpha;
+        Q(j, i, IP) = Q(j, i, IP) / beta;
       });
 
     
@@ -659,7 +522,6 @@ public:
     // Hyperbolic udpate
     switch(full_params.flux_solver) { 
       case FLUX_GODOUNOV: computeFluxesAndUpdate(Q, Unew, dt); break;
-      case FLUX_CTU:      computeFluxesAndUpdate_CTU(Q, Unew, dt); break;
     }
 
     // Splitted terms
@@ -667,7 +529,7 @@ public:
       tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
       visc_functor.applyViscosity(Q, Unew, dt);
-    // if (full_params.device_params.gravity != GRAV_NONE)
+    // if ((full_params.device_params.gravity_in_step == false) && (full_params.device_params.gravity_mode != GRAV_NONE))
     //   grav_functor.applyGravity(Q, Unew, dt);
     if (full_params.device_params.coriolis_active)
       coriolis_functor.applyCoriolis(Q, Unew, dt);

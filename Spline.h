@@ -85,7 +85,6 @@ public:
     // return c[0] + ri * c[1] + ri*ri * c[2] + ri*ri*ri * c[3];
   }
   
-private:
   // struct {
   //   uint32_t N;
   //   uint32_t offset_variable[5];

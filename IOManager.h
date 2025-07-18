@@ -325,11 +325,7 @@ public:
           real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
           real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
           real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
-          // const real_t prs0   = Q(j, i, IP);
-          real_t factor = 1;
-          if      (device_params.wb_grav_factor == WBGF_PRS) factor = Q(j, i, IP) / device_params.spl_prs(r);
-          else if (device_params.wb_grav_factor == WBGF_RHO) factor = Q(j, i, IR) / device_params.spl_rho(r);
-          else if (device_params.wb_grav_factor == WBGF_PRS_RHO) factor = Q(j, i, IP) / Q(j, i, IR) * device_params.spl_rho(r) / device_params.spl_prs(r);
+          real_t factor = Q(j, i, IR) / device_params.spl_rho(r);
           
           const real_t prs0l = device_params.spl_prs(rl);
           const real_t prs0r = device_params.spl_prs(rr);

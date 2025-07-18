@@ -49,7 +49,7 @@ enum RiemannSolver {
 };
 
 enum FluxSolver {
-  FLUX_CTU,
+  // FLUX_CTU,
   FLUX_GODOUNOV
 };
 
@@ -82,6 +82,7 @@ enum ReconstructionType {
 enum ThermalConductivityMode {
   TCM_CONSTANT,
   TCM_B02,
+  TCM_READFILE,
 };
 
 // Thermal conduction at boundary
@@ -133,11 +134,6 @@ enum GradientType {
 
 enum AnalyticalGravityMode {
   AGM_HOT_BUBBLE
-};
-
-// Temporary
-enum WB_GravFactor{
-  WBGF_PRS, WBGF_RHO, WBGF_ONE, WBGF_PRS_RHO
 };
 
 // Pos arithmetic
@@ -414,7 +410,7 @@ struct DeviceParams {
 
 
   // Splines
-  Spline spl_rho, spl_prs, spl_grav, spl_heating;
+  Spline spl_rho, spl_prs, spl_grav, spl_heating, spl_kappa;
   real_t pert, pert_radius;
 
   /////////////////////////////////////////////////////////
@@ -432,18 +428,10 @@ struct DeviceParams {
   real_t epsilon = 1.0e-6;
 
   // Temporary
-  WB_GravFactor wb_grav_factor;
   bool wb_hancock_factor;
   bool wb_grav_grad_correction;
 
   void init_from_inifile(Reader &reader) {
-    std::map<std::string, WB_GravFactor> wbgf_map{
-      {"prs",  WBGF_PRS},
-      {"rho",  WBGF_RHO},
-      {"one",  WBGF_ONE},
-      {"prs_rho",  WBGF_PRS_RHO}
-    };
-    wb_grav_factor = reader.GetMapValue(wbgf_map, "run", "wb_grav_factor", "prs");
     wb_hancock_factor = reader.GetBoolean("run", "wb_hancock_factor", false);
     wb_grav_grad_correction = reader.GetBoolean("run", "wb_grav_grad_correction", false); 
 
@@ -561,7 +549,8 @@ struct DeviceParams {
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
       {"constant", TCM_CONSTANT},
-      {"B02",      TCM_B02}
+      {"B02",      TCM_B02},
+      {"readfile", TCM_READFILE}
     };
     thermal_conductivity_mode = reader.GetMapValue(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
@@ -612,7 +601,9 @@ struct DeviceParams {
       spl_grav = Spline(spline_data_path, Spline::OF_GRAVITY);
     if (heating == HEAT_READFILE)
       spl_heating = Spline(spline_data_path, Spline::OF_HEATING);
-    
+    if (thermal_conductivity_mode == TCM_READFILE)
+      spl_kappa = Spline(spline_data_path, Spline::OF_KAPPA);
+
     pert = reader.GetFloat("physics", "perturbation", 1.0e-3);
     pert_radius = reader.GetFloat("physics", "perturbation_radius", 0);
     
@@ -700,7 +691,7 @@ Params readInifile(std::string filename) {
   res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");
 
   std::map<std::string, FluxSolver> flux_solver_map{
-    {"ctu",      FLUX_CTU},
+    // {"ctu",      FLUX_CTU},
     {"godounov", FLUX_GODOUNOV}
   };
   res.flux_solver = reader.GetMapValue(flux_solver_map, "solvers", "flux_solver", "godounov");

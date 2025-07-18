@@ -15,6 +15,7 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
       res = params.kappa * (params.b02_kappa1 * (1.0-tr) + params.b02_kappa2 * tr);
       break;
     }
+    // case TCM_READFILE:
     default:
       res = params.kappa;
   }
@@ -35,24 +36,41 @@ public:
   void applyThermalConduction(Array Q, Array Unew, real_t dt) {
     auto params = full_params.device_params;
     auto geometry = this->geometry;
-    real_t kappa = params.kappa;
+    // const real_t kappa = params.kappa;
+    const real_t R = params.spl_rho.header.R;
 
     Kokkos::parallel_for(
       "Thermal conduction", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
-
+        
+        // wb alpha beta : 
+        auto getGamma = [&](const real_t r) -> real_t {
+          const real_t alpha = params.spl_rho(r);
+          const real_t beta = params.spl_prs(r);
+          return beta / alpha / R;
+        };
+        auto getDerivGamma = [&](const real_t r) -> real_t {
+          // créé une spline de température ?
+          const real_t rho = params.spl_rho(r);
+          const real_t prs = params.spl_prs(r);
+          const real_t drho = params.spl_rho.GetDerivative(r);
+          const real_t dprs = params.spl_prs.GetDerivative(r);
+          const real_t dT = (dprs - prs / rho * drho ) / rho / R;
+          return dT;
+        };
         auto getTemperature = [](Array arr, int i, int j) -> real_t {return arr(j, i, IP) / arr(j, i, IR);};
+
         auto gradP = computeGradient(Q, getTemperature, j, i,   geometry, params.gradient_type);
         real_t T_P = getTemperature(Q, i, j);
         
         auto compute_flux = [&](IDir dir, ISide side) {
-          int ii = i + (side == ILEFT ? -1 : 1) * (dir == IX);
-          int jj = j + (side == ILEFT ? -1 : 1) * (dir == IY);
+          int iN = i + (side == ILEFT ? -1 : 1) * (dir == IX);
+          int jN = j + (side == ILEFT ? -1 : 1) * (dir == IY);
           
-          real_t T_N = getTemperature(Q, ii, jj);
-          auto gradN = computeGradient(Q, getTemperature, jj, ii, geometry, params.gradient_type);
-          Pos e_PN = geometry.mapc2p_center(ii, jj) - geometry.mapc2p_center(i, j);
+          real_t T_N = getTemperature(Q, iN, jN);
+          auto gradN = computeGradient(Q, getTemperature, jN, iN, geometry, params.gradient_type);
+          Pos e_PN = geometry.mapc2p_center(iN, jN) - geometry.mapc2p_center(i, j);
           const real_t d_PN = norm(e_PN);
           e_PN = e_PN / d_PN;
           const auto v_Pf = geometry.centerToFace(i, j, dir, side);
@@ -80,7 +98,18 @@ public:
               correction = dot(gradN - gradP, f1f * e_T) * A_d / d_PN;
             }
           }
-          return kappa * (A_d * (T_N - T_P) / d_PN + dot(gradient_face, A_t) + correction);
+
+          Pos u_r = geometry.faceCenter(i, j, dir, side);
+          const real_t r_f = norm(u_r);
+          u_r = u_r / r_f;
+          const real_t gradT_gamma_f = (A_d * (T_N - T_P) / d_PN + dot(gradient_face, A_t) + correction);
+          const real_t gamma_f = getGamma(r_f);
+          const real_t dgamma_f = dot(getDerivGamma(r_f) * u_r, A_f);
+          const real_t T_gamma_f = (1-f_P)*T_P + f_P*T_N;
+
+          const real_t gradT_f = gamma_f * gradT_gamma_f + T_gamma_f * dgamma_f;
+          const real_t kappa_f = params.spl_kappa(r_f);
+          return kappa_f * gradT_f;
         };
 
         // Computing thermal flux

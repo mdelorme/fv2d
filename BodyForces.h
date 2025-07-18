@@ -39,15 +39,18 @@ public:
   void applyGravity(Array Q, Array Unew, real_t dt) {
     auto full_params = this->full_params;
     auto params = full_params.device_params;
-    auto geo = this->geometry;
+    auto geometry = this->geometry;
 
     Kokkos::parallel_for(
       "Gravity", 
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
-        Pos g = computeGravity(i, j, params, geo);
+        Pos g = computeGravity(i, j, params, geometry);
 
-        real_t rhoOld = Q(j, i, IR);
+        const real_t r = norm(geometry.mapc2p_center(i,j));
+        const real_t rho0 = params.spl_rho(r);
+        real_t rhoOld = Q(j, i, IR) * rho0;
+        
         real_t rhoNew = Unew(j, i, IR);
         real_t rhou = Unew(j, i, IU);
         real_t rhov = Unew(j, i, IV);
@@ -61,6 +64,7 @@ public:
       });
   }
 };
+
 
 class HeatingFunctor {
   public:

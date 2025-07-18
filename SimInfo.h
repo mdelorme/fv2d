@@ -16,6 +16,21 @@ using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 
+/* Register Debug Array */
+
+// Access debug array in a kernel with `device_params.debug_array(j, i, IDebugArray)`
+
+enum IDebugArray { 
+  // IDT_HYDRO =0,
+};
+constexpr auto register_debug_array = std::to_array<std::pair<std::string_view, IDebugArray>>({ {},
+  /*   { "name",     ID (as to be in range [0,N-1]  },   */
+  // {"dt_hydro",  IDT_HYDRO},
+});
+
+using DebugArray = Kokkos::View<real_t***>;
+/* -------------------- */
+
 struct RestartInfo {
   real_t time;
   int iteration;
@@ -234,6 +249,9 @@ struct Reader {
 
 // All parameters that should be copied on the device
 struct DeviceParams { 
+  // Debug Tool
+  DebugArray debug_array;
+
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
   
@@ -308,7 +326,7 @@ struct DeviceParams {
   
   void init_from_inifile(Reader &reader) {
     
-    
+
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -327,7 +345,11 @@ struct DeviceParams {
     
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
+
+    // Debug tool
+    debug_array = DebugArray("Debug Array", Nty, Ntx, register_debug_array.size()-1);
     
+    // Parameters
     CFL = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
@@ -419,7 +441,7 @@ struct Params {
   real_t tend;
   Reader reader;
   std::string filename_out = "run";
-  std::string output_path = "./";
+  std::string output_path = ".";
   std::string restart_file = "";
   TimeStepping time_stepping = TS_EULER;
 
@@ -487,7 +509,7 @@ Params readInifile(std::string filename) {
   
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
-  res.output_path = reader.Get("run", "output_path", "./");
+  res.output_path = reader.Get("run", "output_path", ".");
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},

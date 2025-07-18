@@ -188,6 +188,22 @@ public:
       g.createDataSet("prs", tprs);
       g.createAttribute("time", t);
       g.createAttribute("iteration", iteration);
+
+      // save debug
+      auto debug_array_host = Kokkos::create_mirror(device_params.debug_array);
+      Kokkos::deep_copy(debug_array_host, device_params.debug_array);
+
+      for (int i=1; i<register_debug_array.size(); i++) {
+        const auto &[debug_name, id] = register_debug_array[i];
+
+        Table tdebug_array;
+        for (int j=device_params.jbeg; j<device_params.jend; ++j) {
+          for (int i=device_params.ibeg; i<device_params.iend; ++i) {
+            tdebug_array.push_back(debug_array_host(j, i, id));
+          }
+        }
+        g.createDataSet(debug_name.data(), tdebug_array);
+      }
     };
 
     if constexpr (is_multiple) {
@@ -211,6 +227,10 @@ public:
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho"));
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
+    for (int i=1; i<register_debug_array.size(); i++) {
+      const auto &[debug_name, id] = register_debug_array[i];
+      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, debug_name.data()));
+    }
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);

@@ -117,8 +117,8 @@ public:
     // -- vertex pos
     for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
       for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
-        x.push_back((i-device_params.ibeg) * device_params.dx);
-        y.push_back((j-device_params.jbeg) * device_params.dy);
+        x.push_back((i-device_params.ibeg) * device_params.dx + device_params.xmin);
+        y.push_back((j-device_params.jbeg) * device_params.dy + device_params.ymin);
       }
     }
 
@@ -191,8 +191,8 @@ public:
       for (int j=device_params.jbeg; j <= device_params.jend; ++j)
         for (int i=device_params.ibeg; i <= device_params.iend; ++i)
         {
-          x.push_back((i-device_params.ibeg) * device_params.dx);
-          y.push_back((j-device_params.jbeg) * device_params.dy);
+          x.push_back((i-device_params.ibeg) * device_params.dx + device_params.xmin);
+          y.push_back((j-device_params.jbeg) * device_params.dy + device_params.ymin);
         }
       file.createDataSet("x", x);
       file.createDataSet("y", y);

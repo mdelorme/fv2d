@@ -21,7 +21,7 @@ if '--field' in sys.argv:
 solver = ''
 if '--solver' in sys.argv:
     i = sys.argv.index('--solver')
-    solver = sys.argv[i+1]
+    solvers = [sys.argv[i+1]]
 if '--file' in sys.argv:
     i = sys.argv.index('--file')
     if i+1 >= len(sys.argv):

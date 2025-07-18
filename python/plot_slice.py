@@ -91,8 +91,9 @@ def find_index_closest(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
-y = y.reshape((Ny+1, Nx+1)) #access all the y values at x=0
-idx = find_index_closest(y[:, 0], yslice)
+if yslice:
+    y = y.reshape((Nx+1, Ny+1)) #access all the y values at x=0
+    idx = find_index_closest(y[0, :], yslice)
 x_slice = x[:Nx]
 
 # Fonction pour tracer les champs
@@ -102,18 +103,21 @@ def plot_field(field, cax, i, filename, solver):
         if field == 'Bmag': # for the loop advection i want to check the mag field intensity
             arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
         elif field == 'divBoverB':
-            bx = np.array(f[f'ite_{i:04d}/bx']).reshape((Nx, Ny))
-            by = np.array(f[f'ite_{i:04d}/by']).reshape((Nx, Ny))
-            bz = np.array(f[f'ite_{i:04d}/bz']).reshape((Nx, Ny))
-            divB = np.abs(np.array(f[f'ite_{i:04d}/divB']).reshape((Nx, Ny)))
+            bx = np.array(f[f'ite_{i:04d}/bx']).reshape((Ny, Nx))
+            by = np.array(f[f'ite_{i:04d}/by']).reshape((Ny, Nx))
+            bz = np.array(f[f'ite_{i:04d}/bz']).reshape((Ny, Nx))
+            divB = np.abs(np.array(f[f'ite_{i:04d}/divB']).reshape((Ny, Nx)))
             Bmag = np.sqrt(bx**2 + by**2 + bz**2)
             arr = np.log(dx * divB / Bmag)
         else:
-            arr = np.array(f[path]).reshape((Nx, Ny))
+            arr = np.array(f[path]).reshape((Ny, Nx))
         y_slice = arr[Ny//2, :] if yslice is None else arr[idx, :]
         cax.plot(x_slice, y_slice, label=solver)
         cax.set_xlabel(r'$x$')
-        cax.set_ylabel(latexify[field] + fr' ($x, y={yslice:.2f}$)')
+        cax.set_xlim((-1, 1))
+        cax.set_ylim((-1, 1))
+        coords = fr'($x, y={yslice:.2f}$)' if yslice else '$(x,y=cst)$'
+        cax.set_ylabel(latexify[field] + coords)
         cax.legend()
     if show_grid:
         cax.set_xticks(np.arange(ext[0], ext[1], dx), minor=True)

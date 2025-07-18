@@ -408,10 +408,12 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   if (Ustar[IX] > 0.0) {
     q = qL;
     Bstar = qR[IBX];
+    pout = qR[IP];
   }
   else {
     q = qR;
     Bstar = qL[IBX];
+    pout = qL[IP]
   }
   const real_t beta_min = 1.0e-3;
   const real_t alfven_max = 10.0;
@@ -437,7 +439,7 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
     flux[IBZ] = u[IBZ] * uS - Bstar * Ustar[IZ];
   }
   flux[IPSI] = 0.0;
-  pout = Pstar[IX];
+  // pout = Pstar[IX];
 }
 
 KOKKOS_INLINE_FUNCTION

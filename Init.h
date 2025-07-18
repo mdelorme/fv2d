@@ -181,30 +181,25 @@ namespace {
 
   // 1D MHD Tests
   /**
-   * @brief MHD Sod Shock tube aligned along the X axis
+   * @brief Brio-Wu (MHD Sod Shock) tube aligned along the X axis
    */
   KOKKOS_INLINE_FUNCTION
   void initMHDSodX(Array Q, int i, int j, const DeviceParams &params) {
     if (getPos(params, i, j)[IX] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IBX) = 0.75;
       Q(j, i, IBY) = 1.0;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 0.125;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IBX) = 0.75;
       Q(j, i, IBY) = -1.0;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 0.75;
+    Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }
 
@@ -216,23 +211,18 @@ namespace {
     if (getPos(params, i, j)[IY] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IBX) = 1.0;
-      Q(j, i, IBY) = 0.75;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 0.125;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IBX) = -1.0;
-      Q(j, i, IBY) = 0.75;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBY) = 0.75;
+    Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }
 

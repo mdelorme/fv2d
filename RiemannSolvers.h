@@ -413,7 +413,7 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   else {
     q = qR;
     Bstar = qL[IBX];
-    pout = qL[IP]
+    pout = qL[IP];
   }
   const real_t beta_min = 1.0e-3;
   const real_t alfven_max = 10.0;

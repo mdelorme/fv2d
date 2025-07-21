@@ -14,5 +14,72 @@ latexify = {
   'psi': r'$\psi$',
   'divB': r'$\nabla \cdot \mathbf{B}$',
   'Bmag': r'$||\mathbf{B}||$', # = \sqrt{B_x^2 + B_y^2}$',  # Added for magnetic field magnitude
-  'divBoverB': r'$\log_{10} \left(\Delta x \cdot \frac{|\nabla \cdot \mathbf{B}|}{|\mathbf{B}|}\right)$'  # Added for divergence over magnitude
+  'divBoverB': r'$\log_{10} \left(\Delta x \cdot \frac{|\nabla \cdot \mathbf{B}|}{|\mathbf{B}|}\right)$',  # Added for divergence over magnitude
+  'Bperp': r'$B_{//}$' # Added for rotated shoc tube
 }
+
+
+def get_prim_array(f, i, field):
+  return np.array(f[f'ite_{i:04d}/{field}'])
+
+def _compute_2D_magnnorm(f, i: int, excludedir: str):
+  """Compute 2D magnetic field norm by excluding a specified component."""
+  if excludedir == 'x':
+    b1 = np.array(f[f'ite_{i:04d}/by'])
+    b2 = np.array(f[f'ite_{i:04d}/bz'])
+  elif excludedir == 'y':
+    b1 = np.array(f[f'ite_{i:04d}/bx'])
+    b2 = np.array(f[f'ite_{i:04d}/bz'])
+  elif excludedir == 'z':
+    b1 = np.array(f[f'ite_{i:04d}/bx'])
+    b2 = np.array(f[f'ite_{i:04d}/by'])
+  else:
+    raise ValueError(f"Direction to exclude must be in ('x', 'y', 'z'), not {excludedir}")
+  
+  return np.sqrt(b1**2 + b2**2)
+
+def get_BMag(f, i: int):
+  """ Compute the norm of the magnetic field from a h5 file containing primitive variables.
+      The magnetic field is in 2D and is supposed to have the norm sqrt{B_x^2 + B_y^2}.
+
+    Args:
+      - f : h5py.File
+      - i : iteration level of the simulation
+    
+    Returns :
+      - Bmag : np.ndarray 
+  """
+  return _compute_2D_magnnorm(f, i, excludedir='z')
+
+
+def get_Bperp(f, i: int):
+  """ Compute the norm of the perpendicular magnetic components."""
+  return _compute_2D_magnnorm(f, i, excludedir='x')
+
+
+def get_divBoverB(f, i: int):
+  Nx = int(f.attrs['Nx'])
+  Ny = int(f.attrs['Ny'])
+  x = np.array(f['x'])
+  dx = x[1]-x[0]
+  bx = np.array(f[f'ite_{i:04d}/bx']).reshape((Ny, Nx))
+  by = np.array(f[f'ite_{i:04d}/by']).reshape((Ny, Nx))
+  bz = np.array(f[f'ite_{i:04d}/bz']).reshape((Ny, Nx))
+  divB = np.abs(np.array(f[f'ite_{i:04d}/divB']).reshape((Ny, Nx)))
+  Bmag = np.sqrt(bx**2 + by**2 + bz**2)
+  arr = np.log(dx * divB / Bmag)
+  return arr
+
+compute_values = {
+  'Bmag': get_BMag,
+  'Bperp': get_Bperp,
+  'divBoverB': get_divBoverB
+}
+
+def get_quantity(f, i, field):
+  if field in ('rho', 'prs', 'u', 'v', 'w', 'bx', 'by', 'bz', 'psi', 'divB'):
+    return get_prim_array(f, i, field)
+  elif field in compute_values:
+    return compute_values[field](f, i)
+  else:
+    raise ValueError(f'No known quantity to evaluate for {field=}.')

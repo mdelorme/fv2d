@@ -5,7 +5,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-from fv2d_utils import latexify
+from fv2d_utils import latexify, get_quantity
 
 # Suppression et création du répertoire de rendu
 if os.path.exists('render'):
@@ -100,22 +100,12 @@ x_slice = x[:Nx]
 def plot_field(field, cax, i, filename, solver):
     with h5py.File(filename, 'r') as f:
         path = f'ite_{i:04d}/{field}'
-        if field == 'Bmag': # for the loop advection i want to check the mag field intensity
-            arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
-        elif field == 'divBoverB':
-            bx = np.array(f[f'ite_{i:04d}/bx']).reshape((Ny, Nx))
-            by = np.array(f[f'ite_{i:04d}/by']).reshape((Ny, Nx))
-            bz = np.array(f[f'ite_{i:04d}/bz']).reshape((Ny, Nx))
-            divB = np.abs(np.array(f[f'ite_{i:04d}/divB']).reshape((Ny, Nx)))
-            Bmag = np.sqrt(bx**2 + by**2 + bz**2)
-            arr = np.log(dx * divB / Bmag)
-        else:
-            arr = np.array(f[path]).reshape((Ny, Nx))
+        arr =  get_quantity(f, i, field)
         y_slice = arr[Ny//2, :] if yslice is None else arr[idx, :]
         cax.plot(x_slice, y_slice, label=solver)
         cax.set_xlabel(r'$x$')
-        cax.set_xlim((-1, 1))
-        cax.set_ylim((-1, 1))
+        cax.set_xlim((xmin-dx, xmax+dx))
+        cax.set_ylim((ymin-dy, ymax+dy))
         coords = fr'($x, y={yslice:.2f}$)' if yslice else '$(x,y=cst)$'
         cax.set_ylabel(latexify[field] + coords)
         cax.legend()

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
-from fv2d_utils import latexify
+from fv2d_utils import latexify, get_quantity
 
 if os.path.exists('render'):
   shutil.rmtree('render')  
@@ -44,8 +44,8 @@ Nf = len(f)-2
 
 x = np.array(f['x'])
 y = np.array(f['y'])
-Nx = f.attrs['Nx']
-Ny = f.attrs['Ny']
+Nx = int(f.attrs['Nx'])
+Ny = int(f.attrs['Ny'])
 
 xmin=x.min()
 xmax=x.max()
@@ -63,19 +63,9 @@ for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(figsize=(12, 12))
   t = f['ite_{:04d}'.format(i)].attrs['time']
   problem = f.attrs['problem'].title()
-  plt.suptitle(f'{problem} ({solver=}) - Time: {t:.3f}')
+  plt.suptitle(f'{problem} (solver : {solver}) - t={t:.3f} - {Nx=},{Ny=}')
   path = f'ite_{i:04d}/{field}'
-  if field == 'Bmag': # for the loop advection i want to check the mag field intensity
-    arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
-  elif field == 'divBoverB':
-    bx = np.array(f[f'ite_{i:04d}/bx']).reshape((Ny, Nx))
-    by = np.array(f[f'ite_{i:04d}/by']).reshape((Ny, Nx))
-    bz = np.array(f[f'ite_{i:04d}/bz']).reshape((Ny, Nx))
-    divB = np.abs(np.array(f[f'ite_{i:04d}/divB']).reshape((Ny, Nx)))
-    Bmag = np.sqrt(bx**2 + by**2 + bz**2)
-    arr = np.log(dx * divB / Bmag)
-  else:
-    arr = np.array(f[path]).reshape((Ny, Nx))
+  arr = get_quantity(f, i, field)
   im = ax.imshow(arr, extent=ext, origin='lower', vmin=vmin, vmax=vmax)
   cbar = fig.colorbar(im, ax=ax,  fraction=0.046, pad=0.04, aspect=20)
   ax.set_title(latexify[field])

@@ -63,6 +63,7 @@ public:
 
         auto gradP = computeGradient(Q, getTemperature, j, i,   geometry, params.gradient_type);
         real_t T_P = getTemperature(Q, i, j);
+        Pos r_P = geometry.mapc2p_center(i, j);
         
         auto compute_flux = [&](IDir dir, ISide side) {
           int iN = i + (side == ILEFT ? -1 : 1) * (dir == IX);
@@ -70,7 +71,7 @@ public:
           
           real_t T_N = getTemperature(Q, iN, jN);
           auto gradN = computeGradient(Q, getTemperature, jN, iN, geometry, params.gradient_type);
-          Pos e_PN = geometry.mapc2p_center(iN, jN) - geometry.mapc2p_center(i, j);
+          Pos e_PN = geometry.mapc2p_center(iN, jN) - r_P;
           const real_t d_PN = norm(e_PN);
           e_PN = e_PN / d_PN;
           const auto v_Pf = geometry.centerToFace(i, j, dir, side);
@@ -89,6 +90,7 @@ public:
           { 
             const real_t normA_f = sqrt(normA_f2);
             const Pos f0f = v_Pf - dot(v_Pf, e_PN)*e_PN;
+
             const Pos f2f = dot(f0f, A_f) * A_f / normA_f2;
             const Pos f0f2 = f0f - f2f;
             if( norm(f0f2) != 0) // si f0, f2, et f ne coincide pas
@@ -115,8 +117,77 @@ public:
         // Computing thermal flux
         real_t FL = compute_flux(IX, ILEFT);
         real_t FR = compute_flux(IX, IRIGHT);
-        real_t FU = compute_flux(IY, ILEFT);
-        real_t FD = compute_flux(IY, IRIGHT);
+        real_t FD = compute_flux(IY, ILEFT);
+        real_t FU = compute_flux(IY, IRIGHT);
+          
+        if (j==params.jbeg && params.bctc_ymin != BCTC_NONE) {
+          if (params.bctc_ymin == BCTC_ZERO) {
+            FD = 0;
+          }
+          else {
+            Pos pos_f = geometry.faceCenter(i, j, IY, ILEFT);
+            const real_t r = norm(r_P);
+            const real_t rf = norm(pos_f);
+            T_P = T_P * getGamma(r);
+            const real_t T_boundary = getGamma(rf);
+            const auto dr = rf - r;
+//             const real_t r_mid = 0.5 * (r + rf);
+//             const real_t kappa_bc = params.spl_kappa(r_mid);
+            const real_t kappa_bc = params.spl_kappa(rf);
+            FD = kappa_bc * (T_P - T_boundary) / dr;
+          }
+        }
+        else if (j==params.jend-1 && params.bctc_ymax != BCTC_NONE) {
+          if (params.bctc_ymax == BCTC_ZERO) {
+            FU = 0;
+          } 
+          else {
+            Pos pos_f = geometry.faceCenter(i, j, IY, IRIGHT);
+            const real_t r = norm(r_P);
+            const real_t rf = norm(pos_f);
+            T_P = T_P * getGamma(r);
+            const real_t T_boundary = getGamma(rf);
+            const auto dr = rf - r;
+//             const real_t r_mid = 0.5 * (r + rf);
+//             const real_t kappa_bc = params.spl_kappa(r_mid);
+            const real_t kappa_bc = params.spl_kappa(rf);
+            FU = kappa_bc * (T_boundary - T_P) / dr;
+          }  
+        } 
+        if (i==params.ibeg && params.bctc_ymin != BCTC_NONE) {
+          if (params.bctc_ymin == BCTC_ZERO) {
+            FL = 0;
+          } 
+          else {
+            Pos pos_f = geometry.faceCenter(i, j, IX, ILEFT);
+            const real_t r = norm(r_P);
+            const real_t rf = norm(pos_f);
+            T_P = T_P * getGamma(r);
+            const real_t T_boundary = getGamma(rf);
+            const auto dr = rf - r;
+//             const real_t r_mid = 0.5 * (r + rf);
+//             const real_t kappa_bc = params.spl_kappa(r_mid);
+            const real_t kappa_bc = params.spl_kappa(rf);
+            FL = kappa_bc * (T_P - T_boundary) / dr;
+          }  
+        } 
+        else if (i==params.iend-1 && params.bctc_ymax != BCTC_NONE) {
+          if (params.bctc_ymax == BCTC_ZERO) {
+            FR = 0;
+          } 
+          else {
+            Pos pos_f = geometry.faceCenter(i, j, IX, IRIGHT);
+            const real_t r = norm(r_P);
+            const real_t rf = norm(pos_f);
+            T_P = T_P * getGamma(r);
+            const real_t T_boundary = getGamma(rf);
+            const auto dr = rf - r;
+//             const real_t r_mid = 0.5 * (r + rf);
+//             const real_t kappa_bc = params.spl_kappa(r_mid);
+            const real_t kappa_bc = params.spl_kappa(rf);
+            FR = kappa_bc * (T_boundary - T_P) / dr;
+          }  
+        } 
 
         /** 
          * Boundaries treatment

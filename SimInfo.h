@@ -89,7 +89,8 @@ enum ThermalConductivityMode {
 enum BCTC_Mode {
   BCTC_NONE,              // Nothing special done
   BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
-  BCTC_FIXED_GRADIENT     // Lock the gradient at the boundary
+  BCTC_FIXED_GRADIENT,    // Lock the gradient at the boundary
+  BCTC_ZERO               // Zero flux out
 };
 
 enum ViscosityMode {
@@ -561,7 +562,8 @@ struct DeviceParams {
     std::map<std::string, BCTC_Mode> bctc_map{
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
-      {"fixed_gradient",    BCTC_FIXED_GRADIENT}
+      {"fixed_gradient",    BCTC_FIXED_GRADIENT},
+      {"zero",              BCTC_ZERO}
     };
     bctc_ymin = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymin", "none");
     bctc_ymax = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymax", "none");

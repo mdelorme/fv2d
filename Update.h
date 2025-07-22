@@ -214,18 +214,18 @@ public:
     if (full_params.device_params.heating_active)
       heat_functor.applyHeating(Q, Unew, dt);
     sources_functor.applySources(Q, Unew, dt, GLM_ch1);
-    auto params = full_params.device_params;
-    Kokkos::parallel_for(
-        "Clean values", 
-        full_params.range_dom,
-        KOKKOS_LAMBDA(const int i, const int j) {
-          auto uloc = getStateFromArray(Unew, i, j);
-          auto qloc = consToPrim(uloc, params);
-          qloc[IR] = Kokkos::max(qloc[IR], 1.0e-10);
-          qloc[IP] = Kokkos::max(qloc[IP], 1.0e-10);
-          uloc = primToCons(qloc, params);
-          setStateInArray(Unew, i, j, uloc);
-        });
+    // auto params = full_params.device_params;
+    // Kokkos::parallel_for(
+    //     "Clean values", 
+    //     full_params.range_dom,
+    //     KOKKOS_LAMBDA(const int i, const int j) {
+    //       auto uloc = getStateFromArray(Unew, i, j);
+    //       auto qloc = consToPrim(uloc, params);
+    //       qloc[IR] = Kokkos::max(qloc[IR], 1.0e-10);
+    //       qloc[IP] = Kokkos::max(qloc[IP], 1.0e-10);
+    //       uloc = primToCons(qloc, params);
+    //       setStateInArray(Unew, i, j, uloc);
+    //     });
   }
 
 

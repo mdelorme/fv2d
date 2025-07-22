@@ -184,8 +184,9 @@ public:
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
           if (params.gravity_mode != GRAV_NONE) {
-            un_loc[IV] += dt * Q(j, i, IR) * params.gy;
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.gy;
+            real_t g = getGravity(i, j, dir, params);
+            un_loc[IV] += dt * Q(j, i, IR) * g;
+            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
           setStateInArray(Unew, i, j, un_loc);
         };

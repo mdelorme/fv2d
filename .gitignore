@@ -5,3 +5,6 @@ render/
 *.h5
 __pycache__/
 *.pyc
+*.xdmf
+last.ini
+*.mp4

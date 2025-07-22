@@ -49,6 +49,8 @@ int main(int argc, char **argv) {
 
     if (params.restart_file != "") {
       auto restart_info = ioManager.loadSnapshot(Q);
+      if (params.restart_mhd_from_hydro)
+        init.init(Q);
       t = restart_info.time;
       save_ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;

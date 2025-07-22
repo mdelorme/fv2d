@@ -367,7 +367,10 @@ namespace {
     #endif
   }
 
+}
 
+#ifdef MHD
+// Restart initialization
 KOKKOS_INLINE_FUNCTION
 void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
   // Init MHD field from a hydro restart
@@ -376,9 +379,7 @@ void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
   Q(j, i, IBY) = params.iso_by;
   Q(j, i, IBZ) = 0.0;
   Q(j, i, IPSI) = 0.0;
-}
 
-#ifdef MHD
   // 1D MHD Tests
   /**
    * @brief Brio-Wu (MHD Sod Shock) tube aligned along the X axis

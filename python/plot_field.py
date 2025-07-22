@@ -24,6 +24,11 @@ if field not in latexify:
   print(f'[ERROR] Field {field} is not recognized. Available fields: {", ".join(latexify.keys())}')
   sys.exit(1)
 
+colmap = 'inferno'
+if '--colormap' in sys.argv:
+  i = sys.argv.index('--colormap')
+  colmap = sys.argv[i+1]
+
 solver = 'unknown'
 if '--solver' in sys.argv:
   i = sys.argv.index('--solver')
@@ -62,11 +67,11 @@ print(f'Rendering animation for file: {cwd}/{filename} and field: {field}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(figsize=(12, 12))
   t = f['ite_{:04d}'.format(i)].attrs['time']
-  problem = f.attrs['problem'].title()
-  plt.suptitle(f'{problem} (solver : {solver}) - t={t:.3f} - {Nx=},{Ny=}')
+  problem = f.attrs['problem'].title().replace('_', ' ')
+  plt.suptitle(f'{problem} (solver : {solver}) - t={t:.3f} - {Nx=}, {Ny=}')
   path = f'ite_{i:04d}/{field}'
   arr = get_quantity(f, i, field)
-  im = ax.imshow(arr, extent=ext, origin='lower', vmin=vmin, vmax=vmax)
+  im = ax.imshow(arr, extent=ext, origin='lower', cmap=colmap, vmin=vmin, vmax=vmax)
   cbar = fig.colorbar(im, ax=ax,  fraction=0.046, pad=0.04, aspect=20)
   ax.set_title(latexify[field])
 

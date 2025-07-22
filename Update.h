@@ -204,7 +204,7 @@ public:
     bc_manager.fillBoundaries(Q);
     // Hyperbolic update
     if (full_params.device_params.reconstruction == PLM)
-    computeSlopes(Q);
+      computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt, GLM_ch1);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)

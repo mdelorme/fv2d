@@ -581,8 +581,8 @@ void print_ini_file(const Params &p) {
   std::cout << "gravity active     = " << dp.gravity_mode << std::endl;
   std::cout << "gx                 = " << dp.gx << std::endl;
   std::cout << "gy                 = " << dp.gy << std::endl;
-  std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
-  std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;
+  std::cout << "m1, m2             = " << dp.m1 << ", " << dp.m2 << std::endl;
+  std::cout << "theta1, theta2     = " << dp.theta1 << ", " << dp.theta2 << std::endl;
   std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;
   std::cout << "thermal conduction = " << dp.thermal_conductivity_active << std::endl;
   std::cout << "TC mode            = " << dp.thermal_conductivity_mode << std::endl;

@@ -142,7 +142,7 @@ namespace {
     if (r < 0.2)
       Q(j, i, IR) = 1.0;
     else
-    Q(j, i, IR) = 0.1;
+      Q(j, i, IR) = 0.1;
     
     Q(j, i, IP) = 1.0;
     Q(j, i, IU) = 1.0;
@@ -165,16 +165,16 @@ namespace {
     if (y < ymid) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
-      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
     }
     else {
-      Q(j, i, IU) = 0.0;
       Q(j, i, IR) = 2.0;
-      Q(j, i, IP) = P0 + 0.1 * params.gy * y;
+      Q(j, i, IU) = 0.0;
     }
     
+    Q(j, i, IP) = P0 + 0.1 * params.gy * y;
+    
     if (y > -1.0/3.0 && y < 1.0/3.0)
-    Q(j, i, IV) = 0.01 * (1.0 + cos(4*M_PI*x)) * (1 + cos(3.0*M_PI*y))/4.0;
+      Q(j, i, IV) = 0.01 * (1.0 + cos(4*M_PI*x)) * (1 + cos(3.0*M_PI*y))/4.0;
   }
   
   
@@ -218,7 +218,7 @@ namespace {
       
       real_t pert = params.tri_pert * (generator.drand(-0.5, 0.5));
       if (y-params.tri_y1 < 0.1 || params.tri_y2-y < 0.1)
-      pert = 0.0;
+        pert = 0.0;
       Q(j, i, IP) = (p1 * pow(T/T1, params.m1+1.0)) * (1.0 + pert);
       random_pool.free_state(generator);
     }
@@ -286,7 +286,7 @@ namespace {
       Q(j, i, IV) = 0.0;
       real_t pert = params.tri_pert * (generator.drand(-0.5, 0.5));
       if (y-params.tri_y1 < 0.1 || params.tri_y2-y < 0.1)
-      pert = 0.0;
+        pert = 0.0;
       Q(j, i, IP) = (p1 * pow(T/T1, params.m1+1.0)) * (1.0 + pert);
       random_pool.free_state(generator);
     }
@@ -343,7 +343,7 @@ namespace {
       random_pool.free_state(generator);
       
       if (d-y1 < 0.1 || y2-d < 0.1)
-      pert = 0.0;
+        pert = 0.0;
     
     rho = rho1 * pow(T/T1, params.iso3_m1);
     p   = p1 * (1.0 + pert) * pow(T/T1, params.iso3_m1+1.0);

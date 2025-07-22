@@ -371,30 +371,25 @@ namespace {
 #ifdef MHD
   // 1D MHD Tests
   /**
-   * @brief MHD Sod Shock tube aligned along the X axis
+   * @brief Brio-Wu (MHD Sod Shock) tube aligned along the X axis
    */
   KOKKOS_INLINE_FUNCTION
   void initMHDSodX(Array Q, int i, int j, const DeviceParams &params) {
     if (getPos(params, i, j)[IX] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IBX) = 0.75;
       Q(j, i, IBY) = 1.0;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 0.125;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IBX) = 0.75;
       Q(j, i, IBY) = -1.0;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 0.75;
+    Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }
 
@@ -406,23 +401,18 @@ namespace {
     if (getPos(params, i, j)[IY] <= 0.5) {
       Q(j, i, IR) = 1.0;
       Q(j, i, IP) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IBX) = 1.0;
-      Q(j, i, IBY) = 0.75;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 0.125;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IBX) = -1.0;
-      Q(j, i, IBY) = 0.75;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBY) = 0.75;
+    Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }
 
@@ -442,9 +432,7 @@ namespace {
       Q(j, i, IV) = 0.01;
       Q(j, i, IW) = 0.5;
       Q(j, i, IP) = 0.95;
-      Q(j, i, IBX) = B0 * 4.0;
       Q(j, i, IBY) = B0 * 3.6;
-      Q(j, i, IBZ) = B0 * 2.0;
     }
     else {
       Q(j, i, IR) = 1.0;
@@ -452,10 +440,11 @@ namespace {
       Q(j, i, IV) = 0.0;
       Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 1.0;
-      Q(j, i, IBX) = B0 * 4.0;
       Q(j, i, IBY) = B0 * 4.0;
-      Q(j, i, IBZ) = B0 * 2.0;
     }
+    Q(j, i, IBX) = B0 * 4.0;
+    Q(j, i, IBZ) = B0 * 2.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
   /**
@@ -469,24 +458,20 @@ namespace {
 
     if (x < midbox) {
       Q(j, i, IR) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 1000.0;
-      Q(j, i, IBX) = 0.0;
       Q(j, i, IBY) = 1.0;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 0.125;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IBX) = 0.0;
       Q(j, i, IBY) = -1.0;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
   /**
@@ -502,22 +487,20 @@ namespace {
       Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 2.0;
-      Q(j, i, IBX) = 1.0;
       Q(j, i, IBY) = 0.0;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 0.2;
       Q(j, i, IU) = 1.186;
       Q(j, i, IV) = 2.967;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 0.1368;
-      Q(j, i, IBX) = 1.0;
       Q(j, i, IBY) = 1.6405;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 1.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
 
@@ -531,25 +514,20 @@ namespace {
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
 
     if (x < midbox) {
-      Q(j, i, IR) = 1.0;
       Q(j, i, IU) = -3.1;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IP) = 0.45;
-      Q(j, i, IBX) = 0.0;
-      Q(j, i, IBY) = 0.5;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
-      Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 3.1;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IP) = 0.45;
-      Q(j, i, IBX) = 0.0;
-      Q(j, i, IBY) = 0.5;
-      Q(j, i, IBZ) = 0.0;
+    
     }
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IP) = 0.45;
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = 0.5;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
   /**
@@ -562,25 +540,20 @@ namespace {
     const real_t midbox = 0.5 * (params.xmax + params.xmin);
 
     if (x < midbox) {
-      Q(j, i, IR) = 1.0;
       Q(j, i, IU) = -3.1;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IP) = 0.45;
-      Q(j, i, IBX) = 1.0;
-      Q(j, i, IBY) = 0.5;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
-      Q(j, i, IR) = 1.0;
       Q(j, i, IU) = 3.1;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
-      Q(j, i, IP) = 0.45;
-      Q(j, i, IBX) = 1.0;
-      Q(j, i, IBY) = 0.5;
-      Q(j, i, IBZ) = 0.0;
     }
+
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IP) = 0.45;
+    Q(j, i, IBX) = 1.0;
+    Q(j, i, IBY) = 0.5;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -592,22 +565,44 @@ namespace {
       Q(j, i, IR) = 3.5;
       Q(j, i, IU) = 5.8846;
       Q(j, i, IV) = 1.1198;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 42.0267;
-      Q(j, i, IBX) = 1.0;
       Q(j, i, IBY) = 3.6359;
-      Q(j, i, IBZ) = 0.0;
     }
     else {
       Q(j, i, IR) = 1.0 + 0.2 * Kokkos::sin(5.0*x);
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 1.0;
-      Q(j, i, IBX) = 1.0;
       Q(j, i, IBY) = 1.0;
-      Q(j, i, IBZ) = 0.0;
     }
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 1.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void initArtificialNonZeroDivB(Array Q, int i, int j, const DeviceParams &params){
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IP) = 1.0;
+    Q(j, i, IBY) = 0.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
+
+    if (x <= -0.8)
+      Q(j, i, IBX) = 0.0;
+    else if (-0.8 < x && x <= -0.6)
+      Q(j, i, IBX) = -2.0 * (x + 0.8);
+    else if (-0.6 < x && x <= 0.6)
+      Q(j, i, IBX) = Kokkos::exp(-0.5 * (x/0.11)*(x/0.11));
+    else
+      Q(j, i, IBX) = 0.5;
   }
   // 2D MHD Tests
   /**
@@ -682,30 +677,23 @@ namespace {
     real_t r = sqrt(xi*xi+yj*yj);
   
     if (r < 0.1) {
-      Q(j, i, IR) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 10.0;
-      Q(j, i, IBX) = Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBY) = Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBZ) = 0.0;
     }
     else {
-      Q(j, i, IR) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IBX) = Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBY) = Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBZ) = 0.0;
     }
-    Q(j,i,IPSI)=0.0;
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 0.5 * Kokkos::sqrt(2.0);
+    Q(j, i, IBY) = 0.5 * Kokkos::sqrt(2.0);
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
 
 /**
-   * @brief MHD Blast Standard Configuration
+   * @brief MHD Blast Low Beta Configuration
    */
   KOKKOS_INLINE_FUNCTION
   void initBlastMHDLowBeta(Array Q, int i, int j, const DeviceParams &params) {
@@ -718,59 +706,48 @@ namespace {
     real_t r = sqrt(xi*xi+yj*yj);
   
     if (r < 0.1) {
-      Q(j, i, IR) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 1000.0;
-      Q(j, i, IBX) = Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBY) = Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBZ) = 0.0;
     }
     else {
-      Q(j, i, IR) = 1.0;
-      Q(j, i, IU) = 0.0;
-      Q(j, i, IV) = 0.0;
-      Q(j, i, IW) = 0.0;
       Q(j, i, IP) = 0.1;
-      Q(j, i, IBX) = 250/Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBY) = 250/Kokkos::sqrt(2.0*M_PI);
-      Q(j, i, IBZ) = 0.0;
     }
-    Q(j,i,IPSI)=0.0;
+
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 250.0/Kokkos::sqrt(2.0);
+    Q(j, i, IBY) = 250.0/Kokkos::sqrt(2.0);
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
   }
   /**
    * @brief MHD Rotated Shock Tube. Brio and Wu Shock Tube rotated by an angle \theta
    */
   KOKKOS_INLINE_FUNCTION
   void initRotatedShockTube(Array Q, int i, int j, const DeviceParams &params) {
-    real_t x0 = 0.5 * (params.xmin+params.xmax);
-    real_t y0 = 0.5 * (params.ymin+params.ymax);
     Pos pos = getPos(params, i, j);
-    real_t xi = x0 - pos[IX];
-    real_t yj = y0 - pos[IY];
-    real_t r = sqrt(xi*xi+yj*yj);
-    real_t theta = Kokkos::atan(-2);
+    real_t theta = Kokkos::atan(-2.0);
 
     real_t xt = tan(theta) * (pos[IX] - 0.5);
     real_t yt = (pos[IY] - 0.5);
-    real_t B0 = 1.0 / sqrt(4 * M_PI);
+    real_t B0 = 1.0 / sqrt(4.0 * M_PI);
     
     Q(j, i, IR) = 1.0;
     Q(j, i, IW) = 0.0;
     Q(j, i, IBX) = 5*B0 * (cos(theta) + sin(theta));
     Q(j, i, IBY) = 5*B0 * (cos(theta) - sin(theta));
     Q(j, i, IBZ) = 0.0;
-    Q(j,i,IPSI)=0.0;
+    Q(j, i, IPSI) = 0.0;
 
     if (xt < yt) {
-      Q(j, i, IU) = 10.0 * cos(theta);
+      Q(j, i, IU) =  10.0 * cos(theta);
       Q(j, i, IV) = -10.0 * sin(theta);
       Q(j, i, IP) = 20.0;
     }
     else {
       Q(j, i, IU) = -10.0 * cos(theta);
-      Q(j, i, IV) = 10.0 * sin(theta);
+      Q(j, i, IV) =  10.0 * sin(theta);
       Q(j, i, IP) = 1.0;
     }
   }
@@ -869,6 +846,7 @@ enum InitType {
   EXPANSION1,
   EXPANSION2,
   SHU_OSHER,
+  ARTIFICIAL_NON_ZERO_DIVB,
   BlAST_MHD_STANDARD,
   BlAST_MHD_LOW_BETA,
   ROTATED_SHOCK_TUBE,
@@ -907,6 +885,7 @@ public:
       {"expansion1", EXPANSION1},
       {"expansion2", EXPANSION2},
       {"shu-osher", SHU_OSHER},
+      {"artifical_non_zero_divB", ARTIFICIAL_NON_ZERO_DIVB},
       {"blast_mhd_standard", BlAST_MHD_STANDARD},
       {"blast_mhd_low_beta", BlAST_MHD_LOW_BETA},
       {"rotated_shock_tube", ROTATED_SHOCK_TUBE},
@@ -955,6 +934,7 @@ public:
                               case EXPANSION1:      initExpansion1(Q, i, j, params); break;
                               case EXPANSION2:      initExpansion2(Q, i, j, params); break;
                               case SHU_OSHER:       initShuOsher(Q, i, j, params); break;
+                              case ARTIFICIAL_NON_ZERO_DIVB: initArtificialNonZeroDivB(Q, i, j, params); break;
                               case BlAST_MHD_STANDARD: initBlastMHDStandard(Q, i, j, params); break;
                               case BlAST_MHD_LOW_BETA: initBlastMHDLowBeta(Q, i, j, params); break;
                               case ROTATED_SHOCK_TUBE: initRotatedShockTube(Q, i, j, params); break;

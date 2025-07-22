@@ -168,13 +168,13 @@ public:
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
               #ifdef MHD
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxL = State{0.0, 0.0, 0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0};
               #else
               fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
               #endif
             else
               #ifdef MHD
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxR = State{0.0, 0.0, 0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0};
               #else
               fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
               #endif

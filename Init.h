@@ -367,18 +367,18 @@ namespace {
     #endif
   }
 
-}
-
-#ifdef MHD
-// Restart initialization
-KOKKOS_INLINE_FUNCTION
-void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
-  // Init MHD field from a hydro restart
-  Q(j, i, IW) = 0.0;
-  Q(j, i, IBX) = params.iso_bx;
-  Q(j, i, IBY) = params.iso_by;
-  Q(j, i, IBZ) = 0.0;
-  Q(j, i, IPSI) = 0.0;
+  
+  #ifdef MHD
+  // Restart initialization
+  KOKKOS_INLINE_FUNCTION
+  void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
+    // Init MHD field from a hydro restart
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = params.iso_bx;
+    Q(j, i, IBY) = params.iso_by;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
+  }
 
   // 1D MHD Tests
   /**

@@ -15,7 +15,8 @@ latexify = {
   'divB': r'$\nabla \cdot \mathbf{B}$',
   'Bmag': r'$||\mathbf{B}||$', # = \sqrt{B_x^2 + B_y^2}$',  # Added for magnetic field magnitude
   'divBoverB': r'$\log_{10} \left(\Delta x \cdot \frac{|\nabla \cdot \mathbf{B}|}{|\mathbf{B}|}\right)$',  # Added for divergence over magnitude
-  'Bperp': r'$B_{//}$' # Added for rotated shoc tube
+  'Bparallele': r'$B_{//}$', # Added for rotated shoc tube
+  'T': r'$T$',
 }
 
 
@@ -70,10 +71,15 @@ def get_divBoverB(f, i: int):
   arr = np.log(dx * divB / Bmag)
   return arr
 
+def get_temperature(f, i: int):
+  cste = 1
+  return cste * get_prim_array(f, i, 'prs') / get_prim_array(f, i, 'rho')
+
 compute_values = {
   'Bmag': get_BMag,
   'Bperp': get_Bperp,
-  'divBoverB': get_divBoverB
+  'divBoverB': get_divBoverB,
+  'T': get_temperature,
 }
 
 def get_quantity(f, i, field):

@@ -368,6 +368,16 @@ namespace {
   }
 
 
+KOKKOS_INLINE_FUNCTION
+void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
+  // Init MHD field from a hydro restart
+  Q(j, i, IW) = 0.0;
+  Q(j, i, IBX) = params.iso_bx;
+  Q(j, i, IBY) = params.iso_by;
+  Q(j, i, IBZ) = 0.0;
+  Q(j, i, IPSI) = 0.0;
+}
+
 #ifdef MHD
   // 1D MHD Tests
   /**
@@ -857,7 +867,8 @@ enum InitType {
   B02,
   TRI_LAYER,
   TRI_LAYER_SMOOTH,
-  ISOTHERMAL_TRIPLE
+  ISOTHERMAL_TRIPLE,
+  RESTART_ISO3
 };
 
 struct InitFunctor {
@@ -895,7 +906,8 @@ public:
       {"C91", C91},
       {"tri-layer", TRI_LAYER},
       {"tri-layer-smooth", TRI_LAYER_SMOOTH},
-      {"iso-thermal-triple", ISOTHERMAL_TRIPLE}
+      {"iso-thermal-triple", ISOTHERMAL_TRIPLE},
+      {"restart_iso3", RESTART_ISO3}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -944,6 +956,8 @@ public:
                               case TRI_LAYER:        initTriLayer(Q, i, j, params, random_pool); break;
                               case TRI_LAYER_SMOOTH: initTriLayerSmooth(Q, i, j, params, random_pool); break;
                               case ISOTHERMAL_TRIPLE:initIso3(Q, i, j, params, random_pool); break;
+                              // Restart functions
+                              case RESTART_ISO3:     RestartIso3(Q, i, j, params);
                               case B02:             break;
                               default: break;
                             }

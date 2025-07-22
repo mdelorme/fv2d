@@ -208,6 +208,7 @@ struct DeviceParams {
   real_t iso3_pert;
   real_t iso3_k1, iso3_k2;
   real_t iso3_T0, iso3_rho0;
+  real_t iso_bx, iso_by;
   // Hot bubble
   real_t hot_bubble_g0;
 
@@ -396,7 +397,7 @@ struct DeviceParams {
     tri_k2   = reader.GetFloat("tri_layer", "kappa2", 1.5);
     T0       = reader.GetFloat("tri_layer", "T0", 1.0);
     rho0     = reader.GetFloat("tri_layer", "rho0", 1.0);
-
+    
     // Isothermal triple layer
     iso3_dy0    = reader.GetFloat("iso_three_layer", "dy0", 1.0);
     iso3_dy1    = reader.GetFloat("iso_three_layer", "dy1", 2.0);
@@ -410,6 +411,8 @@ struct DeviceParams {
     iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
     iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
     iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
+    iso_bx      = reader.GetFloat("iso_three_layer", "bx", 0.0);
+    iso_by      = reader.GetFloat("iso_three_layer", "by", 0.0);
     // Hot bubble
     hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
 
@@ -432,6 +435,7 @@ struct Params {
   INIReader reader;
   std::string filename_out = "run";
   std::string restart_file = "";
+  bool restart_mhd_from_hydro = false;
   TimeStepping time_stepping = TS_EULER;
 
   bool multiple_outputs = false;
@@ -445,7 +449,7 @@ struct Params {
 
   // Run
   std::string problem;
-
+  std::string inter_problem; // function to re-initialize a md run from hydro
   // All the physics
   DeviceParams device_params;
 
@@ -617,6 +621,8 @@ Params readInifile(std::string filename) {
   res.tend = res.GetFloat("run", "tend", 1.0);
   res.multiple_outputs = res.GetBoolean("run", "multiple_outputs", false);
   res.restart_file = res.Get("run", "restart_file", "");
+  res.restart_mhd_from_hydro = res.GetBoolean("run", "restart_mhd_from_hydro", false);
+  
   if (res.restart_file != "" && !res.multiple_outputs)
     throw std::runtime_error("Restart one unique files is not implemented yet !");
     

@@ -373,11 +373,13 @@ public:
     load_and_copy("v", IV);
     load_and_copy("prs", IP);
     #ifdef MHD
+    if (!params.restart_mhd_from_hydro){
       load_and_copy("w", IW);
       load_and_copy("bx", IBX);
       load_and_copy("by", IBY);
       load_and_copy("bz", IBZ);
       load_and_copy("psi", IPSI);
+      } // else, we load a hydro file in a mhd setup and initalize it later
     #endif //MHD
     Kokkos::deep_copy(Q, Qhost);
 

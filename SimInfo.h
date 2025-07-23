@@ -331,7 +331,8 @@ struct DeviceParams {
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
 
-  HeatingType heating = HEAT_NONE;
+  HeatingType heating_mode = HEAT_NONE;
+  bool no_cooling = false;
   
   // Thermal conductivity
   bool thermal_conductivity_active;
@@ -576,7 +577,8 @@ struct DeviceParams {
       {"false",         HEAT_NONE},
       {"readfile",      HEAT_READFILE},
     };
-    heating = reader.GetMapValue(heating_map, "physics", "heating", "false");
+    heating_mode = reader.GetMapValue(heating_map, "heating", "mode", "false");
+    no_cooling = reader.GetBoolean("heating", "no_cooling", false);
 
     // Coriolis
     coriolis_active = reader.GetBoolean("coriolis", "active", false);
@@ -604,7 +606,7 @@ struct DeviceParams {
     }
     if (gravity_mode == GRAV_READFILE)
       spl_grav = Spline(spline_data_path, Spline::OF_GRAVITY);
-    if (heating == HEAT_READFILE)
+    if (heating_mode == HEAT_READFILE)
       spl_heating = Spline(spline_data_path, Spline::OF_HEATING);
     if (thermal_conductivity_mode == TCM_READFILE)
       spl_kappa = Spline(spline_data_path, Spline::OF_KAPPA);

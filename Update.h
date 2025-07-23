@@ -533,7 +533,7 @@ public:
     //   grav_functor.applyGravity(Q, Unew, dt);
     if (full_params.device_params.coriolis_active)
       coriolis_functor.applyCoriolis(Q, Unew, dt);
-    if (full_params.device_params.heating != HEAT_NONE)
+    if (full_params.device_params.heating_mode != HEAT_NONE)
       heating_functor.applyHeating(Q, Unew, dt);
   }
 

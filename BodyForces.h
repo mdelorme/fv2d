@@ -79,7 +79,8 @@ class HeatingFunctor {
       auto full_params = this->full_params;
       auto params = full_params.device_params;
       auto geometry = this->geometry;
-  
+      bool no_cooling = params.no_cooling;
+
       Kokkos::parallel_for(
         "Heating", 
         full_params.range_dom,
@@ -87,6 +88,7 @@ class HeatingFunctor {
           Pos pos = geometry.mapc2p_center(i,j);
           const real_t r = norm(pos);
           real_t Q = params.spl_heating.GetValue(r);
+          if (no_cooling && Q < 0) Q = 0;
           Unew(j, i, IE) += dt * Q;
         });
     }

@@ -119,75 +119,45 @@ public:
         real_t FR = compute_flux(IX, IRIGHT);
         real_t FD = compute_flux(IY, ILEFT);
         real_t FU = compute_flux(IY, IRIGHT);
+
+
+        auto lambda_bc = [&](real_t &bc_flux, BCTC_Mode bc, IDir dir, ISide side) {
+          const real_t sign = (side == ILEFT) ? -1 : 1;
+          const real_t face_length = sign * norm(geometry.getOrientedFaceArea(i, j, dir, side));
+          const real_t rf = norm(geometry.faceCenter(i, j, dir, side));
+          const real_t kappa_bc = params.spl_kappa(rf);
+
+          switch (bc) {
+            case BCTC_ZERO: 
+              bc_flux = 0;
+              break;
+            case BCTC_FIXED_TEMPERATURE: {
+              const real_t r = norm(r_P);
+              const real_t T_C = T_P * getGamma(r);
+              const real_t T_boundary = getGamma(rf);
+              const auto dr = rf - r;
+              // const real_t r_mid = 0.5 * (r + rf);
+              // const real_t kappa_bc = params.spl_kappa(r_mid);
+              bc_flux = face_length * kappa_bc * (T_boundary - T_C) / dr;
+              break;
+            }
+          case BCTC_FIXED_GRADIENT: {
+              const real_t dgamma_f = getDerivGamma(rf);
+              bc_flux = face_length * kappa_bc * dgamma_f;
+          }
+            break;
+            default: break;
+          }
+        };
           
-        if (j==params.jbeg && params.bctc_ymin != BCTC_NONE) {
-          if (params.bctc_ymin == BCTC_ZERO) {
-            FD = 0;
-          }
-          else {
-            Pos pos_f = geometry.faceCenter(i, j, IY, ILEFT);
-            const real_t r = norm(r_P);
-            const real_t rf = norm(pos_f);
-            T_P = T_P * getGamma(r);
-            const real_t T_boundary = getGamma(rf);
-            const auto dr = rf - r;
-//             const real_t r_mid = 0.5 * (r + rf);
-//             const real_t kappa_bc = params.spl_kappa(r_mid);
-            const real_t kappa_bc = params.spl_kappa(rf);
-            FD = kappa_bc * (T_P - T_boundary) / dr;
-          }
-        }
-        else if (j==params.jend-1 && params.bctc_ymax != BCTC_NONE) {
-          if (params.bctc_ymax == BCTC_ZERO) {
-            FU = 0;
-          } 
-          else {
-            Pos pos_f = geometry.faceCenter(i, j, IY, IRIGHT);
-            const real_t r = norm(r_P);
-            const real_t rf = norm(pos_f);
-            T_P = T_P * getGamma(r);
-            const real_t T_boundary = getGamma(rf);
-            const auto dr = rf - r;
-//             const real_t r_mid = 0.5 * (r + rf);
-//             const real_t kappa_bc = params.spl_kappa(r_mid);
-            const real_t kappa_bc = params.spl_kappa(rf);
-            FU = kappa_bc * (T_boundary - T_P) / dr;
-          }  
-        } 
-        if (i==params.ibeg && params.bctc_ymin != BCTC_NONE) {
-          if (params.bctc_ymin == BCTC_ZERO) {
-            FL = 0;
-          } 
-          else {
-            Pos pos_f = geometry.faceCenter(i, j, IX, ILEFT);
-            const real_t r = norm(r_P);
-            const real_t rf = norm(pos_f);
-            T_P = T_P * getGamma(r);
-            const real_t T_boundary = getGamma(rf);
-            const auto dr = rf - r;
-//             const real_t r_mid = 0.5 * (r + rf);
-//             const real_t kappa_bc = params.spl_kappa(r_mid);
-            const real_t kappa_bc = params.spl_kappa(rf);
-            FL = kappa_bc * (T_P - T_boundary) / dr;
-          }  
-        } 
-        else if (i==params.iend-1 && params.bctc_ymax != BCTC_NONE) {
-          if (params.bctc_ymax == BCTC_ZERO) {
-            FR = 0;
-          } 
-          else {
-            Pos pos_f = geometry.faceCenter(i, j, IX, IRIGHT);
-            const real_t r = norm(r_P);
-            const real_t rf = norm(pos_f);
-            T_P = T_P * getGamma(r);
-            const real_t T_boundary = getGamma(rf);
-            const auto dr = rf - r;
-//             const real_t r_mid = 0.5 * (r + rf);
-//             const real_t kappa_bc = params.spl_kappa(r_mid);
-            const real_t kappa_bc = params.spl_kappa(rf);
-            FR = kappa_bc * (T_boundary - T_P) / dr;
-          }  
-        } 
+        if (i==params.ibeg)
+          lambda_bc(FL, params.bctc_ymin, IX, ILEFT);
+        else if (i==params.iend-1)
+          lambda_bc(FR, params.bctc_ymax, IX, IRIGHT);
+        if (j==params.jbeg)
+          lambda_bc(FD, params.bctc_ymin, IY, ILEFT);
+        else if (j==params.jend-1)
+          lambda_bc(FU, params.bctc_ymax, IY, IRIGHT);
 
         /** 
          * Boundaries treatment

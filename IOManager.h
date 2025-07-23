@@ -10,8 +10,6 @@
 #include "SimInfo.h"
 #include "Gradient.h"
 
-#define SAVE_PRESSURE_GRADIENT
-
 using namespace H5Easy;
 
 namespace fv2d {
@@ -101,146 +99,38 @@ public:
 
   ~IOManager() = default;
 
+  enum SaveMethod { IO_UNIQUE, IO_MULTIPLE };
+  
   void saveSolution(const Array &Q, int iteration, real_t t) {
     if (params.multiple_outputs)
-      saveSolutionMultiple(Q, iteration, t);
+      saveSolution_aux<IO_MULTIPLE>(Q, iteration, t);
     else
-      saveSolutionUnique(Q, iteration, t);
+      saveSolution_aux<IO_UNIQUE>(Q, iteration, t);
   }
 
-  void saveSolutionMultiple(const Array &Q, int iteration, real_t t)
+  template<enum SaveMethod save_method>
+  void saveSolution_aux(const Array &Q, int iteration, real_t t)
   {
+    constexpr bool is_multiple = (save_method == IO_MULTIPLE);
     std::ostringstream oss;
     
-    oss << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << iteration;
-    std::string iteration_str = oss.str();
-    std::string h5_filename  = oss.str() + ".h5";
-    std::string xmf_filename = oss.str() + ".xmf";
+    std::string iteration_str, basename;
+    if constexpr (is_multiple) {
+      oss << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << iteration;
+      iteration_str = oss.str();
+      basename = oss.str();
+    }
+    else {
+      oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
+      iteration_str = oss.str();
+      basename = params.filename_out;
+    }
+    
+    std::string h5_filename  = basename + ".h5";
+    std::string xmf_filename = basename + ".xmf";
     std::string output_path = params.output_path + "/";
 
-    File file(output_path + h5_filename, File::Truncate);
-    FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), "w+");
-
-    file.createAttribute("Ntx",  device_params.Ntx);
-    file.createAttribute("Nty",  device_params.Nty);
-    file.createAttribute("Nx",   device_params.Nx);
-    file.createAttribute("Ny",   device_params.Ny);
-    file.createAttribute("ibeg", device_params.ibeg);
-    file.createAttribute("iend", device_params.iend);
-    file.createAttribute("jbeg", device_params.jbeg);
-    file.createAttribute("jend", device_params.jend);
-    file.createAttribute("problem", params.problem);
-    
-    std::vector<real_t> x, y;
-    x.reserve((device_params.Nx + 1) * (device_params.Ny + 1));
-    y.reserve((device_params.Nx + 1) * (device_params.Ny + 1));
-    // vertex position
-    for (int j=device_params.jbeg; j <= device_params.jend; ++j)
-      for (int i=device_params.ibeg; i <= device_params.iend; ++i)
-      {
-        Pos pos = geo.mapc2p_vertex(i, j); 
-        x.push_back(pos[IX]);
-        y.push_back(pos[IY]);
-      }
-    file.createDataSet("x", x);
-    file.createDataSet("y", y);
-
-    // center position
-    x.clear(); y.clear();
-    for (int j=device_params.jbeg; j < device_params.jend; ++j)
-      for (int i=device_params.ibeg; i < device_params.iend; ++i)
-      {
-        Pos pos = geo.mapc2p_center(i, j); 
-        x.push_back(pos[IX]);
-        y.push_back(pos[IY]);
-      }
-    file.createDataSet("center_x", x);
-    file.createDataSet("center_y", y);
-
-    using Table = std::vector<real_t>;
-
-    auto Qhost = Kokkos::create_mirror(Q);
-    Kokkos::deep_copy(Qhost, Q);
-
-    #ifdef SAVE_PRESSURE_GRADIENT
-    // Pressure gradient
-    Array gradP_dev = Array("gradP", device_params.Ny, device_params.Nx, 2);
-    {
-      auto geometry = this->geo; 
-      auto gradient_type = device_params.gradient_type;
-      Kokkos::parallel_for(
-        "PressureGradient", 
-        params.range_dom,
-        KOKKOS_LAMBDA(const int i, const int j) {
-          auto getState = [](const Array& Q, int i, int j) -> real_t {return Q(j,i,IP);};
-          Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
-          gradP_dev(j,i,IX) = grad[IX];
-          gradP_dev(j,i,IY) = grad[IY];
-        });
-    }
-
-    auto gradP = Kokkos::create_mirror(gradP_dev);
-    Kokkos::deep_copy(gradP, gradP_dev);
-    Table tgradP[2];
-    #endif
-
-    Table trho, tu, tv, tprs;
-    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
-      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
-        real_t rho = Qhost(j, i, IR);
-        real_t u   = Qhost(j, i, IU);
-        real_t v   = Qhost(j, i, IV);
-        real_t p   = Qhost(j, i, IP);
-
-        trho.push_back(rho);
-        tu.push_back(u);
-        tv.push_back(v);
-        tprs.push_back(p);
-        
-        #ifdef SAVE_PRESSURE_GRADIENT
-        tgradP[IX].push_back(gradP(j, i, IX));
-        tgradP[IY].push_back(gradP(j, i, IY));
-        #endif
-      }
-    }
-
-    file.createDataSet("rho", trho);
-    file.createDataSet("u", tu);
-    file.createDataSet("v", tv);
-    file.createDataSet("prs", tprs);
-    file.createAttribute("time", t);
-    file.createAttribute("iteration", iteration);
-
-    #ifdef SAVE_PRESSURE_GRADIENT
-    file.createDataSet("dp_x", tgradP[IX]);
-    file.createDataSet("dp_y", tgradP[IY]);
-    #endif
-
-    std::string group = "";
-
-    fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, h5_filename));
-    fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho"));
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
-    #ifdef SAVE_PRESSURE_GRADIENT
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "dp", "dp_x", "dp_y"));
-    #endif
-    fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
-    fprintf(xdmf_fd, "%s", str_xdmf_footer);
-    fclose(xdmf_fd);
-  }
-
-  void saveSolutionUnique(const Array &Q, int iteration, real_t t) {
-    std::ostringstream oss;
-    
-    oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
-    std::string iteration_str = oss.str();
-    std::string h5_filename  = params.filename_out + ".h5";
-    std::string xmf_filename = params.filename_out + ".xmf";
-    std::string output_path = params.output_path + "/";
-
-    force_file_truncation = (force_file_truncation || iteration == 0);
+    force_file_truncation = (is_multiple || force_file_truncation || iteration == 0);
       
     auto flag_h5 = (force_file_truncation ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (force_file_truncation ? "w+" : "r+");
@@ -264,118 +154,25 @@ public:
       y.reserve((device_params.Nx + 1) * (device_params.Ny + 1));
 
       // -- vertex pos
-      for (int j=device_params.jbeg; j <= device_params.jend; ++j)
-        for (int i=device_params.ibeg; i <= device_params.iend; ++i)
-        {
-          Pos pos = geo.mapc2p_vertex(i, j); // curvilinear
+      for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
+        for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
+          Pos pos = geo.mapc2p_vertex(i, j);
           x.push_back(pos[IX]);
           y.push_back(pos[IY]);
         }
+      }
       file.createDataSet("x", x);
       file.createDataSet("y", y);
 
-      // -- center pos
-      x.clear(); y.clear();
-      for (int j=device_params.jbeg; j < device_params.jend; ++j)
-        for (int i=device_params.ibeg; i < device_params.iend; ++i)
-        {
-          Pos pos = geo.mapc2p_center(i, j); // curvilinear
-          x.push_back(pos[IX]);
-          y.push_back(pos[IY]);
-        }
-      file.createDataSet("center_x", x);
-      file.createDataSet("center_y", y);
-
       fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, h5_filename));
-      fprintf(xdmf_fd, "%s", str_xdmf_footer);
+      if constexpr (!is_multiple) 
+        fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
 
     using Table = std::vector<real_t>;
 
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
-
-    #ifdef SAVE_PRESSURE_GRADIENT
-    // Pressure gradient
-    Array gradP_dev = Array("gradP", device_params.Nty, device_params.Ntx, 2);
-    {
-      auto geometry = this->geo; 
-      auto &device_params = this->device_params;
-      auto gradient_type = device_params.gradient_type;
-      Kokkos::parallel_for(
-        "PressureGradient", 
-        params.range_dom,
-        KOKKOS_LAMBDA(const int i, const int j) {
-          
-          
-          // auto getState = [](const Array& Q, int i, int j) -> real_t {return Q(j,i,IP);};
-          // Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
-          // gradP_dev(j,i,IX) = grad[IX];
-          // gradP_dev(j,i,IY) = grad[IY];
-
-
-          const real_t cellArea = geometry.cellArea(i,j);
-          real_t len;
-          Pos lenL = geometry.getRotationMatrix(i, j, IX, ILEFT,  len); lenL = lenL * len;
-          Pos lenR = geometry.getRotationMatrix(i, j, IX, IRIGHT, len); lenR = lenR * len;
-          Pos lenD = geometry.getRotationMatrix(i, j, IY, ILEFT,  len); lenD = lenD * len;
-          Pos lenU = geometry.getRotationMatrix(i, j, IY, IRIGHT, len); lenU = lenU * len;
-          real_t r  = norm(geometry.mapc2p_center(i,j));
-          real_t rl = norm(geometry.faceCenter(i, j, IX, ILEFT));
-          real_t rr = norm(geometry.faceCenter(i, j, IX, IRIGHT));
-          real_t rd = norm(geometry.faceCenter(i, j, IY, ILEFT));
-          real_t ru = norm(geometry.faceCenter(i, j, IY, IRIGHT));
-          real_t factor = Q(j, i, IR) / device_params.spl_rho(r);
-          
-          const real_t prs0l = device_params.spl_prs(rl);
-          const real_t prs0r = device_params.spl_prs(rr);
-          const real_t prs0d = device_params.spl_prs(rd);
-          const real_t prs0u = device_params.spl_prs(ru);
-
-          real_t sx = factor * ( lenR[IX] * prs0r - lenL[IX] * prs0l + lenU[IX] * prs0u - lenD[IX] * prs0d) / cellArea;
-          real_t sy = factor * ( lenR[IY] * prs0r - lenL[IY] * prs0l + lenU[IY] * prs0u - lenD[IY] * prs0d) / cellArea; 
-
-          if (device_params.wb_grav_grad_correction) {
-            auto getState = [&](const Array& Q, int i, int j) -> real_t {
-              real_t r0  = norm(geometry.mapc2p_center(i,j));
-              return Q(j,i,IP) / device_params.spl_prs(r0);
-            };
-            Kokkos::Array<real_t, 2> grad = computeGradient(Q, getState, i, j, geometry, gradient_type);
-            const real_t beta0 = device_params.spl_prs(r);
-            sx += beta0 * grad[IX];
-            sy += beta0 * grad[IY];
-          }
-
-          gradP_dev(j,i,IX) = sx;
-          gradP_dev(j,i,IY) = sy;
-        });
-    }
-
-    auto gradP = Kokkos::create_mirror(gradP_dev);
-    Kokkos::deep_copy(gradP, gradP_dev);
-    Table tgradP[2];
-    #endif
-
-    Table t_rho_fluc, t_prs_fluc;
-    Array bg_dev = Array("rho_fluc_dev", device_params.Nty, device_params.Ntx, 2);
-    auto bg_host = Kokkos::create_mirror(bg_dev);
-    {
-      auto dparams = device_params;
-      auto geometry = this->geo; 
-      Kokkos::parallel_for(
-        "PressureGradient", 
-        params.range_dom,
-        KOKKOS_LAMBDA(const int i, const int j) {
-
-          const real_t r = norm(geometry.mapc2p_center(i,j));
-
-          bg_dev(j, i, 0) = Q(j, i, IR) / dparams.spl_rho(r);
-          bg_dev(j, i, 1) = Q(j, i, IP) / dparams.spl_prs(r);
-        });
-
-    Kokkos::deep_copy(bg_host, bg_dev);
-    }
-
 
     Table trho, tu, tv, tprs;
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
@@ -389,46 +186,59 @@ public:
         tu.push_back(u);
         tv.push_back(v);
         tprs.push_back(p);
-
-        #ifdef SAVE_PRESSURE_GRADIENT
-        tgradP[IX].push_back(gradP(j, i, IX));
-        tgradP[IY].push_back(gradP(j, i, IY));
-        #endif
-
-        t_rho_fluc.push_back(bg_host(j, i, 0));
-        t_prs_fluc.push_back(bg_host(j, i, 1));
       }
     }
 
-    auto ite_group = file.createGroup(iteration_str);
-    ite_group.createDataSet("rho", trho);
-    ite_group.createDataSet("u", tu);
-    ite_group.createDataSet("v", tv);
-    ite_group.createDataSet("prs", tprs);
-    ite_group.createAttribute("time", t);
-    ite_group.createAttribute("iteration", iteration);
+    auto save_groups = [&](auto &g) {
+      g.createDataSet("rho", trho);
+      g.createDataSet("u", tu);
+      g.createDataSet("v", tv);
+      g.createDataSet("prs", tprs);
+      g.createAttribute("time", t);
+      g.createAttribute("iteration", iteration);
 
-    const std::string group = iteration_str + "/";
+      // save debug
+      auto debug_array_host = Kokkos::create_mirror(device_params.debug_array);
+      Kokkos::deep_copy(debug_array_host, device_params.debug_array);
 
-    #ifdef SAVE_PRESSURE_GRADIENT
-    ite_group.createDataSet("dp_x", tgradP[IX]);
-    ite_group.createDataSet("dp_y", tgradP[IY]);
-    #endif
+      for (int i=1; i<register_debug_array.size(); i++) {
+        const auto &[debug_name, id] = register_debug_array[i];
 
-    fseek(xdmf_fd, -sizeof(str_xdmf_footer), SEEK_END);
+        Table tdebug_array;
+        for (int j=device_params.jbeg; j<device_params.jend; ++j) {
+          for (int i=device_params.ibeg; i<device_params.iend; ++i) {
+            tdebug_array.push_back(debug_array_host(j, i, id));
+          }
+        }
+        g.createDataSet(debug_name.data(), tdebug_array);
+      }
+    };
+
+    if constexpr (is_multiple) {
+      save_groups(file);
+    }
+    else {
+      auto h5_group = file.createGroup(iteration_str);
+      save_groups(h5_group);
+    }
+
+    std::string group;
+    if constexpr (is_multiple) {
+      group = "";
+    }
+    else {
+      group = iteration_str + "/";
+      fseek(xdmf_fd, -sizeof(str_xdmf_footer), SEEK_END);
+    }
+
     fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho"));
     fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
     fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
-    #ifdef SAVE_PRESSURE_GRADIENT
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "grad_prs", "dp_x", "dp_y"));
-    #endif
-
-    ite_group.createDataSet("rho_fluc", t_rho_fluc);
-    ite_group.createDataSet("prs_fluc", t_prs_fluc);
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho_fluc"));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs_fluc"));
-
+    for (int i=1; i<register_debug_array.size(); i++) {
+      const auto &[debug_name, id] = register_debug_array[i];
+      fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, debug_name.data()));
+    }
     fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
     fprintf(xdmf_fd, "%s", str_xdmf_footer);
     fclose(xdmf_fd);

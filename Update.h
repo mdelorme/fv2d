@@ -44,7 +44,7 @@ namespace {
     if (dir == IX){
       if (sign <0){
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightXL(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightXL(1, j, i, ivar) * PxL(1, j, i, ivar) + WeightXL(2, j, i, ivar) * PxL(2, j, i, ivar);
+          res[ivar] = WeightXL(2, j, i, ivar) * PxL(2, j, i, ivar) + WeightXL(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightXL(1, j, i, ivar) * PxL(1, j, i, ivar);
         };
         /*
         if (i==35 && j==8){
@@ -57,7 +57,7 @@ namespace {
         
       } else {
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightXR(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightXR(1, j, i, ivar) * PxR(1, j, i, ivar) + WeightXR(2, j, i, ivar) * PxR(2, j, i, ivar);
+          res[ivar] = WeightXR(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightXR(2, j, i, ivar) * PxR(2, j, i, ivar) + WeightXR(1, j, i, ivar) * PxR(1, j, i, ivar);
         };
         /*
         if (i==34 && j==8){
@@ -71,11 +71,11 @@ namespace {
     } else if (dir == IY){
       if (sign <0){
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightYL(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightYL(1, j, i, ivar) * PyL(1, j, i, ivar) + WeightYL(2, j, i, ivar) * PyL(2, j, i, ivar);
+          res[ivar] = WeightYL(2, j, i, ivar) * PyL(2, j, i, ivar) + WeightYL(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightYL(1, j, i, ivar) * PyL(1, j, i, ivar);
         }
       } else {
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightYR(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightYR(1, j, i, ivar) * PyR(1, j, i, ivar) + WeightYR(2, j, i, ivar) * PyR(2, j, i, ivar);
+          res[ivar] = WeightYR(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightYR(2, j, i, ivar) * PyR(2, j, i, ivar) + WeightYR(1, j, i, ivar) * PyR(1, j, i, ivar);
         }
       }
     }
@@ -107,22 +107,22 @@ namespace {
     if (dir == IX){
       if (sign <0){
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightX(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightX(1, j, i, ivar) * PxL(1, j, i, ivar) + WeightX(2, j, i, ivar) * PxL(2, j, i, ivar);
+          res[ivar] = WeightX(2, j, i, ivar) * PxL(2, j, i, ivar) + WeightX(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightX(1, j, i, ivar) * PxL(1, j, i, ivar);
         }
       } else {
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightX(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightX(1, j, i, ivar) * PxR(1, j, i, ivar) + WeightX(2, j, i, ivar) * PxR(2, j, i, ivar);
+          res[ivar] = WeightX(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightX(2, j, i, ivar) * PxR(2, j, i, ivar) + WeightX(1, j, i, ivar) * PxR(1, j, i, ivar);
         }
       }
 
     } else if (dir == IY){
       if (sign <0){
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightY(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightY(1, j, i, ivar) * PyL(1, j, i, ivar) + WeightY(2, j, i, ivar) * PyL(2, j, i, ivar);
+          res[ivar] = WeightY(2, j, i, ivar) * PyL(2, j, i, ivar) + WeightY(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightY(1, j, i, ivar) * PyL(1, j, i, ivar);
         }
       } else {
         for (int ivar=0; ivar < Nfields; ++ivar){
-          res[ivar] = WeightY(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightY(1, j, i, ivar) * PyR(1, j, i, ivar) + WeightY(2, j, i, ivar) * PyR(2, j, i, ivar);
+          res[ivar] = WeightY(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightY(2, j, i, ivar) * PyR(2, j, i, ivar) + WeightY(1, j, i, ivar) * PyR(1, j, i, ivar);
         }
       }
     }
@@ -365,20 +365,20 @@ public:
           ////// Selon X
           BetaX(0, j, i, ivar) = 13/12.0 * (Q(j, i-2, ivar) - 2*Q(j, i-1, ivar) + Q(j, i, ivar)) * (Q(j, i-2, ivar) - 2*Q(j, i-1, ivar) + Q(j, i, ivar))
                               + 1/4.0 * (Q(j, i-2, ivar) - 4*Q(j, i-1, ivar) + 3*Q(j, i, ivar)) * (Q(j, i-2, ivar) - 4*Q(j, i-1, ivar) + 3*Q(j, i, ivar));
-          BetaX(1, j, i, ivar) = 13/12.0 * (Q(j, i-1, ivar) - 2*Q(j, i, ivar) + Q(j, i+1, ivar)) * (Q(j, i-1, ivar) - 2*Q(j, i, ivar) + Q(j, i+1, ivar))
+          BetaX(1, j, i, ivar) = 13/12.0 * (Q(j, i-1, ivar) + Q(j, i+1, ivar) - 2*Q(j, i, ivar)) * (Q(j, i-1, ivar) + Q(j, i+1, ivar) - 2*Q(j, i, ivar))
                               + 1/4.0 * (Q(j, i-1, ivar) - Q(j, i+1, ivar)) * (Q(j, i-1, ivar) - Q(j, i+1, ivar));
-          BetaX(2, j, i, ivar) = 13/12.0 * (Q(j, i, ivar) - 2*Q(j, i+1, ivar) + Q(j, i+2, ivar)) * (Q(j, i, ivar) - 2*Q(j, i+1, ivar) + Q(j, i+2, ivar))
-                              + 1/4.0 * (3*Q(j, i, ivar) - 4*Q(j, i+1, ivar) + Q(j, i+2, ivar)) * (3*Q(j, i, ivar) - 4*Q(j, i+1, ivar) + Q(j, i+2, ivar));
+          BetaX(2, j, i, ivar) = 13/12.0 * (Q(j, i+2, ivar) - 2*Q(j, i+1, ivar) + Q(j, i, ivar)) * (Q(j, i+2, ivar) - 2*Q(j, i+1, ivar) + Q(j, i, ivar))
+                              + 1/4.0 * (Q(j, i+2, ivar) - 4*Q(j, i+1, ivar) + 3*Q(j, i, ivar)) * (Q(j, i+2, ivar) - 4*Q(j, i+1, ivar) + 3*Q(j, i, ivar));
 
 
           
           ////// Selon Y
           BetaY(0, j, i, ivar) = 13/12.0 * (Q(j-2, i, ivar) - 2*Q(j-1, i, ivar) + Q(j, i, ivar)) * (Q(j-2, i, ivar) - 2*Q(j-1, i, ivar) + Q(j, i, ivar))
                               + 1/4.0 * (Q(j-2, i, ivar) - 4*Q(j-1, i, ivar) + 3*Q(j, i, ivar)) * (Q(j-2, i, ivar) - 4*Q(j-1, i, ivar) + 3*Q(j, i, ivar));
-          BetaY(1, j, i, ivar) = 13/12.0 * (Q(j-1, i, ivar) - 2*Q(j, i, ivar) + Q(j+1, i, ivar)) * (Q(j-1, i, ivar) - 2*Q(j, i, ivar) + Q(j+1, i, ivar))
+          BetaY(1, j, i, ivar) = 13/12.0 * (Q(j-1, i, ivar) + Q(j+1, i, ivar) - 2*Q(j, i, ivar)) * (Q(j-1, i, ivar) + Q(j+1, i, ivar) - 2*Q(j, i, ivar))
                               + 1/4.0 * (Q(j-1, i, ivar) - Q(j+1, i, ivar)) * (Q(j-1, i, ivar) - Q(j+1, i, ivar));
-          BetaY(2, j, i, ivar) = 13/12.0 * (Q(j, i, ivar) - 2*Q(j+1, i, ivar) + Q(j+2, i, ivar)) * (Q(j, i, ivar) - 2*Q(j+1, i, ivar) + Q(j+2, i, ivar))
-                              + 1/4.0 * (3*Q(j, i, ivar) - 4*Q(j+1, i, ivar) + Q(j+2, i, ivar)) * (3*Q(j, i, ivar) - 4*Q(j+1, i, ivar) + Q(j+2, i, ivar));
+          BetaY(2, j, i, ivar) = 13/12.0 * (Q(j+2, i, ivar) - 2*Q(j+1, i, ivar) + Q(j, i, ivar)) * (Q(j+2, i, ivar) - 2*Q(j+1, i, ivar) + Q(j, i, ivar))
+                              + 1/4.0 * (Q(j+2, i, ivar) - 4*Q(j+1, i, ivar) + 3*Q(j, i, ivar)) * (Q(j+2, i, ivar) - 4*Q(j+1, i, ivar) + 3*Q(j, i, ivar));
 
         }
       });
@@ -409,7 +409,7 @@ public:
           WeightXR(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
           WeightXR(2, j, i, ivar) = 3/10.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
 
-          real_t sumXR = WeightXR(0, j, i, ivar) + WeightXR(1, j, i, ivar) + WeightXR(2, j, i, ivar);
+          real_t sumXR = WeightXR(0, j, i, ivar) + WeightXR(2, j, i, ivar) + WeightXR(1, j, i, ivar) ;
 
           WeightXR(0, j, i, ivar) /= sumXR;
           WeightXR(1, j, i, ivar) /= sumXR;
@@ -420,7 +420,7 @@ public:
           WeightXL(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
           WeightXL(2, j, i, ivar) = 1/10.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
 
-          real_t sumXL = WeightXL(0, j, i, ivar) + WeightXL(1, j, i, ivar) + WeightXL(2, j, i, ivar);
+          real_t sumXL = WeightXL(2, j, i, ivar) + WeightXL(0, j, i, ivar) + WeightXL(1, j, i, ivar);
 
           WeightXL(0, j, i, ivar) /= sumXL;
           WeightXL(1, j, i, ivar) /= sumXL;
@@ -433,7 +433,7 @@ public:
           WeightYR(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
           WeightYR(2, j, i, ivar) = 3/10.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
 
-          real_t sumYR = WeightYR(0, j, i, ivar) + WeightYR(1, j, i, ivar) + WeightYR(2, j, i, ivar);
+          real_t sumYR = WeightYR(0, j, i, ivar) + WeightYR(2, j, i, ivar) + WeightYR(1, j, i, ivar);
 
           WeightYR(0, j, i, ivar) /= sumYR;
           WeightYR(1, j, i, ivar) /= sumYR;
@@ -444,7 +444,7 @@ public:
           WeightYL(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
           WeightYL(2, j, i, ivar) = 1/10.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
 
-          real_t sumYL = WeightYL(0, j, i, ivar) + WeightYL(1, j, i, ivar) + WeightYL(2, j, i, ivar);
+          real_t sumYL = WeightYL(2, j, i, ivar) + WeightYL(0, j, i, ivar) + WeightYL(1, j, i, ivar);
 
           WeightYL(0, j, i, ivar) /= sumYL;
           WeightYL(1, j, i, ivar) /= sumYL;
@@ -473,22 +473,22 @@ public:
 
         for (int ivar=0; ivar < Nfields; ++ivar) {
           ////// Selon X
-          WeightX(0, j, i, ivar) = 3/16.0 * 1/((eps + BetaX(0, j, i, ivar)) * (eps + BetaX(0, j, i, ivar)));
-          WeightX(1, j, i, ivar) = 5/8.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
-          WeightX(2, j, i, ivar) = 3/16.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
+          WeightX(0, j, i, ivar) = 1/6.0 * 1/((eps + BetaX(0, j, i, ivar)) * (eps + BetaX(0, j, i, ivar)));
+          WeightX(1, j, i, ivar) = 2/3.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
+          WeightX(2, j, i, ivar) = 1/6.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
 
-          real_t sumX = WeightX(0, j, i, ivar) + WeightX(1, j, i, ivar) + WeightX(2, j, i, ivar);
+          real_t sumX = WeightX(0, j, i, ivar) + WeightX(2, j, i, ivar) + WeightX(1, j, i, ivar);
 
           WeightX(0, j, i, ivar) /= sumX;
           WeightX(1, j, i, ivar) /= sumX;
           WeightX(2, j, i, ivar) /= sumX;
 
           ////// Selon Y
-          WeightY(0, j, i, ivar) = 3/16.0 * 1/((eps + BetaY(0, j, i, ivar)) * (eps + BetaY(0, j, i, ivar)));
-          WeightY(1, j, i, ivar) = 5/8.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
-          WeightY(2, j, i, ivar) = 3/16.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
+          WeightY(0, j, i, ivar) = 1/6.0 * 1/((eps + BetaY(0, j, i, ivar)) * (eps + BetaY(0, j, i, ivar)));
+          WeightY(1, j, i, ivar) = 2/3.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
+          WeightY(2, j, i, ivar) = 1/6.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
 
-          real_t sumY = WeightY(0, j, i, ivar) + WeightY(1, j, i, ivar) + WeightY(2, j, i, ivar);
+          real_t sumY = WeightY(0, j, i, ivar) + WeightY(2, j, i, ivar) + WeightY(1, j, i, ivar);
 
           WeightY(0, j, i, ivar) /= sumY;
           WeightY(1, j, i, ivar) /= sumY;
@@ -514,21 +514,21 @@ public:
           PxR(0, j, i, ivar) = 1/3.0 * Q(j, i-2, ivar) - 7/6.0 * Q(j, i-1, ivar) + 11/6.0 * Q(j, i, ivar);
           PxL(0, j, i, ivar) = -1/6.0 * Q(j, i-2, ivar) + 5/6.0 * Q(j, i-1, ivar) + 1/3.0 * Q(j, i, ivar);
 
-          PxR(1, j, i, ivar) = -1/6.0 * Q(j, i-1, ivar) + 5/6.0 * Q(j, i, ivar) + 1/3.0 * Q(j, i+1, ivar);
-          PxL(1, j, i, ivar) = 1/3.0 * Q(j, i-1, ivar) + 5/6.0 * Q(j, i, ivar) - 1/6.0 * Q(j, i+1, ivar);
+          PxR(1, j, i, ivar) = -1/6.0 * Q(j, i-1, ivar) + 1/3.0 * Q(j, i+1, ivar) + 5/6.0 * Q(j, i, ivar);
+          PxL(1, j, i, ivar) = -1/6.0 * Q(j, i+1, ivar) + 1/3.0 * Q(j, i-1, ivar)  + 5/6.0 * Q(j, i, ivar);
 
-          PxR(2, j, i, ivar) = 1/3.0 * Q(j, i, ivar) + 5/6.0 * Q(j, i+1, ivar) - 1/6.0 * Q(j, i+2, ivar);
-          PxL(2, j, i, ivar) = 11/6.0 * Q(j, i, ivar) - 7/6.0 * Q(j, i+1, ivar) + 1/3.0 * Q(j, i+2, ivar);
+          PxR(2, j, i, ivar) = -1/6.0 * Q(j, i+2, ivar) + 5/6.0 * Q(j, i+1, ivar) + 1/3.0 * Q(j, i, ivar);
+          PxL(2, j, i, ivar) = 1/3.0 * Q(j, i+2, ivar) - 7/6.0 * Q(j, i+1, ivar) + 11/6.0 * Q(j, i, ivar);
 
           ////// Selon Y
           PyR(0, j, i, ivar) = 1/3.0 * Q(j-2, i, ivar) - 7/6.0 * Q(j-1, i, ivar) + 11/6.0 * Q(j, i, ivar);
           PyL(0, j, i, ivar) = -1/6.0 * Q(j-2, i, ivar) + 5/6.0 * Q(j-1, i, ivar) + 1/3.0 * Q(j, i, ivar);
 
-          PyR(1, j, i, ivar) = -1/6.0 * Q(j-1, i, ivar) + 5/6.0 * Q(j, i, ivar) + 1/3.0 * Q(j+1, i, ivar);
-          PyL(1, j, i, ivar) = 1/3.0 * Q(j-1, i, ivar) + 5/6.0 * Q(j, i, ivar) - 1/6.0 * Q(j+1, i, ivar);
+          PyR(1, j, i, ivar) = -1/6.0 * Q(j-1, i, ivar) + 1/3.0 * Q(j+1, i, ivar) + 5/6.0 * Q(j, i, ivar);
+          PyL(1, j, i, ivar) = -1/6.0 * Q(j+1, i, ivar) + 1/3.0 * Q(j-1, i, ivar) + 5/6.0 * Q(j, i, ivar);
 
-          PyR(2, j, i, ivar) = 1/3.0 * Q(j, i, ivar) + 5/6.0 * Q(j+1, i, ivar) - 1/6.0 * Q(j+2, i, ivar);
-          PyL(2, j, i, ivar) = 11/6.0 * Q(j, i, ivar) - 7/6.0 * Q(j+1, i, ivar) + 1/3.0 * Q(j+2, i, ivar);
+          PyR(2, j, i, ivar) = -1/6.0 * Q(j+2, i, ivar) + 5/6.0 * Q(j+1, i, ivar) + 1/3.0 * Q(j, i, ivar);
+          PyL(2, j, i, ivar) = 1/3.0 * Q(j+2, i, ivar) - 7/6.0 * Q(j+1, i, ivar) + 11/6.0 * Q(j, i, ivar);
 
         }
       });

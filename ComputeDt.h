@@ -32,6 +32,7 @@ public:
                               real_t dx = geometry.cellLength(i,j,IX);
                               real_t dy = geometry.cellLength(i,j,IY);
                               real_t dl = fmin(dx, dy);
+                              const real_t r = norm(geometry.mapc2p_center(i,j));
                               
                               // Hydro time-step
                               State q = getStateFromArray(Q, i, j);
@@ -45,16 +46,15 @@ public:
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active) {
-                                const real_t r = norm(geometry.mapc2p_center(i,j));
                                 const real_t kappa = params.spl_kappa(r);
                                 const real_t rho = q[IR];
                                 inv_dt_par_tc_loc = 2.0*kappa / (rho * Cv * dl*dl);
                               }
                               
                               real_t inv_dt_par_visc_loc = params.epsilon;
-                              if (params.viscosity_active)
-                                inv_dt_par_visc_loc = fmax(2.0*computeMu(i, j, params) / (dl*dl),
-                                                           2.0*computeMu(i, j, params) / (dl*dl));
+                              if (params.viscosity_active) {
+                                inv_dt_par_visc_loc = 2.0*computeMu(r, params) / (dl*dl);
+                              }
 
                               inv_dt_hyp      = fmax(inv_dt_hyp, inv_dt_hyp_loc);
                               inv_dt_par_tc   = fmax(inv_dt_par_tc, inv_dt_par_tc_loc);

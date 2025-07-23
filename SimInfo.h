@@ -94,7 +94,8 @@ enum BCTC_Mode {
 };
 
 enum ViscosityMode {
-  VSC_CONSTANT
+  VSC_CONSTANT,
+  VSC_PRANDTL_CONSTANT
 };
 // Geometry
 enum GeometryType { 
@@ -167,6 +168,13 @@ const Pos operator/(const Pos &p, real_t f)
 {
   return {p[IX] / f,
           p[IY] / f};
+}
+KOKKOS_INLINE_FUNCTION
+Pos operator+=(Pos &p, const Pos &q)
+{
+  p[IX] += q[IX];
+  p[IY] += q[IY];
+  return p;
 }
 
 // Add functions HasSection and HasValue to INIReader, remove this when jtilly/inih.git will be updated
@@ -345,6 +353,7 @@ struct DeviceParams {
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
+  real_t prandtl;
   
   // Polytropes and such
   real_t m1;
@@ -574,10 +583,9 @@ struct DeviceParams {
     // Heating
     std::map<std::string, HeatingType> heating_map{
       {"none",          HEAT_NONE},
-      {"false",         HEAT_NONE},
       {"readfile",      HEAT_READFILE},
     };
-    heating_mode = reader.GetMapValue(heating_map, "heating", "mode", "false");
+    heating_mode = reader.GetMapValue(heating_map, "heating", "mode", "none");
     no_cooling = reader.GetBoolean("heating", "no_cooling", false);
 
     // Coriolis
@@ -588,9 +596,11 @@ struct DeviceParams {
     viscosity_active = reader.GetBoolean("viscosity", "active", false);
     std::map<std::string, ViscosityMode> viscosity_map{
       {"constant", VSC_CONSTANT},
+      {"prandtl_constant", VSC_PRANDTL_CONSTANT},
     };
     viscosity_mode = reader.GetMapValue(viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
+    prandtl = reader.GetFloat("viscosity", "prandtl", 1.0);
 
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);

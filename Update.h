@@ -488,9 +488,56 @@ public:
           Unew(j, i, IV) += dt * grav_in_step[IY];
           Unew(j, i, IE) += dt * (Q(j, i, IU) * grav_in_step[IX] + Q(j, i, IV) * grav_in_step[IY]);
         }
-
-        // Unew(j, i, IR) = fmax(1.0e-6, Unew(j, i, IR));
       });
+  }
+
+  void checkNegatives(Array &Q, const Params &full_params) {
+    uint64_t negative_density  = 0;
+    uint64_t negative_pressure = 0;
+    uint64_t nan_count = 0;
+
+    auto params = full_params.device_params;
+    Geometry geometry = this->geometry;
+    const real_t epsilon = full_params.epsilon_reset_negative;
+    const bool reset_to_spline = full_params.reset_negative_to_spline;
+
+    Kokkos::parallel_reduce(
+      "Check negative density/pressure", 
+      full_params.range_dom,
+      KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
+        if (Q(j, i, IR) < 0) {
+          if (reset_to_spline) {
+            const real_t r = norm(geometry.mapc2p_center(i, j));
+            Q(j, i, IR) = params.spl_rho(r);
+          }
+          else {
+            Q(j, i, IR) = epsilon;
+          }
+          lnegative_density++;
+        }
+        if (Q(j, i, IP) < 0) {
+          if (reset_to_spline) {
+            const real_t r = norm(geometry.mapc2p_center(i, j));
+            Q(j, i, IP) = params.spl_prs(r);
+          }
+          else {
+            Q(j, i, IP) = epsilon;
+          }
+          lnegative_pressure++;
+        }
+
+        for (int ivar=0; ivar < Nfields; ++ivar)
+          if (std::isnan(Q(j, i, ivar)))
+            lnan_count++;
+
+      }, negative_density, negative_pressure, nan_count);
+
+      if (negative_density) 
+        std::cout << "--> negative density: " << negative_density << std::endl;
+      if (negative_pressure)
+        std::cout << "--> negative pressure: " << negative_pressure << std::endl;
+      if (nan_count)
+        std::cout << "--> NaN detected." << std::endl;
   }
 
   void euler_step(Array Q, Array Unew, real_t dt) {
@@ -564,6 +611,9 @@ public:
             Unew(j, i, ivar) = 0.5 * (U0(j, i, ivar) + Unew(j, i, ivar));
         });
     }
+
+    consToPrim(Unew, Q, full_params);
+    checkNegatives(Q, full_params);
   }
 };
 

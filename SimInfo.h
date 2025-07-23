@@ -664,6 +664,7 @@ struct Params {
   int seed;
   int log_frequency;
   real_t epsilon_reset_negative; // fixed value if negative value is encountered 
+  bool reset_negative_to_spline;
 };
 
 
@@ -732,6 +733,7 @@ Params readInifile(std::string filename) {
   res.seed = reader.GetInteger("misc", "seed", 12345);
   res.log_frequency = reader.GetInteger("misc", "log_frequency", 10);
   res.epsilon_reset_negative = reader.GetFloat("misc", "epsilon_reset_negative", 1.0e-8);
+  res.reset_negative_to_spline = reader.GetBoolean("misc", "reset_negative_to_spline", false);
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);
@@ -775,40 +777,6 @@ void primToCons(Array &Q, Array &U, const Params &full_params) {
                           State Uloc = primToCons(Qloc, params);
                           setStateInArray(U, i, j, Uloc);
                         });
-}
-
-void checkNegatives(Array &Q, const Params &full_params) {
-  uint64_t negative_density  = 0;
-  uint64_t negative_pressure = 0;
-  uint64_t nan_count = 0;
-
-  const real_t epsilon = full_params.epsilon_reset_negative;
-
-  Kokkos::parallel_reduce(
-    "Check negative density/pressure", 
-    full_params.range_dom,
-    KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
-      if (Q(j, i, IR) < 0) {
-        Q(j, i, IR) = epsilon;
-        lnegative_density++;
-      }
-      if (Q(j, i, IP) < 0) {
-        Q(j, i, IP) = epsilon;
-        lnegative_pressure++;
-      }
-
-      for (int ivar=0; ivar < Nfields; ++ivar)
-        if (std::isnan(Q(j, i, ivar)))
-          lnan_count++;
-
-    }, negative_density, negative_pressure, nan_count);
-
-    if (negative_density) 
-      std::cout << "--> negative density: " << negative_density << std::endl;
-    if (negative_pressure)
-      std::cout << "--> negative pressure: " << negative_pressure << std::endl;
-    if (nan_count)
-      std::cout << "--> NaN detected." << std::endl;
 }
 
 }

@@ -75,8 +75,6 @@ int main(int argc, char **argv) {
       }
 
       update.update(Q, U, dt);
-      consToPrim(U, Q, params);
-      checkNegatives(Q, params);
 
       t += dt;
     }

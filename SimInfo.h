@@ -171,6 +171,11 @@ struct DeviceParams {
   real_t implosion_rho_in;
   real_t implosion_rho_out;
   real_t implosion_x0;
+
+  // Perturbation HSE
+  bool perturbation;
+  real_t perturb_A;
+  real_t perturb_tf;
   
   // Gresho Vortex
   real_t gresho_density, gresho_Mach;
@@ -342,6 +347,12 @@ struct DeviceParams {
     implosion_rho_in = reader.GetFloat("implosion", "rho_in", 0.1);
     implosion_rho_out = reader.GetFloat("implosion", "rho_out", 1.0);
     implosion_x0 = reader.GetFloat("implosion", "x0", 0.5);
+
+    // Perturbation HSE
+    perturbation = reader.GetBoolean("hse", "perturbation", false);
+    perturb_A = reader.GetFloat("hse", "amplitude", 0.0);
+    perturb_tf = reader.GetFloat("hse", "t_f", 1.0);
+
   }
 };
 

@@ -69,7 +69,7 @@ namespace fv2d {
    * @brief Reflecting boundary condition in hydrostatic equilibrium
    **/
    KOKKOS_INLINE_FUNCTION
-   State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
+   State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params, real_t t) {
     if (dir == IX) {
       Kokkos::abort("ERROR : Cannot use hse boundary conditions along X");
     }
@@ -82,7 +82,12 @@ namespace fv2d {
         real_t p   = out[IP] - dy * rho * getGravity(i, j, IY, params);
         out[IP] = p;
 
-        out[IV] *= -1.0;
+        if (params.perturbation) {
+          out[IV] = params.perturb_A * Kokkos::sin(12 * M_PI * t / params.perturb_tf);
+        }
+        else {
+          out[IV] *= -1.0;
+        }
 
         return out;
       }
@@ -93,7 +98,7 @@ namespace fv2d {
         real_t dy  = params.dy * (j - params.jend+1);
         real_t p   = out[IP] + dy * rho * getGravity(i, j, IY, params);        
         out[IP] = p;
-
+        
         out[IV] *= -1.0;
         
         return out;
@@ -111,7 +116,7 @@ public:
     : full_params(full_params) {};
   ~BoundaryManager() = default;
 
-  void fillBoundaries(Array Q) {
+  void fillBoundaries(Array Q, real_t t) {
     auto params = full_params.device_params;
     auto bc_x = params.boundary_x;
     auto bc_y = params.boundary_y;
@@ -124,6 +129,8 @@ public:
                             int iright    = params.iend+i;
                             int iref_left = params.ibeg;
                             int iref_right = params.iend-1;
+                            
+
 
                             auto fill = [&](int i, int iref) {
                               switch (bc_x) {
@@ -131,7 +138,7 @@ public:
                                 case BC_ABSORBING:      return fillAbsorbing(Q, iref, j); break;
                                 case BC_REFLECTING:     return fillReflecting(Q, i, j, iref, j, IX, params); break;
                                 case BC_PERIODIC:       return fillPeriodic(Q, i, j, IX, params); break;
-                                case BC_HSE:            return fillHSE(Q, i, j, IX, params); break;
+                                case BC_HSE:            return fillHSE(Q, i, j, IX, params, t); break;
                               }
                             };
 
@@ -154,7 +161,7 @@ public:
                                 case BC_ABSORBING:      return fillAbsorbing(Q, i, jref); break;
                                 case BC_REFLECTING:     return fillReflecting(Q, i, j, i, jref, IY, params); break;
                                 case BC_PERIODIC:       return fillPeriodic(Q, i, j, IY, params); break;
-                                case BC_HSE:            return fillHSE(Q, i, j, IY, params); break;
+                                case BC_HSE:            return fillHSE(Q, i, j, IY, params, t); break;
                               }
                             };
 

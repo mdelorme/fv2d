@@ -532,9 +532,9 @@ public:
 
   }
 
-  void euler_step(Array Q, Array Unew, real_t dt) {
+  void euler_step(Array Q, Array Unew, real_t dt, real_t t) {
     // First filling up boundaries for ghosts terms
-    bc_manager.fillBoundaries(Q);
+    bc_manager.fillBoundaries(Q, t);
 
     // Hyperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
@@ -558,12 +558,10 @@ public:
       visc_functor.applyViscosity(Q, Unew, dt);
   }
 
-  void update(Array Q, Array Unew, real_t dt)
-  {
+  void update(Array Q, Array Unew, real_t dt, real_t t) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt);
-    else if (full_params.time_stepping == TS_RK2)
-    {
+      euler_step(Q, Unew, dt, t);
+    else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
       Array Ustar = Array("Ustar", params.Nty, params.Ntx, Nfields);
@@ -571,12 +569,12 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
-      euler_step(Q, Ustar, dt);
-
+      euler_step(Q, Ustar, dt, t);
+      
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, t);
 
       // SSP-RK2
       Kokkos::parallel_for(
@@ -596,12 +594,12 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Us, Unew);
-      euler_step(Q, Unew, dt); // U0 -> Us
+      euler_step(Q, Unew, dt, t); // U0 -> Us
       
       // Step 2
       Kokkos::deep_copy(Us, Unew);
       consToPrim(Us, Q, full_params);
-      euler_step(Q, Unew, dt); // Us -> Us + dt L(Us)
+      euler_step(Q, Unew, dt, t); // Us -> Us + dt L(Us)
 
       Kokkos::parallel_for( // Uss <- 1/4 * (3 U0 + Us + dt L(Us))
         "RK3 step2 correct",
@@ -615,7 +613,7 @@ public:
       // Step 3
       Kokkos::deep_copy(Uss, Unew);
       consToPrim(Uss, Q, full_params);
-      euler_step(Q, Unew, dt);
+      euler_step(Q, Unew, dt, t);
 
       // SSP-RK3
       Kokkos::parallel_for(

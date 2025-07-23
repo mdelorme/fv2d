@@ -76,7 +76,7 @@ State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params)
  * @brief Reflecting boundary condition in hydrostatic equilibrium
  **/
 KOKKOS_INLINE_FUNCTION
-State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
+State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params, real_t t) {
   if (dir == IX) {
     Kokkos::abort("ERROR : Cannot use hse boundary conditions along X");
   }
@@ -88,8 +88,13 @@ State fillHSE(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
       real_t dy  = params.dy * (params.jbeg - j);
       real_t p   = out[IP] - dy * rho * getGravity(i, j, dir, params);
       out[IP] = p;
-
-      out[IV] *= -1.0;
+      
+      if (params.perturbation) {
+          out[IV] = params.perturb_A * Kokkos::sin(12 * M_PI * t / params.perturb_tf);
+      }
+      else {
+        out[IV] *= -1.0;
+      }
 
       return out;
     }
@@ -117,8 +122,7 @@ public:
   BoundaryManager(const Params &full_params) : full_params(full_params) {};
   ~BoundaryManager() = default;
 
-  void fillBoundaries(Array Q)
-  {
+  void fillBoundaries(Array Q, real_t t) {
     auto params = full_params.device_params;
     auto bc_x   = params.boundary_x;
     auto bc_y   = params.boundary_y;
@@ -147,7 +151,7 @@ public:
               return fillPeriodic(Q, i, j, IX, params);
               break;
             case BC_HSE:
-              return fillHSE(Q, i, j, IX, params);
+              return fillHSE(Q, i, j, IX, params, t);
               break;
             }
           };
@@ -180,7 +184,7 @@ public:
               return fillPeriodic(Q, i, j, IY, params);
               break;
             case BC_HSE:
-              return fillHSE(Q, i, j, IY, params);
+              return fillHSE(Q, i, j, IY, params, t);
               break;
             }
           };

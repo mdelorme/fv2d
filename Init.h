@@ -630,7 +630,7 @@ public:
   
     // ... and boundaries
     BoundaryManager bc(full_params);
-    bc.fillBoundaries(Q);
+    bc.fillBoundaries(Q, 0.0);
   }
 };
 

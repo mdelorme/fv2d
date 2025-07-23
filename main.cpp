@@ -44,11 +44,10 @@ int main(int argc, char **argv)
     ComputeDtFunctor computeDt(params);
     IOManager ioManager(params);
 
-    if (params.restart_file != "")
-    {
-      auto restart_info = ioManager.loadSnapshot(Q);
-      t                 = restart_info.time;
-      ite               = restart_info.iteration;
+    if (params.restart_file != "") {
+      auto restart_info = ioManager.loadSnapshot(Q, t);
+      t = restart_info.time;
+      ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
       next_save = t + params.save_freq;
       ite++;
@@ -76,7 +75,7 @@ int main(int argc, char **argv)
         next_save += params.save_freq;
       }
 
-      update.update(Q, U, dt);
+      update.update(Q, U, dt, t);
       consToPrim(U, Q, params);
       checkNegatives(Q, params);
 

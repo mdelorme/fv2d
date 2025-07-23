@@ -122,14 +122,14 @@ public:
 
 
         auto lambda_bc = [&](real_t &bc_flux, BCTC_Mode bc, IDir dir, ISide side) {
-          const real_t sign = (side == ILEFT) ? -1 : 1;
-          const real_t face_length = sign * norm(geometry.getOrientedFaceArea(i, j, dir, side));
+          // const real_t sign = (side == ILEFT) ? -1.0 : 1.0;
+          const real_t face_length = norm(geometry.getOrientedFaceArea(i, j, dir, side));
           const real_t rf = norm(geometry.faceCenter(i, j, dir, side));
           const real_t kappa_bc = params.spl_kappa(rf);
 
           switch (bc) {
             case BCTC_ZERO: 
-              bc_flux = 0;
+              bc_flux = 0.0;
               break;
             case BCTC_FIXED_TEMPERATURE: {
               const real_t r = norm(r_P);
@@ -138,26 +138,42 @@ public:
               const auto dr = rf - r;
               // const real_t r_mid = 0.5 * (r + rf);
               // const real_t kappa_bc = params.spl_kappa(r_mid);
+              // printf("%le\t%le\n", T_boundary, T_C);
               bc_flux = face_length * kappa_bc * (T_boundary - T_C) / dr;
               break;
             }
-          case BCTC_FIXED_GRADIENT: {
+            case BCTC_FIXED_GRADIENT: {
               const real_t dgamma_f = getDerivGamma(rf);
               bc_flux = face_length * kappa_bc * dgamma_f;
-          }
-            break;
+              break;
+            }
             default: break;
           }
         };
-          
-        if (i==params.ibeg)
+        
+        bool only_once = false; // empeche une double correction des flux sur les ghost diagonales ? 
+        // ça a pété pour le fix gradient (température négative)
+        // a l'air d'être ok pour le fix température
+        if (i==params.ibeg)  {
           lambda_bc(FL, params.bctc_ymin, IX, ILEFT);
-        else if (i==params.iend-1)
+          only_once = true;
+        }
+        else if (i==params.iend-1) {
           lambda_bc(FR, params.bctc_ymax, IX, IRIGHT);
-        if (j==params.jbeg)
-          lambda_bc(FD, params.bctc_ymin, IY, ILEFT);
-        else if (j==params.jend-1)
-          lambda_bc(FU, params.bctc_ymax, IY, IRIGHT);
+          only_once = true;
+        }
+        if (j==params.jbeg) {
+          if (only_once) 
+            FD = 0;
+          else 
+            lambda_bc(FD, params.bctc_ymin, IY, ILEFT);
+        }
+        else if (j==params.jend-1) {
+          if (only_once) 
+            FU = 0;
+          else 
+            lambda_bc(FU, params.bctc_ymax, IY, IRIGHT);
+        }
 
         /** 
          * Boundaries treatment

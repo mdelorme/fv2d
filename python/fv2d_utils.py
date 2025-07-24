@@ -51,6 +51,19 @@ def get_BMag(f, i: int):
   """
   return _compute_2D_magnnorm(f, i, excludedir='z')
 
+def find_tri_layer_Bfield(f, i):
+  Nx, Ny = f.attrs['Nx'], f.attrs['Ny']
+  vx = get_prim_array(f, i, 'v').reshape(Ny, Nx)
+  vy = get_prim_array(f, i, 'v').reshape(Ny, Nx)
+  rho = get_prim_array(f, i, 'rho')
+  x, y = np.array(f['x']), np.array(f['y'])
+  B2_avg = 0
+  for i in range(Nx):
+    for j in range(Ny):
+      v2 = vx[j, i]**2 + vy[j, i]**2
+      B2_avg += rho[j, i] * v2
+  return np.sqrt(B2_avg)/((x.max() - x.min()) * (y.max() - y.min()))
+
 
 def get_Bperp(f, i: int):
   """ Compute the norm of the perpendicular magnetic components."""

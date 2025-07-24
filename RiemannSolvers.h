@@ -408,12 +408,12 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   if (Ustar[IX] > 0.0) {
     q = qL;
     Bstar = qR[IBX];
-    pout = qR[IP];
+    pout = qL[IP];
   }
   else {
     q = qR;
     Bstar = qL[IBX];
-    pout = qL[IP];
+    pout = qR[IP];
   }
   const real_t beta_min = 1.0e-3;
   const real_t alfven_max = 10.0;
@@ -865,7 +865,9 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
 
 KOKKOS_INLINE_FUNCTION
 State getScalarDissipation(State &qL, State &qR, const DeviceParams &params) {
-  State Lmax {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  // State Lmax {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  State Lmax = zero_state();
+  Lmax += 1.0;
   State q = 0.5 * (qL + qR);
   const real_t lambdaMaxLocal = Kokkos::max(
     Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)),

@@ -61,11 +61,7 @@ public:
         };
 
         auto computeViscousFlux = [&](IDir dir) {
-          #ifdef MHD
-          State flux {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-          #else
-          State flux {0.0, 0.0, 0.0, 0.0};
-          #endif
+          State flux = zero_state();
           // Here X is the normal component and Y the tangential
           const real_t one_over_dx = 1.0/dx;
           const real_t one_over_dy = 1.0/dy;

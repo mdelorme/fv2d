@@ -24,6 +24,13 @@ namespace {
         res[IU] = q[IU];
         res[IV] = q[IV];
         res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
+        #ifdef MHD
+        res[IW] = q[IW];
+        res[IBX] = q[IBX];
+        res[IBY] = q[IBY];
+        res[IBZ] = q[IBZ];
+        res[IPSI] = q[IPSI];
+        #endif // MHD
       default:  res = q; // Piecewise Constant
     }
 
@@ -167,20 +174,12 @@ public:
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg){
-              #ifdef MHD
-              fluxL = State{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxL = zero_state();
               fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
-              #else
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
-              #endif
             }
             else{
-              #ifdef MHD
-              fluxR = State{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxR = zero_state();
               fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
-              #else
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
-              #endif
             }
           }
 

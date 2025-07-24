@@ -24,6 +24,15 @@ void setStateInArray(Array arr, int i, int j, State st) {
 }
 
 KOKKOS_INLINE_FUNCTION
+State zero_state() {
+  State res {};
+  for (int ivar=0; ivar < Nfields; ++ivar) {
+    res[ivar] = 0.0;
+  }
+  return res;
+}
+
+KOKKOS_INLINE_FUNCTION
 State primToCons(State &q, const DeviceParams &params) {
   State res;
   res[IR] = q[IR];

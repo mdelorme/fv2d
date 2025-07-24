@@ -231,9 +231,11 @@ namespace {
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
     #ifdef MHD
-    real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    Q(j, i, IW)  = 0.0;
     Q(j, i, IBX) = 0.0;
-    Q(j, i, IBY) = B0 * 4.0;
+    Q(j, i, IBY) = 0.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
     #endif
   }
   
@@ -298,9 +300,11 @@ namespace {
       Q(j, i, IP) = p2 * pow(T/T2, params.m2+1.0);
     }
     #ifdef MHD
-    real_t B0 = 1.0 / std::sqrt(4. * M_PI);
+    Q(j, i, IW)  = 0.0;
     Q(j, i, IBX) = 0.0;
-    Q(j, i, IBY) = B0 * 4.0;
+    Q(j, i, IBY) = 0.0;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
     #endif
   }
   
@@ -360,10 +364,11 @@ namespace {
   Q(j, i, IV) = 0.0;
   Q(j, i, IP) = p;
   #ifdef MHD
-  // real_t B0 = 1.0 / std::sqrt(4. * M_PI);
-    real_t B0 = 0.0;
-    Q(j, i, IBX) = 0.0;
-    Q(j, i, IBY) = B0 * 4.0;
+    Q(j, i, IW)  = 0.0;
+    Q(j, i, IBX) = params.iso3_bx;
+    Q(j, i, IBY) = params.iso3_by;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
     #endif
   }
 
@@ -374,8 +379,8 @@ namespace {
   void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
     // Init MHD field from a hydro restart
     Q(j, i, IW) = 0.0;
-    Q(j, i, IBX) = params.iso_bx;
-    Q(j, i, IBY) = params.iso_by;
+    Q(j, i, IBX) = params.iso3_bx;
+    Q(j, i, IBY) = params.iso3_by;
     Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }

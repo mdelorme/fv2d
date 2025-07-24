@@ -50,9 +50,9 @@ public:
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
       slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
 
-      if (mhd_run && (device_params.riemann_solver==HLL || device_params.riemann_solver==HLLC)){
-        throw std::runtime_error("HLL and HLLC are not supported for MHD runs.");
-      }
+      // if (mhd_run && (device_params.riemann_solver==HLL || device_params.riemann_solver==HLLC)){
+      //   throw std::runtime_error("HLL and HLLC are not supported for MHD runs.");
+      // }
     };
   ~UpdateFunctor() = default;
 
@@ -150,7 +150,7 @@ public:
               case HLL: hll(qL, qR, flux, pout, params);   break;
               default: hllc(qL, qR, flux, pout, params);   break;
             }
-            #endif
+            #endif // MHD
           };
 
           // Calculating flux left and right of the cell
@@ -166,18 +166,22 @@ public:
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             real_t g = getGravity(i, j, dir, params);
-            if (j==params.jbeg)
+            if (j==params.jbeg){
               #ifdef MHD
-              fluxL = State{0.0, 0.0, 0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0};
+              fluxL = State{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
               #else
               fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
               #endif
-            else
+            }
+            else{
               #ifdef MHD
-              fluxR = State{0.0, 0.0, 0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0};
+              fluxR = State{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
               #else
               fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
               #endif
+            }
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);

@@ -208,7 +208,7 @@ struct DeviceParams {
   real_t iso3_pert;
   real_t iso3_k1, iso3_k2;
   real_t iso3_T0, iso3_rho0;
-  real_t iso_bx, iso_by;
+  real_t iso3_bx, iso3_by;
   // Hot bubble
   real_t hot_bubble_g0;
 
@@ -411,8 +411,8 @@ struct DeviceParams {
     iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
     iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
     iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
-    iso_bx      = reader.GetFloat("iso_three_layer", "bx", 0.0);
-    iso_by      = reader.GetFloat("iso_three_layer", "by", 0.0);
+    iso3_bx      = reader.GetFloat("iso_three_layer", "bx", 0.0);
+    iso3_by      = reader.GetFloat("iso_three_layer", "by", 0.0);
     // Hot bubble
     hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
 
@@ -705,7 +705,7 @@ void checkNegatives(Array &Q, const Params &full_params) {
         lnegative_pressure++;
       }
 
-      for (int ivar=0; ivar < Nfields; ++ivar)
+      for (int ivar=0; ivar < NfieldsM; ++ivar)
         if (std::isnan(Q(j, i, ivar)))
           lnan_count++;
 

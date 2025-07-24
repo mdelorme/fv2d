@@ -49,19 +49,26 @@ int main(int argc, char **argv) {
 
     if (params.restart_file != "") {
       auto restart_info = ioManager.loadSnapshot(Q);
-      if (params.restart_mhd_from_hydro)
-        init.init(Q);
-      t = restart_info.time;
-      save_ite = restart_info.iteration;
-      std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
-      next_save = t + params.save_freq;
+      if (params.restart_mhd_from_hydro){
+        if (!mhd_run)
+          throw std::runtime_error("Cannot restart MHD run from hydro if fv2d was not compiled for MHD.");
+        else
+          std::cout << "Initializing MHD State from saved hydro State" << std::endl;
+      init.init(Q);
+      GLM_ch1 = init.initGLMch(Q, params);
+      }
+    t = restart_info.time;
+    save_ite = restart_info.iteration;
+    std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
+    next_save = t + params.save_freq;
       save_ite++;
     }
-    else
+    else{
       init.init(Q);
       #ifdef MHD
       GLM_ch1 = init.initGLMch(Q, params);
       #endif // MHD
+    }
     primToCons(Q, U, params);
 
     real_t dt;

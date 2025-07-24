@@ -172,8 +172,8 @@ public:
           tby.push_back(by);
           tbz.push_back(bz);
           tpsi.push_back(psi);
-          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
-          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
+          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2. * device_params.dx);
+          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2. * device_params.dy);
           tdivB.push_back(dBx_dx + dBy_dy);
         #endif //MHD
         }
@@ -290,8 +290,8 @@ public:
         rby.push_back(by);
         rbz.push_back(bz);
         rpsi.push_back(psi);
-        real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
-        real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
+        real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2. * device_params.dx);
+        real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2. * device_params.dy);
         rdivB.push_back(dBx_dx + dBy_dy);
         #endif //MHD
       }

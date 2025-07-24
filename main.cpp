@@ -54,9 +54,10 @@ int main(int argc, char **argv) {
           throw std::runtime_error("Cannot restart MHD run from hydro if fv2d was not compiled for MHD.");
         else
           std::cout << "Initializing MHD State from saved hydro State" << std::endl;
-      init.init(Q);
-      GLM_ch1 = init.initGLMch(Q, params);
+        init.init(Q);
+        GLM_ch1 = init.initGLMch(Q, params);
       }
+    
     t = restart_info.time;
     save_ite = restart_info.iteration;
     std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;

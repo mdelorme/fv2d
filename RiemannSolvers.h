@@ -865,9 +865,9 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
 
 KOKKOS_INLINE_FUNCTION
 State getScalarDissipation(State &qL, State &qR, const DeviceParams &params) {
-  // State Lmax {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-  State Lmax = zero_state();
-  Lmax += 1.0;
+  State Lmax {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  // State Lmax = zero_state();
+  // Lmax = Lmax + 1.0;
   State q = 0.5 * (qL + qR);
   const real_t lambdaMaxLocal = Kokkos::max(
     Kokkos::abs(q[IU] - fastMagnetoAcousticSpeed(q, params, IX)),

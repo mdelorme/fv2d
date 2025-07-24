@@ -705,7 +705,7 @@ void checkNegatives(Array &Q, const Params &full_params) {
         lnegative_pressure++;
       }
 
-      for (int ivar=0; ivar < NfieldsM; ++ivar)
+      for (int ivar=0; ivar < Nfields; ++ivar)
         if (std::isnan(Q(j, i, ivar)))
           lnan_count++;
 

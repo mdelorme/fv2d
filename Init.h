@@ -363,13 +363,13 @@ namespace {
   Q(j, i, IU) = 0.0;
   Q(j, i, IV) = 0.0;
   Q(j, i, IP) = p;
-  #ifdef MHD
-    Q(j, i, IW)  = 0.0;
-    Q(j, i, IBX) = params.iso3_bx;
-    Q(j, i, IBY) = params.iso3_by;
-    Q(j, i, IBZ) = 0.0;
-    Q(j, i, IPSI) = 0.0;
-    #endif
+  // #ifdef MHD
+  //   Q(j, i, IW)  = 0.0;
+  //   Q(j, i, IBX) = params.iso3_bx;
+  //   Q(j, i, IBY) = params.iso3_by;
+  //   Q(j, i, IBZ) = 0.0;
+  //   Q(j, i, IPSI) = 0.0;
+  //   #endif
   }
 
   
@@ -788,7 +788,7 @@ namespace {
     Q(j, i, IBX) = 5 * B0;
     Q(j, i, IBY) = 0.0;
     Q(j, i, IBZ) = 0.0;
-    Q(j,i,IPSI) = 0.0;
+    Q(j, i, IPSI) = 0.0;
 
     if (r < r0) {
       Q(j, i, IR) = 10.0;
@@ -868,13 +868,13 @@ enum InitType {
   ROTATED_SHOCK_TUBE,
   MHD_ROTOR,
   FIELD_LOOP_ADVECTION,
+  RESTART_ISO3,
   #endif //MHD
   C91,
   B02,
   TRI_LAYER,
   TRI_LAYER_SMOOTH,
-  ISOTHERMAL_TRIPLE,
-  RESTART_ISO3
+  ISOTHERMAL_TRIPLE
 };
 
 struct InitFunctor {
@@ -908,12 +908,12 @@ public:
       {"rotated_shock_tube", ROTATED_SHOCK_TUBE},
       {"mhd_rotor", MHD_ROTOR},
       {"field_loop_advection", FIELD_LOOP_ADVECTION},
+      {"restart_iso3", RESTART_ISO3},
       #endif //MHD
       {"C91", C91},
       {"tri-layer", TRI_LAYER},
       {"tri-layer-smooth", TRI_LAYER_SMOOTH},
-      {"iso-thermal-triple", ISOTHERMAL_TRIPLE},
-      {"restart_iso3", RESTART_ISO3}
+      {"iso-thermal-triple", ISOTHERMAL_TRIPLE}
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -959,7 +959,7 @@ public:
                               case MHD_ROTOR:       initMHDRotor(Q, i, j, params); break;
                               case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
                               // Restart functions
-                              case RESTART_ISO3:     RestartIso3(Q, i, j, params);
+                              case RESTART_ISO3:     RestartIso3(Q, i, j, params); break;
                               #endif //MHD
                               case TRI_LAYER:        initTriLayer(Q, i, j, params, random_pool); break;
                               case TRI_LAYER_SMOOTH: initTriLayerSmooth(Q, i, j, params, random_pool); break;

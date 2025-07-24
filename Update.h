@@ -182,7 +182,19 @@ public:
               fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
             }
           }
-
+          
+          // Maintain vertical magnetic field at boundaries
+          if ((j==params.jbeg || j==params.jend-1) && dir == IY){
+            if (j==params.jbeg){
+              fluxL = zero_state();
+              fluxL[IBY] = params.iso3_by;
+            }
+            else{
+              fluxR = zero_state();
+              fluxR[IBY] = params.iso3_by;
+            } 
+          }
+          
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 

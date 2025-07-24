@@ -86,6 +86,20 @@ def get_norm_temperature(f, i: int):
   return (T - averageT)/ averageT * 100
 
 
+def find_tri_layer_Bfield(f, i):
+  Nx, Ny = f.attrs['Nx'], f.attrs['Ny']
+  vx = get_prim_array(f, i, 'vx').reshape(Ny, Nx)
+  vy = get_prim_array(f, i, 'vy').reshape(Ny, Nx)
+  rho = get_prim_array(f, i, 'rho')
+  x, y = f['x'], f['y']
+  B2_avg = 0
+  for i in range(Nx):
+    for j in range(Ny):
+      v2 = vx[i, j]**2 + vy[i, j]**2
+      B2_avg += rho[i, j] * v2
+  return np.sqrt(B2_avg)/((x.max() - x.min()) * (y.max() - y.min()))
+
+
 compute_values = {
   'Bmag': get_BMag,
   'Bperp': get_Bperp,

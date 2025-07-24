@@ -626,6 +626,7 @@ struct DeviceParams {
     viscosity_mode = reader.GetMapValue(viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
     prandtl = reader.GetFloat("viscosity", "prandtl", 1.0);
+    zero_flux_boundary = reader.GetBoolean("viscosity", "zero_flux_boundary", false); 
 
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);

@@ -116,6 +116,17 @@ public:
         State FR = compute_flux(IX, IRIGHT);
         State FD = compute_flux(IY, ILEFT);
         State FU = compute_flux(IY, IRIGHT);
+        
+        if (params.zero_flux_boundary) {
+          if (i==params.ibeg)
+            FL = {0,0,0,0};
+          else if(i==params.iend-1)
+            FR = {0,0,0,0};
+          if(j==params.jbeg)
+            FD = {0,0,0,0};
+          else if(j==params.jend-1)
+            FU = {0,0,0,0};
+        }
 
         real_t V = geometry.cellArea(i,j);
         State un_loc = getStateFromArray(Unew, i, j);

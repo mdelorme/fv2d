@@ -99,7 +99,7 @@ for i in tqdm(range(Nf)):
                 plot_field('bx', ax[0, 2], i, filename, solver)
                 plot_field('by', ax[1, 2], i, filename, solver)
                 plot_field('bz', ax[2, 2], i, filename, solver)
-                plot_field('psi', ax[2, 0], i, filename, solver)
+                plot_field('w', ax[2, 0], i, filename, solver)
                 plot_field('divB', ax[2, 1], i, filename, solver)
     plt.legend()
     plt.savefig(f'render/img_{i:04d}.png')

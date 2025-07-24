@@ -3,11 +3,13 @@ import numpy as np
 get_array = lambda f, x : np.array(f[x])
 
 # Pass from field name to Latex representation
+# TODO: split primitive vars and computed values, then add both in one dict
 latexify = {
   'rho': r'$\rho$',
   'prs': r'$p$',
   'u': r'$u$',
   'v': r'$v$',
+  'w': r'$w$',
   'bx': r'$B_x$',
   'by': r'$B_y$',
   'bz': r'$B_z$',
@@ -17,6 +19,7 @@ latexify = {
   'divBoverB': r'$\log_{10} \left(\Delta x \cdot \frac{|\nabla \cdot \mathbf{B}|}{|\mathbf{B}|}\right)$',  # Added for divergence over magnitude
   'Bparallele': r'$B_{//}$', # Added for rotated shoc tube
   'T': r'$T$',
+  'Tnorm': r'$T - \left<T\right>$',
 }
 
 
@@ -75,11 +78,20 @@ def get_temperature(f, i: int):
   cste = 1
   return cste * get_prim_array(f, i, 'prs') / get_prim_array(f, i, 'rho')
 
+
+def get_norm_temperature(f, i: int):
+  Nx = f.attrs['Nx']
+  T = get_temperature(f, i)
+  averageT = np.tile(np.nanmean(T,axis=1),(Nx, 1)).T
+  return (T - averageT)/ averageT * 100
+
+
 compute_values = {
   'Bmag': get_BMag,
   'Bperp': get_Bperp,
   'divBoverB': get_divBoverB,
   'T': get_temperature,
+  'Tnorm': get_norm_temperature,
 }
 
 def get_quantity(f, i, field):

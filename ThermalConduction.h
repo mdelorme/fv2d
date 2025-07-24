@@ -151,27 +151,27 @@ public:
           }
         };
         
-        bool only_once = false; // empeche une double correction des flux sur les ghost diagonales ? 
+//         bool only_once = false; // empeche une double correction des flux sur les ghost diagonales ? 
         // ça a pété pour le fix gradient (température négative)
         // a l'air d'être ok pour le fix température
         if (i==params.ibeg)  {
           lambda_bc(FL, params.bctc_ymin, IX, ILEFT);
-          only_once = true;
+//           only_once = true;
         }
         else if (i==params.iend-1) {
           lambda_bc(FR, params.bctc_ymax, IX, IRIGHT);
-          only_once = true;
+//           only_once = true;
         }
         if (j==params.jbeg) {
-          if (only_once) 
-            FD = 0;
-          else 
+//           if (only_once) 
+//             FD = 0;
+//           else 
             lambda_bc(FD, params.bctc_ymin, IY, ILEFT);
         }
         else if (j==params.jend-1) {
-          if (only_once) 
-            FU = 0;
-          else 
+//           if (only_once) 
+//             FU = 0;
+//           else 
             lambda_bc(FU, params.bctc_ymax, IY, IRIGHT);
         }
 

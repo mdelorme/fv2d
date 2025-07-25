@@ -112,12 +112,12 @@ namespace fv2d {
 
     q[IR] = params.spl_rho(r);
     if (params.zero_velocity_boundary) {
-      q[IU] = q[IU] - 2*normal_vel*p[IX];
-      q[IV] = q[IV] - 2*normal_vel*p[IY];
-    }
-    else {
       q[IU] = 0;
       q[IV] = 0;
+    }
+    else {
+      q[IU] = q[IU] - 2*normal_vel*p[IX];
+      q[IV] = q[IV] - 2*normal_vel*p[IY];
     }
     q[IP] = params.spl_prs(r);
 

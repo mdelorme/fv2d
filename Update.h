@@ -391,12 +391,12 @@ public:
 
               q[IR] = params.spl_rho(r);
               if (params.zero_velocity_boundary) {
-                q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
-                q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
-              }
-              else {
                 q[IU] = 0;
                 q[IV] = 0;
+              }
+              else {
+                q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
+                q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
               }
               q[IP] = params.spl_prs(r);
             }
@@ -409,12 +409,12 @@ public:
 
               q[IR] = params.spl_rho(r);
               if (params.zero_velocity_boundary) {
-                q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
-                q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
-              }
-              else {
                 q[IU] = 0;
                 q[IV] = 0;
+              }
+              else {
+                q[IU] = Q(j, i, IU) - 2 * normal_vel * u_r[IX];
+                q[IV] = Q(j, i, IV) - 2 * normal_vel * u_r[IY];
               }
               q[IP] = params.spl_prs(r);
             }

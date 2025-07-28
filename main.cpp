@@ -55,7 +55,9 @@ int main(int argc, char **argv) {
         else
           std::cout << "Initializing MHD State from saved hydro State" << std::endl;
         init.init(Q);
+        #ifdef MHD
         GLM_ch1 = init.initGLMch(Q, params);
+        #endif // MHD
       }
     
     t = restart_info.time;

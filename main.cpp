@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     IOManager ioManager(params);
 
     if (params.restart_file != "") {
-      auto restart_info = ioManager.loadSnapshot(Q);
+      auto restart_info = ioManager.loadSnapshot(Q, t);
       t = restart_info.time;
       ite = restart_info.iteration;
       std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
         next_save += params.save_freq;
       }
 
-      update.update(Q, U, dt, GLM_ch1);
+      update.update(Q, U, dt, t, GLM_ch1);
       consToPrim(U, Q, params);
       checkNegatives(Q, params);
 

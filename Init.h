@@ -76,7 +76,48 @@ namespace {
       Q(j, i, IP) = 0.1;
     }
   }
+
+
+  /**
+   * @brief Rising bubble initial conditions
+   */
+  KOKKOS_INLINE_FUNCTION
+  void initHotBubble(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    real_t xr = params.hot_bubble_x0 - x;
+    real_t yr = params.hot_bubble_y0 - y;
+    real_t r = sqrt(xr*xr+yr*yr);
+
+    real_t ky = 2.0 * M_PI / params.ymax;
+    real_t coeff_gamma = 1 - 1/params.gamma0;
+
+    real_t prs = coeff_gamma * (1 - Kokkos::cos(ky * y)) * params.hot_bubble_g0 / (ky * pow(params.hot_bubble_A0, 1/params.gamma0));
+    prs += pow(params.hot_bubble_p0, coeff_gamma);
+    prs = pow(prs, 1/coeff_gamma);
+
+    real_t coeff_rad = Kokkos::cos(M_PI / 2.0 * r / params.hot_bubble_r0);
+
+    real_t A_inside = params.hot_bubble_A0 * (1 + params.hot_bubble_amplitude * coeff_rad * coeff_rad);
+
+    if (r <= params.hot_bubble_r0 && params.hot_bubble_has_bubble) {
+      Q(j, i, IR) = pow(prs/A_inside, 1/params.gamma0);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = prs;
+    }
+    else {
+      Q(j, i, IR) = pow(prs/params.hot_bubble_A0, 1/params.gamma0);
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = prs;
+    }
   
+  }
+  
+
   /**
    * @brief Stratified convection based on Hurlburt et al 1984
    */
@@ -437,202 +478,236 @@ namespace {
   }
 
   /**
-   * @brief Kelvin-Helmholtz instability
+   * @brief Lax-Liu config #13 setup
    */
   KOKKOS_INLINE_FUNCTION
-  void initKelvinHelmoltz(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool){
+  void initLaxLiu13(Array Q, int i, int j, const DeviceParams &params) {
+    real_t xmid = 0.5 * (params.xmin+params.xmax);
+    real_t ymid = 0.5 * (params.ymin+params.ymax);
+
     Pos pos = getPos(params, i, j);
     real_t x = pos[IX];
     real_t y = pos[IY];
-    
-    if (Kokkos::abs(y) <= 0.25){
-      Q(j, i, IR) = 2.0;
-      Q(j, i, IU) = 0.5;
+    real_t rho, u, v, p;
+
+    if (x < xmid) {
+      if (y < ymid) {
+        rho = 1.0625;
+        u   = 0.0;
+        v   = 0.8145;
+        p   = 0.4;
+      }
+      else {
+        rho = 2.0;
+        u   = 0.0;
+        v   = 0.3;
+        p   = 1.0;
+      }
     }
-    else{
-      Q(j, i, IR) = 1.0;
-      Q(j, i, IU) = -0.5;
+    else {
+      if (y < ymid) {
+        rho = 0.5313;
+        u   = 0.0;
+        v   = 0.4276;
+        p   = 0.4;
+      }
+      else {
+        rho = 1.0;
+        u   = 0.0;
+        v   = -0.3;
+        p   = 1.0;
+      }
     }
 
-    Q(j, i, IV) = 0.0;
-    Q(j, i, IW) = 0.0;
-    Q(j, i, IP) = 2.5;
-    Q(j, i, IBX) = 0.5 / Kokkos::sqrt(4*M_PI);
-    Q(j, i, IBY) = 0.0;
-    Q(j, i, IBZ) = 0.0;
-
-    // Add some perturbation on both the x and y components of the velocity
-    // We take a 0.01 peak-to-peak amplitude
-    auto generator = random_pool.get_state();
-    real_t pert_vx = generator.drand(-0.05, 0.05);
-    real_t pert_vy = generator.drand(-0.05, 0.05);
-    random_pool.free_state(generator);
-
-    Q(j, i, IU) += pert_vx;
-    Q(j, i, IV) += pert_vy;
-    Q(j, i, IPSI) = 0.0;
+    Q(j, i, IR) = rho;
+    Q(j, i, IU) = u;
+    Q(j, i, IV) = v;
+    Q(j, i, IP) = p;
   }
 
   /**
-   * @brief MHD Blast Standard Configuration
+   * @brief Lax-Liu config #3 setup
    */
   KOKKOS_INLINE_FUNCTION
-  void initBlastMHDStandard(Array Q, int i, int j, const DeviceParams &params) {
-    real_t x0 = 0.5 * (params.xmin+params.xmax);
-    real_t y0 = 0.5 * (params.ymin+params.ymax);
+  void initLaxLiu3(Array Q, int i, int j, const DeviceParams &params) {
+    real_t xmid = 0.8;
+    real_t ymid = 0.8;
+
     Pos pos = getPos(params, i, j);
-    
-    real_t xi = x0 - pos[IX];
-    real_t yj = y0 - pos[IY];
-    real_t r = sqrt(xi*xi+yj*yj);
-  
-    if (r < 0.1) {
-      Q(j, i, IP) = 10.0;
+    real_t x = pos[IX];
+    real_t y = pos[IY];
+
+    real_t rho, u, v, p;
+
+    if (x < xmid) {
+      if (y < ymid) {
+        rho = 0.138;
+        u   = 1.206;
+        v   = 1.206;
+        p   = 0.029;
+      }
+      else {
+        rho = 0.5323;
+        u   = 1.206;
+        v   = 0.0;
+        p   = 0.3;
+      }
     }
     else {
-      Q(j, i, IP) = 0.1;
-    }
-    Q(j, i, IR) = 1.0;
-    Q(j, i, IU) = 0.0;
-    Q(j, i, IV) = 0.0;
-    Q(j, i, IW) = 0.0;
-    Q(j, i, IBX) = 0.5 * Kokkos::sqrt(2.0);
-    Q(j, i, IBY) = 0.5 * Kokkos::sqrt(2.0);
-    Q(j, i, IBZ) = 0.0;
-    Q(j, i, IPSI) = 0.0;
-  }
-
-/**
-   * @brief MHD Blast Low Beta Configuration
-   */
-  KOKKOS_INLINE_FUNCTION
-  void initBlastMHDLowBeta(Array Q, int i, int j, const DeviceParams &params) {
-    real_t x0 = 0.5 * (params.xmin+params.xmax);
-    real_t y0 = 0.5 * (params.ymin+params.ymax);
-    Pos pos = getPos(params, i, j);
-    
-    real_t xi = x0 - pos[IX];
-    real_t yj = y0 - pos[IY];
-    real_t r = sqrt(xi*xi+yj*yj);
-  
-    if (r < 0.1) {
-      Q(j, i, IP) = 1000.0;
-    }
-    else {
-      Q(j, i, IP) = 0.1;
+      if (y < ymid) {
+        rho = 0.5323;
+        u   = 0.0;
+        v   = 1.206;
+        p   = 0.3;
+      }
+      else {
+        rho = 1.5;
+        u   = 0.0;
+        v   = 0.0;
+        p   = 1.5;
+      }
     }
 
-    Q(j, i, IR) = 1.0;
-    Q(j, i, IU) = 0.0;
-    Q(j, i, IV) = 0.0;
-    Q(j, i, IW) = 0.0;
-    Q(j, i, IBX) = 250.0/Kokkos::sqrt(2.0);
-    Q(j, i, IBY) = 250.0/Kokkos::sqrt(2.0);
-    Q(j, i, IBZ) = 0.0;
-    Q(j, i, IPSI) = 0.0;
+    Q(j, i, IR) = rho;
+    Q(j, i, IU) = u;
+    Q(j, i, IV) = v;
+    Q(j, i, IP) = p;
   }
+
   /**
-   * @brief MHD Rotated Shock Tube. Brio and Wu Shock Tube rotated by an angle \theta
+   * @brief Reading a spline from the disk
+   **/
+   void initProfile(Array Q, const Params &full_params) {
+    // Reading input file
+    std::string filename = full_params.init_filename;
+    std::vector<real_t> y, rho, u, v, p;
+    std::ifstream f_in(filename);
+
+    while (f_in.good()) {
+      real_t y_, rho_, u_, v_, p_;
+      f_in >> y_ >> rho_ >> u_ >> v_ >> p_;
+      if (f_in.good()) {
+        y.push_back(y_);
+        rho.push_back(rho_);
+        u.push_back(u_);
+        v.push_back(v_);
+        p.push_back(p_);
+      }
+    }
+    f_in.close();
+    
+    // Copying profile on GPU
+    size_t N = y.size();
+    Kokkos::View<real_t**> profile("profile", N, 5);
+    auto profile_host = Kokkos::create_mirror_view(profile);
+
+    std::cout << "Profile read from " << filename << " has " << N << " points" << std::endl;
+
+    for (size_t i=0; i < N; ++i) {
+      profile_host(i, 0) = y[i];
+      profile_host(i, 1) = rho[i];
+      profile_host(i, 2) = u[i];
+      profile_host(i, 3) = v[i];
+      profile_host(i, 4) = p[i];
+    }
+
+    Kokkos::deep_copy(profile, profile_host);
+
+    auto params = full_params.device_params;
+
+    // Initializing domain
+    Kokkos::parallel_for("Initialization from profile",
+                         full_params.range_dom,
+                         KOKKOS_LAMBDA(const int i, const int j) {
+                          auto pos = getPos(params, i, j);
+                          real_t y = pos[IY];
+                    
+                          // Finding current cell position in profile.
+                          // Could be optimized if dy in the profile is fixed
+                          int iy = 0;
+                          real_t prof_y = profile(iy, 0);
+                          constexpr real_t eps = 1.0e-5;
+                          while (prof_y-eps < y && Kokkos::abs(prof_y - y) > eps) {
+                            iy++;
+                            prof_y = profile(iy, 0);
+                          }
+                    
+                          // Linear interpolation
+                          real_t fy = (y - profile(iy-1, 0)) / (profile(iy, 0) - profile(iy-1, 0));
+                          for (int ivar=1; ivar < 5; ++ivar)
+                            Q(j, i, ivar-1) = profile(iy-1, ivar) * (1.0 - fy) + profile(iy, ivar) * fy;
+                        
+                          // Todo : Edge case extrapolation
+                         });
+   }
+
+  /**
+   * @brief Gresho-Vortex setup for Low-mach flows
+   * 
+   * Based on Miczek et al. 2015 "New numerical solver for flows at various Mach numbers"
    */
   KOKKOS_INLINE_FUNCTION
-  void initRotatedShockTube(Array Q, int i, int j, const DeviceParams &params) {
+  void initGreshoVortex(Array Q, int i, int j, const DeviceParams &params) {
     Pos pos = getPos(params, i, j);
-    real_t theta = Kokkos::atan(-2.0);
+    const real_t xmid = 0.5*(params.xmin + params.xmax);
+    const real_t ymid = 0.5*(params.ymin + params.ymax);
+    const real_t xr = pos[IX]-xmid;
+    const real_t yr = pos[IY]-ymid;
+    const real_t r = sqrt(xr*xr+yr*yr);
 
-    real_t xt = tan(theta) * (pos[IX] - 0.5);
-    real_t yt = (pos[IY] - 0.5);
-    real_t B0 = 1.0 / sqrt(4.0 * M_PI);
-    
-    Q(j, i, IR) = 1.0;
-    Q(j, i, IW) = 0.0;
-    Q(j, i, IBX) = 5*B0 * (cos(theta) + sin(theta));
-    Q(j, i, IBY) = 5*B0 * (cos(theta) - sin(theta));
-    Q(j, i, IBZ) = 0.0;
-    Q(j, i, IPSI) = 0.0;
+    // Pressure is given from density and Mach
+    const real_t pressure = params.gresho_density / (params.gamma0 * params.gresho_Mach*params.gresho_Mach);
 
-    if (xt < yt) {
-      Q(j, i, IU) =  10.0 * cos(theta);
-      Q(j, i, IV) = -10.0 * sin(theta);
-      Q(j, i, IP) = 20.0;
+    Q(j, i, IR) = params.gresho_density;
+
+    real_t u_phi;
+    if (r < 0.2) {
+      u_phi = 5.0*r;
+      Q(j, i, IP) = pressure + 12.5*r*r;
+    }
+    else if (r < 0.4) {
+      u_phi = 2.0 - 5.0*r;
+      Q(j, i, IP) = pressure + 12.5*r*r + 4.0*(1.0-5.0*r+log(5.0*r));
     }
     else {
-      Q(j, i, IU) = -10.0 * cos(theta);
-      Q(j, i, IV) =  10.0 * sin(theta);
-      Q(j, i, IP) = 1.0;
+      u_phi = 0.0;
+      Q(j, i, IP) = pressure - 2.0 + 4.0*log(2.0);
     }
+
+    const real_t xnr = xr / r;
+    const real_t ynr = yr / r;
+    Q(j, i, IU) = -ynr * u_phi;
+    Q(j, i, IV) =  xnr * u_phi;
+    
   }
 
-  /** 
-   * @brief MHD Rotor Test
+  /**
+   * @brief Implosion setup
    */
-  KOKKOS_INLINE_FUNCTION
-  void initMHDRotor(Array Q, int i, int j, const DeviceParams &params) {
-    const real_t x0 = 0.5 * (params.xmin+params.xmax);
-    const real_t y0 = 0.5 * (params.ymin+params.ymax);
+   KOKKOS_INLINE_FUNCTION
+   void initImplosion(Array Q, int i, int j, const DeviceParams &params) {
     Pos pos = getPos(params, i, j);
-    real_t xi = x0 - pos[IX];
-    real_t yj = y0 - pos[IY];
-    real_t r = sqrt(xi*xi+yj*yj);
-    const real_t r0 = 0.1, r1 = 0.115, u0=2.0;
-    const real_t f = (r1 - r) / (r1 - r0);
-    const real_t B0 = 1.0 / sqrt(4 * M_PI);
+    real_t x = pos[IX];
+    real_t y = pos[IY];
 
-    Q(j, i, IW) = 0.0;
-    Q(j, i, IP) = 1.0;
-    Q(j, i, IBX) = 5 * B0;
-    Q(j, i, IBY) = 0.0;
-    Q(j, i, IBZ) = 0.0;
-    Q(j,i,IPSI) = 0.0;
-
-    if (r < r0) {
-      Q(j, i, IR) = 10.0;
-      Q(j, i, IU) = (u0/r0) * (0.5 - pos[IY]);
-      Q(j, i, IV) = (u0/r0) * (pos[IX] - 0.5);
-    }
-    else if (r1 < r && r <= r0) {
-      Q(j, i, IR) = 1 + 9*f;
-      Q(j, i, IU) = (f*u0/r0) * (0.5 - pos[IY]);
-      Q(j, i, IV) = (f*u0/r0) * (pos[IX] - 0.5);
-    }
-    else {
-      Q(j, i, IR) = 1.0;
+    if (y < x-params.implosion_x0) {
+      Q(j, i, IR) = params.implosion_rho_in;
       Q(j, i, IU) = 0.0;
       Q(j, i, IV) = 0.0;
-    }
-  }
-  /**
-   * @brief Field Advection Loop
-   */
-  KOKKOS_INLINE_FUNCTION
-  void initFieldLoopAdvection(Array Q, int i, int j, const DeviceParams &params) {
-    const real_t x0 = 0.5 * (params.xmin+params.xmax);
-    const real_t y0 = 0.5 * (params.ymin+params.ymax);
-    Pos pos = getPos(params, i, j);
-    real_t xi = x0 - pos[IX];
-    real_t yj = y0 - pos[IY];
-    real_t r = sqrt(xi*xi+yj*yj);
-    const real_t r0 = 0.3, A0 = 0.001;
-
-    Q(j, i, IR) = 1.0;
-    Q(j, i, IU) = 2.0;
-    Q(j, i, IV) = 1.0;
-    Q(j, i, IW) = 0.0;
-    Q(j, i, IP) = 1.0;
-    Q(j, i, IBZ) = 0.0;
-    Q(j,i,IPSI) = 0.0;
-    
-    if (r < r0) {
-      Q(j, i, IBX) = -pos[IY]*A0/r;
-      Q(j, i, IBY) = pos[IX]*A0/r;
+      Q(j, i, IP) = params.implosion_p_in;
     }
     else {
-      Q(j, i, IBX) = 0.0;
-      Q(j, i, IBY) = 0.0;
+      Q(j, i, IR) = params.implosion_rho_out;
+      Q(j, i, IU) = 0.0;
+      Q(j, i, IV) = 0.0;
+      Q(j, i, IP) = params.implosion_p_out;
     }
-  }
-  #endif //MHD 
-}
+    
+   }
 
+
+}
+  
 
 /**
  * @brief Enum describing the type of initialization possible
@@ -641,6 +716,7 @@ enum InitType {
   SOD_X,
   SOD_Y,
   BLAST,
+  HOT_BUBBLE,
   RAYLEIGH_TAYLOR,
   DIFFUSION,
   H84,
@@ -674,8 +750,10 @@ public:
     : full_params(full_params) {
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
+      {"sod_x_inverse", SOD_X_INVERSE},
       {"sod_y", SOD_Y},
       {"blast", BLAST},
+      {"hot_bubble", HOT_BUBBLE},
       {"rayleigh-taylor", RAYLEIGH_TAYLOR},
       {"diffusion", DIFFUSION},
       {"H84", H84},
@@ -722,6 +800,7 @@ public:
                               case SOD_Y:           initSodY(Q, i, j, params); break;
                               case BLAST:           initBlast(Q, i, j, params); break;
                               case DIFFUSION:       initDiffusion(Q, i, j, params); break;
+                              case HOT_BUBBLE:      initHotBubble(Q, i, j, params); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;
                               case C91:             initC91(Q, i, j, params, random_pool); break;
@@ -748,7 +827,7 @@ public:
                           
     // ... and boundaries
     BoundaryManager bc(full_params);
-    bc.fillBoundaries(Q);
+    bc.fillBoundaries(Q, 0.0);
   }
 
   real_t initGLMch(Array Q, const Params &full_params) const {

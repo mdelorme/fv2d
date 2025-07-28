@@ -342,7 +342,7 @@ public:
     fclose(xdmf_fd);
   }
 
-  RestartInfo loadSnapshot(Array &Q) {
+  RestartInfo loadSnapshot(Array &Q, real_t t) {
     File file(params.restart_file, File::ReadOnly);
 
     auto Nt = getShape(file, "rho")[0];
@@ -382,7 +382,7 @@ public:
     Kokkos::deep_copy(Q, Qhost);
 
     BoundaryManager bc(params);
-    bc.fillBoundaries(Q);
+    bc.fillBoundaries(Q, t);
     
     HighFive::Attribute attr_time = file.getAttribute("time");
     real_t time; attr_time.read(time);

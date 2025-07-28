@@ -10,19 +10,191 @@
 
 namespace fv2d {
 
+using WENOArray = Kokkos::View<real_t****>;
+
 namespace {
+  struct WENOStruct {
+    WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
+  };
+
+  struct CWENOStruct {
+    WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightX, WeightY;
+  };
+
+  /**
+   * @brief Reconstructs interface state using WENO5 method
+   * 
+   * @param Q The primitive variables array
+   */
   KOKKOS_INLINE_FUNCTION
-  State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
+  State reconstruct_weno5(Array Q, IDir dir, real_t sign, WENOStruct weno_struct, int i, int j, const DeviceParams &params) {
+    State res;
+    
+    auto &PxL = weno_struct.PxL;
+    auto &PxR = weno_struct.PxR;
+    auto &PyL = weno_struct.PyL;
+    auto &PyR = weno_struct.PyR;
+    auto &BetaX = weno_struct.BetaX;
+    auto &BetaY = weno_struct.BetaY;
+    auto &WeightXL = weno_struct.WeightXL;
+    auto &WeightXR = weno_struct.WeightXR;
+    auto &WeightYL = weno_struct.WeightYL;
+    auto &WeightYR = weno_struct.WeightYR;
+    
+
+    if (dir == IX){
+      if (sign <0){
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightXL(2, j, i, ivar) * PxL(2, j, i, ivar) + WeightXL(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightXL(1, j, i, ivar) * PxL(1, j, i, ivar);
+        };
+        /*
+        if (i==35 && j==8){
+          printf("rho R = %lf; centered = %lf\n", res[IR], Q(j, i, IR));
+          printf("BetaX 0 = %lf\n", BetaX(0, j, i, IR));
+          printf("BetaX 2 = %lf\n", BetaX(2, j, i, IR));
+          printf("weight 0 = %lf\n", WeightXL(0, j, i, IR));
+          printf("weight 2 = %lf\n", WeightXL(2, j, i, IR));
+        }*/
+        
+      } else {
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightXR(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightXR(2, j, i, ivar) * PxR(2, j, i, ivar) + WeightXR(1, j, i, ivar) * PxR(1, j, i, ivar);
+        };
+        /*
+        if (i==34 && j==8){
+          printf("rho L = %lf; centered = %lf\n", res[IR], Q(j, i, IR));
+          printf("BetaX 0 = %lf\n", BetaX(0, j, i, IR));
+          printf("BetaX 2 = %lf\n", BetaX(2, j, i, IR));
+          printf("weight 0 = %lf\n", WeightXL(0, j, i, IR));
+          printf("weight 2 = %lf\n", WeightXR(2, j, i, IR));
+        }*/
+      }
+    } else if (dir == IY){
+      if (sign <0){
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightYL(2, j, i, ivar) * PyL(2, j, i, ivar) + WeightYL(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightYL(1, j, i, ivar) * PyL(1, j, i, ivar);
+        }
+      } else {
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightYR(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightYR(2, j, i, ivar) * PyR(2, j, i, ivar) + WeightYR(1, j, i, ivar) * PyR(1, j, i, ivar);
+        }
+      }
+    }
+    
+
+    return res;
+  }
+
+
+  /**
+   * @brief Reconstructs interface state using CWENO4 method
+   * 
+   * @param Q The primitive variables array
+   */
+  KOKKOS_INLINE_FUNCTION
+  State reconstruct_cweno4(Array Q, IDir dir, real_t sign, CWENOStruct cweno_struct, int i, int j, const DeviceParams &params) {
+    State res;
+    
+    auto &PxL = cweno_struct.PxL;
+    auto &PxR = cweno_struct.PxR;
+    auto &PyL = cweno_struct.PyL;
+    auto &PyR = cweno_struct.PyR;
+    auto &BetaX = cweno_struct.BetaX;
+    auto &BetaY = cweno_struct.BetaY;
+    auto &WeightX = cweno_struct.WeightX;
+    auto &WeightY = cweno_struct.WeightY;
+    
+
+    if (dir == IX){
+      if (sign <0){
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightX(2, j, i, ivar) * PxL(2, j, i, ivar) + WeightX(0, j, i, ivar) * PxL(0, j, i, ivar) + WeightX(1, j, i, ivar) * PxL(1, j, i, ivar);
+        }
+      } else {
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightX(0, j, i, ivar) * PxR(0, j, i, ivar) + WeightX(2, j, i, ivar) * PxR(2, j, i, ivar) + WeightX(1, j, i, ivar) * PxR(1, j, i, ivar);
+        }
+      }
+
+    } else if (dir == IY){
+      if (sign <0){
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightY(2, j, i, ivar) * PyL(2, j, i, ivar) + WeightY(0, j, i, ivar) * PyL(0, j, i, ivar) + WeightY(1, j, i, ivar) * PyL(1, j, i, ivar);
+        }
+      } else {
+        for (int ivar=0; ivar < Nfields; ++ivar){
+          res[ivar] = WeightY(0, j, i, ivar) * PyR(0, j, i, ivar) + WeightY(2, j, i, ivar) * PyR(2, j, i, ivar) + WeightY(1, j, i, ivar) * PyR(1, j, i, ivar);
+        }
+      }
+    }
+    
+    return res;
+  }
+
+
+
+  /**
+   * @brief MUSCL-type reconstruction for the hydro update
+   * 
+   * Options are :
+   *  . PCM : Piecewise Constant Method, taking the original value of the cell (1st order)
+   *  . PLM : Piecewise Linear Method, using the slopes to reconstruct (2nd order)
+   *  . PCM_WB : Piecewise Constant Method + Well-balancing (1st order), taken from Kappeli & Mishra 2016
+   *  . PLM_WB : Piecewise Linear Method + Well-balancing (2nd order), taken from Kappeli & Mishra 2016
+   *  . WENO5 : Weighted Essentially Non Oscillatory Scheme (5th order)
+   *  . CWENO4 : Centrally Weighted Essentially Non Oscillatory Scheme (4th order)
+   */
+  KOKKOS_INLINE_FUNCTION
+  State reconstruct(Array Q, Array slopes, WENOStruct weno_struct, CWENOStruct cweno_struct, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
     State q     = getStateFromArray(Q, i, j);
-    State slope = getStateFromArray(slopes, i, j);
+    
     State res;
     switch (params.reconstruction) {
-      case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
+      case PLM: 
+      {
+        State slope = getStateFromArray(slopes, i, j);
+        res = q + slope * sign * 0.5; break; // Piecewise Linear
+      } 
       case PCM_WB: // Piecewise constant + Well-balancing
+      {
         res[IR] = q[IR];
         res[IU] = q[IU];
         res[IV] = q[IV];
         res[IP] = q[IP] + sign * q[IR] * getGravity(i, j, dir, params) * params.dy * 0.5;
+      }
+      break;
+      case PLM_WB: // Piecewise linear + Well-balancing 
+      {
+        // Piecewise linear reconstruction
+        /*res = q + slope * sign * 0.5;
+
+        if (dir == IY) {
+          // Getting neighbour states
+          State neigh_m, neigh_p;
+          neigh_m = getStateFromArray(Q, i + (dir == IX ? -1 : 0), j + (dir == IY ? -1 : 0));
+          neigh_p = getStateFromArray(Q, i + (dir == IX ?  1 : 0), j + (dir == IY ?  1 : 0));
+          
+          // Calculating p1_{i-1}
+          const real_t p0_im = q[IP] + 0.5 * (q[IR] + neigh_m[IR]) * params.g * params.dy;
+          const real_t p1_im = neigh_m[IP] - p0_im;
+
+          // Calculating p1_{i+1}
+          const real_t p0_ip = q[IP] - 0.5 * (q[IR] + neigh_p[IR]) * params.g * params.dy;
+          const real_t p1_ip = neigh_p[IP] - p0_ip;
+
+          // TODO : This should be outsourced to compute Slopes !!!
+          // Calculating slope using minmod
+          real_t dP = 0.0;
+          if (p1_im * p1_ip < 0.0) // Slope left is -p1_im; Slope right is p1_ip so their sign should be opposite
+            dP = (Kokkos::abs(p1_im) < Kokkos::abs(p1_ip) ? -p1_im : p1_ip);
+
+          // Reconstructing pressure
+          res[IP] = (sign == -1 ? p0_im : p0_ip) + dP * sign * 0.5;
+        }*/
+
+      } break;
+      case WENO5: res = reconstruct_weno5(Q, dir, sign, weno_struct, i, j, params); break;
+      case CWENO4: res = reconstruct_cweno4(Q, dir, sign, cweno_struct, i, j, params); break;
       default:  res = q; // Piecewise Constant
     }
 
@@ -38,18 +210,49 @@ public:
   ViscosityFunctor visc_functor;
   SourcesFunctor sources_functor;
 
+  // Muscl Slopes
   Array slopesX, slopesY;
+
+  // WENO5
+  WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
+
+  // CWENO4
+  WENOArray WeightX, WeightY;
 
   UpdateFunctor(const Params &full_params)
     : full_params(full_params), bc_manager(full_params),
       tc_functor(full_params), visc_functor(full_params),
       sources_functor(full_params) {
       auto device_params = full_params.device_params;
-      slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
-      slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
 
       if (mhd_run && (device_params.riemann_solver==HLL || device_params.riemann_solver==HLLC)){
         throw std::runtime_error("HLL and HLLC are not supported for MHD runs.");
+      };
+      if (device_params.reconstruction == PLM) {
+        slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
+        slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
+      }
+      else if (device_params.reconstruction == WENO5) {
+        PxL = WENOArray("PxL", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PxR = WENOArray("PxR", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PyL = WENOArray("PyL", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PyR = WENOArray("Pyr", 3, device_params.Nty, device_params.Ntx, Nfields);
+        BetaX  = WENOArray("BetaX",  3, device_params.Nty, device_params.Ntx, Nfields);
+        BetaY  = WENOArray("BetaY",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightXL  = WENOArray("WeightXL",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightXR  = WENOArray("WeightXR",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightYL  = WENOArray("WeightYL",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightYR  = WENOArray("WeightYR",  3, device_params.Nty, device_params.Ntx, Nfields);
+      }
+      else if (device_params.reconstruction == CWENO4) {
+        PxL = WENOArray("PxL", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PxR = WENOArray("PxR", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PyL = WENOArray("PyL", 3, device_params.Nty, device_params.Ntx, Nfields);
+        PyR = WENOArray("Pyr", 3, device_params.Nty, device_params.Ntx, Nfields);
+        BetaX  = WENOArray("BetaX",  3, device_params.Nty, device_params.Ntx, Nfields);
+        BetaY  = WENOArray("BetaY",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightX  = WENOArray("WeightX",  3, device_params.Nty, device_params.Ntx, Nfields);
+        WeightY  = WENOArray("WeightY",  3, device_params.Nty, device_params.Ntx, Nfields);
       }
     };
   ~UpdateFunctor() = default;
@@ -91,6 +294,11 @@ public:
     // if (params.riemann_solver == IDEALGLM)
     //   ch_derigs = ComputeGlobalDivergenceSpeed(Q, full_params);
     
+
+    WENOStruct weno_struct {PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR};
+
+    CWENOStruct cweno_struct {PxL, PxR, PyL, PyR, BetaX, BetaY, WeightX, WeightY};
+
     Kokkos::parallel_for(
       "Update", 
       full_params.range_dom,
@@ -104,11 +312,11 @@ public:
           int dxp = (dir == IX ?  1 : 0);
           int dym = (dir == IY ? -1 : 0);
           int dyp = (dir == IY ?  1 : 0);
-          
-          State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
-          State qCR = reconstruct(Q, slopes, i, j,  1.0, dir, params);
-          State qL  = reconstruct(Q, slopes, i+dxm, j+dym, 1.0, dir, params);
-          State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
+
+          State qCR = reconstruct(Q, slopes, weno_struct, cweno_struct, i, j,  1.0, dir, params);
+          State qCL = reconstruct(Q, slopes, weno_struct, cweno_struct, i, j, -1.0, dir, params);
+          State qL  = reconstruct(Q, slopes, weno_struct, cweno_struct, i+dxm, j+dym, 1.0, dir, params);
+          State qR  = reconstruct(Q, slopes, weno_struct, cweno_struct, i+dxp, j+dyp, -1.0, dir, params);
           
           // Calling the right Riemann solver
           auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
@@ -155,8 +363,8 @@ public:
           State fluxL, fluxR;
           real_t poutL, poutR;
 
-          riemann(qL, qCL, fluxL, poutL);
-          riemann(qCR, qR, fluxR, poutR);
+          riemann(qL, qCL, fluxL, -1, poutL);
+          riemann(qCR, qR, fluxR,  1, poutR);
 
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);
@@ -188,7 +396,7 @@ public:
 
           if (params.gravity_mode != GRAV_NONE) {
             real_t g = getGravity(i, j, dir, params);
-            un_loc[IV] += dt * Q(j, i, IR) * g;
+            un_loc[dir == IX ? IU : IV] += dt * Q(j, i, IR) * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
           setStateInArray(Unew, i, j, un_loc);
@@ -202,13 +410,207 @@ public:
   }
   
 
-  void euler_step(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
+  void compute_weno_beta(Array Q) {
+    auto BetaX = this->BetaX;
+    auto BetaY = this->BetaY;
+
+    Kokkos::parallel_for(
+      "Weno Beta",
+      full_params.range_slopes,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        for (int ivar=0; ivar < Nfields; ++ivar) {
+          ////// Selon X
+          BetaX(0, j, i, ivar) = 13/12.0 * (Q(j, i-2, ivar) - 2*Q(j, i-1, ivar) + Q(j, i, ivar)) * (Q(j, i-2, ivar) - 2*Q(j, i-1, ivar) + Q(j, i, ivar))
+                              + 1/4.0 * (Q(j, i-2, ivar) - 4*Q(j, i-1, ivar) + 3*Q(j, i, ivar)) * (Q(j, i-2, ivar) - 4*Q(j, i-1, ivar) + 3*Q(j, i, ivar));
+          BetaX(1, j, i, ivar) = 13/12.0 * (Q(j, i-1, ivar) + Q(j, i+1, ivar) - 2*Q(j, i, ivar)) * (Q(j, i-1, ivar) + Q(j, i+1, ivar) - 2*Q(j, i, ivar))
+                              + 1/4.0 * (Q(j, i-1, ivar) - Q(j, i+1, ivar)) * (Q(j, i-1, ivar) - Q(j, i+1, ivar));
+          BetaX(2, j, i, ivar) = 13/12.0 * (Q(j, i+2, ivar) - 2*Q(j, i+1, ivar) + Q(j, i, ivar)) * (Q(j, i+2, ivar) - 2*Q(j, i+1, ivar) + Q(j, i, ivar))
+                              + 1/4.0 * (Q(j, i+2, ivar) - 4*Q(j, i+1, ivar) + 3*Q(j, i, ivar)) * (Q(j, i+2, ivar) - 4*Q(j, i+1, ivar) + 3*Q(j, i, ivar));
+
+
+          
+          ////// Selon Y
+          BetaY(0, j, i, ivar) = 13/12.0 * (Q(j-2, i, ivar) - 2*Q(j-1, i, ivar) + Q(j, i, ivar)) * (Q(j-2, i, ivar) - 2*Q(j-1, i, ivar) + Q(j, i, ivar))
+                              + 1/4.0 * (Q(j-2, i, ivar) - 4*Q(j-1, i, ivar) + 3*Q(j, i, ivar)) * (Q(j-2, i, ivar) - 4*Q(j-1, i, ivar) + 3*Q(j, i, ivar));
+          BetaY(1, j, i, ivar) = 13/12.0 * (Q(j-1, i, ivar) + Q(j+1, i, ivar) - 2*Q(j, i, ivar)) * (Q(j-1, i, ivar) + Q(j+1, i, ivar) - 2*Q(j, i, ivar))
+                              + 1/4.0 * (Q(j-1, i, ivar) - Q(j+1, i, ivar)) * (Q(j-1, i, ivar) - Q(j+1, i, ivar));
+          BetaY(2, j, i, ivar) = 13/12.0 * (Q(j+2, i, ivar) - 2*Q(j+1, i, ivar) + Q(j, i, ivar)) * (Q(j+2, i, ivar) - 2*Q(j+1, i, ivar) + Q(j, i, ivar))
+                              + 1/4.0 * (Q(j+2, i, ivar) - 4*Q(j+1, i, ivar) + 3*Q(j, i, ivar)) * (Q(j+2, i, ivar) - 4*Q(j+1, i, ivar) + 3*Q(j, i, ivar));
+
+        }
+      });
+  }
+  
+  /**
+  * @brief Weights computation for WENO scheme
+  */
+  void compute_weno_w(Array Q) {
+    auto WeightXL = this->WeightXL;
+    auto WeightXR = this->WeightXR;
+    auto WeightYL = this->WeightYL;
+    auto WeightYR = this->WeightYR;
+    auto BetaX = this->BetaX;
+    auto BetaY = this->BetaY;
+
+    Kokkos::parallel_for(
+      "Weno Weights",
+      full_params.range_slopes,
+      KOKKOS_LAMBDA(const int i, const int j) {
+
+      real_t eps = 1.0e-6; //epsilon choice
+
+        for (int ivar=0; ivar < Nfields; ++ivar) {
+          ////// Selon X
+          // Right
+          WeightXR(0, j, i, ivar) = 1/10.0 * 1/((eps + BetaX(0, j, i, ivar)) * (eps + BetaX(0, j, i, ivar)));
+          WeightXR(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
+          WeightXR(2, j, i, ivar) = 3/10.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
+
+          real_t sumXR = WeightXR(0, j, i, ivar) + WeightXR(2, j, i, ivar) + WeightXR(1, j, i, ivar) ;
+
+          WeightXR(0, j, i, ivar) /= sumXR;
+          WeightXR(1, j, i, ivar) /= sumXR;
+          WeightXR(2, j, i, ivar) /= sumXR;
+
+          // Left
+          WeightXL(0, j, i, ivar) = 3/10.0 * 1/((eps + BetaX(0, j, i, ivar)) * (eps + BetaX(0, j, i, ivar)));
+          WeightXL(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
+          WeightXL(2, j, i, ivar) = 1/10.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
+
+          real_t sumXL = WeightXL(2, j, i, ivar) + WeightXL(0, j, i, ivar) + WeightXL(1, j, i, ivar);
+
+          WeightXL(0, j, i, ivar) /= sumXL;
+          WeightXL(1, j, i, ivar) /= sumXL;
+          WeightXL(2, j, i, ivar) /= sumXL;
+
+
+          ////// Selon Y
+          // Right
+          WeightYR(0, j, i, ivar) = 1/10.0 * 1/((eps + BetaY(0, j, i, ivar)) * (eps + BetaY(0, j, i, ivar)));
+          WeightYR(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
+          WeightYR(2, j, i, ivar) = 3/10.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
+
+          real_t sumYR = WeightYR(0, j, i, ivar) + WeightYR(2, j, i, ivar) + WeightYR(1, j, i, ivar);
+
+          WeightYR(0, j, i, ivar) /= sumYR;
+          WeightYR(1, j, i, ivar) /= sumYR;
+          WeightYR(2, j, i, ivar) /= sumYR;
+          
+          // Left
+          WeightYL(0, j, i, ivar) = 3/10.0 * 1/((eps + BetaY(0, j, i, ivar)) * (eps + BetaY(0, j, i, ivar)));
+          WeightYL(1, j, i, ivar) = 3/5.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
+          WeightYL(2, j, i, ivar) = 1/10.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
+
+          real_t sumYL = WeightYL(2, j, i, ivar) + WeightYL(0, j, i, ivar) + WeightYL(1, j, i, ivar);
+
+          WeightYL(0, j, i, ivar) /= sumYL;
+          WeightYL(1, j, i, ivar) /= sumYL;
+          WeightYL(2, j, i, ivar) /= sumYL;
+
+        }
+      });
+
+  }
+
+  /**
+  * @brief Weights computation for CWENO scheme
+  */
+  void compute_c_weno_w(Array Q) {
+    auto WeightX = this->WeightX;
+    auto WeightY = this->WeightY;
+    auto BetaX = this->BetaX;
+    auto BetaY = this->BetaY;
+
+    Kokkos::parallel_for(
+      "Weno Weights",
+      full_params.range_slopes,
+      KOKKOS_LAMBDA(const int i, const int j) {
+
+      real_t eps = 1.0e-6; //epsilon choice
+
+        for (int ivar=0; ivar < Nfields; ++ivar) {
+          ////// Selon X
+          WeightX(0, j, i, ivar) = 1/6.0 * 1/((eps + BetaX(0, j, i, ivar)) * (eps + BetaX(0, j, i, ivar)));
+          WeightX(1, j, i, ivar) = 2/3.0 * 1/((eps + BetaX(1, j, i, ivar)) * (eps + BetaX(1, j, i, ivar)));
+          WeightX(2, j, i, ivar) = 1/6.0 * 1/((eps + BetaX(2, j, i, ivar)) * (eps + BetaX(2, j, i, ivar)));
+
+          real_t sumX = WeightX(0, j, i, ivar) + WeightX(2, j, i, ivar) + WeightX(1, j, i, ivar);
+
+          WeightX(0, j, i, ivar) /= sumX;
+          WeightX(1, j, i, ivar) /= sumX;
+          WeightX(2, j, i, ivar) /= sumX;
+
+          ////// Selon Y
+          WeightY(0, j, i, ivar) = 1/6.0 * 1/((eps + BetaY(0, j, i, ivar)) * (eps + BetaY(0, j, i, ivar)));
+          WeightY(1, j, i, ivar) = 2/3.0 * 1/((eps + BetaY(1, j, i, ivar)) * (eps + BetaY(1, j, i, ivar)));
+          WeightY(2, j, i, ivar) = 1/6.0 * 1/((eps + BetaY(2, j, i, ivar)) * (eps + BetaY(2, j, i, ivar)));
+
+          real_t sumY = WeightY(0, j, i, ivar) + WeightY(2, j, i, ivar) + WeightY(1, j, i, ivar);
+
+          WeightY(0, j, i, ivar) /= sumY;
+          WeightY(1, j, i, ivar) /= sumY;
+          WeightY(2, j, i, ivar) /= sumY;
+
+        }
+      });
+
+  }
+
+  void compute_weno_P(Array Q) {
+    auto PxL = this->PxL;
+    auto PxR = this->PxR;
+    auto PyL = this->PyL;
+    auto PyR = this->PyR;
+
+    Kokkos::parallel_for(
+      "Weno Beta",
+      full_params.range_slopes,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        for (int ivar=0; ivar < Nfields; ++ivar) {
+          ////// Selon X
+          PxR(0, j, i, ivar) = 1/3.0 * Q(j, i-2, ivar) - 7/6.0 * Q(j, i-1, ivar) + 11/6.0 * Q(j, i, ivar);
+          PxL(0, j, i, ivar) = -1/6.0 * Q(j, i-2, ivar) + 5/6.0 * Q(j, i-1, ivar) + 1/3.0 * Q(j, i, ivar);
+
+          PxR(1, j, i, ivar) = -1/6.0 * Q(j, i-1, ivar) + 1/3.0 * Q(j, i+1, ivar) + 5/6.0 * Q(j, i, ivar);
+          PxL(1, j, i, ivar) = -1/6.0 * Q(j, i+1, ivar) + 1/3.0 * Q(j, i-1, ivar)  + 5/6.0 * Q(j, i, ivar);
+
+          PxR(2, j, i, ivar) = -1/6.0 * Q(j, i+2, ivar) + 5/6.0 * Q(j, i+1, ivar) + 1/3.0 * Q(j, i, ivar);
+          PxL(2, j, i, ivar) = 1/3.0 * Q(j, i+2, ivar) - 7/6.0 * Q(j, i+1, ivar) + 11/6.0 * Q(j, i, ivar);
+
+          ////// Selon Y
+          PyR(0, j, i, ivar) = 1/3.0 * Q(j-2, i, ivar) - 7/6.0 * Q(j-1, i, ivar) + 11/6.0 * Q(j, i, ivar);
+          PyL(0, j, i, ivar) = -1/6.0 * Q(j-2, i, ivar) + 5/6.0 * Q(j-1, i, ivar) + 1/3.0 * Q(j, i, ivar);
+
+          PyR(1, j, i, ivar) = -1/6.0 * Q(j-1, i, ivar) + 1/3.0 * Q(j+1, i, ivar) + 5/6.0 * Q(j, i, ivar);
+          PyL(1, j, i, ivar) = -1/6.0 * Q(j+1, i, ivar) + 1/3.0 * Q(j-1, i, ivar) + 5/6.0 * Q(j, i, ivar);
+
+          PyR(2, j, i, ivar) = -1/6.0 * Q(j+2, i, ivar) + 5/6.0 * Q(j+1, i, ivar) + 1/3.0 * Q(j, i, ivar);
+          PyL(2, j, i, ivar) = 1/3.0 * Q(j+2, i, ivar) - 7/6.0 * Q(j+1, i, ivar) + 11/6.0 * Q(j, i, ivar);
+
+        }
+      });
+
+  }
+
+  void euler_step(Array Q, Array Unew, real_t dt, real_t t, real_t GLM_ch1) {
     // First filling up boundaries for ghosts terms
-    bc_manager.fillBoundaries(Q);
-    // Hyperbolic update
+    bc_manager.fillBoundaries(Q, t);
+
+    // Hyperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
-    computeSlopes(Q);
+      computeSlopes(Q);
+    else if (full_params.device_params.reconstruction == WENO5) {
+      compute_weno_beta(Q);
+      compute_weno_w(Q);
+      compute_weno_P(Q);
+    }
+    else if (full_params.device_params.reconstruction == CWENO4) {
+      compute_weno_beta(Q);
+      compute_c_weno_w(Q);
+      compute_weno_P(Q);
+    }
     computeFluxesAndUpdate(Q, Unew, dt, GLM_ch1);
+
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
       tc_functor.applyThermalConduction(Q, Unew, dt);
@@ -230,10 +632,9 @@ public:
         });
   }
 
-
-  void update(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
+  void update(Array Q, Array Unew, real_t dt, real_t t, real_t GLM_ch1) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt, GLM_ch1);
+      euler_step(Q, Unew, dt, t, GLM_ch1);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
@@ -242,11 +643,13 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
-      euler_step(Q, Ustar, dt, GLM_ch1);
+      euler_step(Q, Ustar, dt, t, GLM_ch1);
+      
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt, GLM_ch1);
+      euler_step(Q, Unew, dt, t, GLM_ch1);
+
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 
@@ -255,6 +658,46 @@ public:
           for (int ivar=0; ivar < Nfields; ++ivar)
             Unew(j, i, ivar) = 0.5 * (U0(j, i, ivar) + Unew(j, i, ivar));
         });
+    }
+    else if (full_params.time_stepping == TS_RK3) {
+      auto params = full_params.device_params;
+      Array U0  = Array("U0", params.Nty, params.Ntx, Nfields);
+      Array Us  = Array("Ustar", params.Nty, params.Ntx, Nfields);
+      Array Uss = Array("Ustarstar", params.Nty, params.Ntx, Nfields);
+
+      // Step 1
+      Kokkos::deep_copy(U0, Unew);
+      Kokkos::deep_copy(Us, Unew);
+      euler_step(Q, Unew, dt, t, GLM_ch1); // U0 -> Us
+      
+      // Step 2
+      Kokkos::deep_copy(Us, Unew);
+      consToPrim(Us, Q, full_params);
+      euler_step(Q, Unew, dt, t, GLM_ch1); // Us -> Us + dt L(Us)
+
+      Kokkos::parallel_for( // Uss <- 1/4 * (3 U0 + Us + dt L(Us))
+        "RK3 step2 correct",
+        full_params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          for (int ivar=0; ivar < Nfields; ++ivar)
+            Unew(j, i, ivar) = 0.25 * (3.0 * U0(j, i, ivar) + Unew(j, i, ivar));
+        }
+      );
+
+      // Step 3
+      Kokkos::deep_copy(Uss, Unew);
+      consToPrim(Uss, Q, full_params);
+      euler_step(Q, Unew, dt, t, GLM_ch1);
+
+      // SSP-RK3
+      Kokkos::parallel_for(
+        "RK3 Correct",
+        full_params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          for (int ivar=0; ivar < Nfields; ++ivar) 
+            Unew(j, i, ivar) = 1.0/3.0 * (U0(j, i, ivar) + 2.0 * Unew(j, i, ivar));
+        }
+      );
     }
   }
 };

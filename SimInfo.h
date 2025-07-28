@@ -89,18 +89,23 @@ enum DivCleaning {
 enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_HSE
 };
 
 enum TimeStepping {
   TS_EULER,
-  TS_RK2
+  TS_RK2,
+  TS_RK3
 };
 
 enum ReconstructionType {
   PCM,
   PCM_WB,
-  PLM
+  PLM,
+  PLM_WB,
+  WENO5,
+  CWENO4
 };
 
 enum ThermalConductivityMode {
@@ -144,6 +149,8 @@ struct DeviceParams {
   real_t smallp = 1.0e-10;
   // Thermal conduction
   
+  real_t fslp_K = 1.1;
+
   // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
@@ -176,6 +183,13 @@ struct DeviceParams {
 
   // Hot bubble
   real_t hot_bubble_g0;
+  real_t hot_bubble_x0;
+  real_t hot_bubble_y0;
+  real_t hot_bubble_r0;
+  real_t hot_bubble_A0;
+  real_t hot_bubble_amplitude;
+  real_t hot_bubble_p0;
+  bool   hot_bubble_has_bubble;
 
   // Kelvin-Helmholtz
   real_t kh_y1, kh_y2;
@@ -186,6 +200,21 @@ struct DeviceParams {
   real_t kh_amp;
   real_t kh_P0;
   
+  // Implosion
+  real_t implosion_p_in;
+  real_t implosion_p_out;
+  real_t implosion_rho_in;
+  real_t implosion_rho_out;
+  real_t implosion_x0;
+
+  // Perturbation HSE
+  bool perturbation;
+  real_t perturb_A;
+  real_t perturb_tf;
+  
+  // Gresho Vortex
+  real_t gresho_density, gresho_Mach;
+
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
@@ -221,8 +250,6 @@ struct DeviceParams {
   real_t epsilon = 1.0e-6;
   
   void init_from_inifile(INIReader &reader) {
-    
-    
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -246,14 +273,18 @@ struct DeviceParams {
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
-      {"periodic",           BC_PERIODIC}
+      {"periodic",           BC_PERIODIC},
+      {"hse",                BC_HSE}
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},
-      {"plm",    PLM}
+      {"plm",    PLM},
+      {"plm_wb", PLM_WB},
+      {"weno5",  WENO5},
+      {"cweno4", CWENO4}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
     
@@ -346,6 +377,33 @@ struct DeviceParams {
     kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
     kh_y1 = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
     kh_y2 = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
+    
+    // Gresho Vortex
+    gresho_density = reader.GetFloat("gresho_vortex", "density",  1.0);
+    gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach",     0.1);
+
+    // Hot bubble
+    hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
+    hot_bubble_x0 = reader.GetFloat("hot_bubble", "x0", 0.5);
+    hot_bubble_y0 = reader.GetFloat("hot_bubble", "y0", 0.5);
+    hot_bubble_r0 = reader.GetFloat("hot_bubble", "r0", 0.2);
+    hot_bubble_A0 = reader.GetFloat("hot_bubble", "A0", 1.0);
+    hot_bubble_amplitude = reader.GetFloat("hot_bubble", "amplitude", 1.0e-3);
+    hot_bubble_p0 = reader.GetFloat("hot_bubble", "p0", 1.0e6);
+    hot_bubble_has_bubble = reader.GetBoolean("hot_bubble", "has_bubble", true);
+
+    // Implosion
+    implosion_p_in = reader.GetFloat("implosion", "p_in", 0.2);
+    implosion_p_out = reader.GetFloat("implosion", "p_out", 1.0);
+    implosion_rho_in = reader.GetFloat("implosion", "rho_in", 0.1);
+    implosion_rho_out = reader.GetFloat("implosion", "rho_out", 1.0);
+    implosion_x0 = reader.GetFloat("implosion", "x0", 0.5);
+
+    // Perturbation HSE
+    perturbation = reader.GetBoolean("hse", "perturbation", false);
+    perturb_A = reader.GetFloat("hse", "amplitude", 0.0);
+    perturb_tf = reader.GetFloat("hse", "t_f", 1.0);
+
   }
 };
 
@@ -356,6 +414,7 @@ struct Params {
   INIReader reader;
   std::string filename_out = "run";
   std::string restart_file = "";
+  std::string init_filename;
   TimeStepping time_stepping = TS_EULER;
 
   bool multiple_outputs = false;
@@ -473,10 +532,19 @@ Params readInifile(std::string filename) {
     
   res.save_freq = res.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = res.Get("run", "output_filename", "run");
+  res.init_filename = res.Get("run", "init_filename", "profile.dat");
+
+  std::map<std::string, BoundaryType> bc_map{
+    {"reflecting",         BC_REFLECTING},
+    {"absorbing",          BC_ABSORBING},
+    {"periodic",           BC_PERIODIC},
+    {"hse",                BC_HSE}
+  };
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},
-    {"RK2",   TS_RK2}
+    {"RK2",   TS_RK2},
+    {"RK3",   TS_RK3}
   };
   res.time_stepping = read_map(res.reader, ts_map, "solvers", "time_stepping", "euler");
   res.problem = res.Get("physics", "problem", "blast");
@@ -496,9 +564,8 @@ Params readInifile(std::string filename) {
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
 
-
   return res;
-} 
+}
 }
 
 

@@ -8,3 +8,8 @@ __pycache__/
 *.xdmf
 last.ini
 *.mp4
+settings/profiles/hse/*png
+settings/profiles/hse/*ini
+settings/profiles/hse/*dat
+*~
+*#

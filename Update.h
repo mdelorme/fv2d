@@ -170,64 +170,31 @@ public:
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);
           
-          bool is_y_boundary = (j==params.jbeg || j==params.jend-1);
           // Remove mechanical flux in a well-balanced fashion
-          // if (params.well_balanced_flux_at_y_bc &&  is_y_boundary && dir == IY) {
-          //   real_t g = getGravity(i, j, dir, params);
-          //   // if (j==params.jbeg){
-          //   //   fluxL = zero_state();
-          //   //   fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
-          //   // }
-          //   else{
-          //     fluxR = zero_state();
-          //     fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
-          //   }
-          // }
-          
-          // Maintain fixed vertical magnetic field at boundaries
-          // if (is_y_boundary && dir == IY){
-          //   if (j==params.jbeg){
-          //     fluxL = zero_state();
-          //     fluxL[IBY] = params.iso3_by;
-          //   }
-          //   else{
-          //     fluxR = zero_state();
-          //     fluxR[IBY] = params.iso3_by;
-          //   }
-          // }
-
-          if (is_y_boundary) {
+          if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
             State q = getStateFromArray(Q, i, j);
+            real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg){
-              fluxL[IU]  -= q[IBX] * q[IBX];
-              fluxL[IE]  -= q[IBX] * q[IBX];
-              fluxL[IBY]  = -q[IBX] * q[IV];
-              fluxL[IBZ]  = -q[IBX] * q[IW];
-              if (dir == IY){
-                fluxL = zero_state();
-                fluxL[IBY] = params.iso3_by;
-                if (params.well_balanced_flux_at_y_bc){
-                  real_t g = getGravity(i, j, dir, params);
-                  fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
-                }
-              }
+              fluxL = zero_state();
+              fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
+              #ifdef MHD
+              fluxL[IV] -= 0.5 * q[IBY]*q[IBY];
+              fluxL[IBX] = - q[IU] * q[IBY];
+              fluxL[IBZ] = - q[IW] * q[IBY];
+              #endif // MHD
             }
-            else {
-              fluxR[IU]  -= q[IBX] * q[IBX];
-              fluxR[IE]  -= q[IBX] * q[IBX];
-              fluxR[IBY]  = -q[IBX] * q[IV];
-              fluxR[IBZ]  = -q[IBX] * q[IW];
-                if (dir == IY) {
-                  fluxR = zero_state();
-                  fluxR[IBY] = params.iso3_by;
-                  if (params.well_balanced_flux_at_y_bc){
-                    real_t g = getGravity(i, j, dir, params);
-                    fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
-                  }
-                }
+            else{
+              fluxR = zero_state();
+              fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
+              #ifdef MHD
+              fluxR[IV] -= 0.5 * q[IBY]*q[IBY];
+              fluxR[IBX] = - q[IU] * q[IBY];
+              fluxR[IBZ] = - q[IW] * q[IBY];
+              #endif
             }
           }
           
+
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 

@@ -293,7 +293,7 @@ public:
             State qL  = reconstruct(Q, slopes, weno_struct, cweno_struct, i+dxm, j+dym, 1.0, dir, params);
             State qR  = reconstruct(Q, slopes, weno_struct, cweno_struct, i+dxp, j+dyp, -1.0, dir, params);
 
-            const real_t gdx = (dir == IX ? 0.0 : getGravity(i, j, IY, params) * params.dy);
+            const real_t gdh = getGravity(i, j, dir, params) * (dir == IX ? params.dx : params.dy);
 
             // Calling the right Riemann solver
             auto riemann = [&](State qL, State qR, State &flux, int side, real_t &pout)
@@ -304,7 +304,7 @@ public:
                 hll(qL, qR, flux, pout, params);
                 break;
               case FSLP:
-                fslp(qL, qR, flux, pout, gdx, side, params);
+                fslp(qL, qR, flux, pout, gdh, side, params);
                 break;
               default:
                 hllc(qL, qR, flux, pout, params);

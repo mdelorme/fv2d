@@ -6,15 +6,17 @@ namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
 State getStateFromArray(Array arr, int i, int j) {
-  return {arr(j, i, IR),
-          arr(j, i, IU),
-          arr(j, i, IV),
-          arr(j, i, IW),
-          arr(j, i, IP),
-          arr(j, i, IBX),
-          arr(j, i, IBY),
-          arr(j, i, IBZ),
-          arr(j, i, IPSI)};
+  State res;
+  res[IR] = arr(j, i, IR);
+  res[IU] = arr(j, i, IU);
+  res[IV] = arr(j, i, IV);
+  res[IW] = arr(j, i, IW);
+  res[IP] = arr(j, i, IP);
+  res[IBX] = arr(j, i, IBX);
+  res[IBY] = arr(j, i, IBY);
+  res[IBZ] = arr(j, i, IBZ);
+  res[IPSI] = arr(j, i, IPSI);
+  return res;
 } 
 
 KOKKOS_INLINE_FUNCTION

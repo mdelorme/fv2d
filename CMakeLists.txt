@@ -13,7 +13,7 @@ include_directories(external/inih)
 add_executable(fv2d
 main.cpp)
 
-option(MHD "Compile for MHD" OFF)
+option(MHD "Compile for MHD" ON)
 if (MHD)
   add_compile_definitions(MHD)
   message(STATUS "Compiling for MHD")

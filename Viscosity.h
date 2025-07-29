@@ -33,7 +33,7 @@ public:
     : full_params(full_params) {};
   ~ViscosityFunctor() = default;
 
-  void applyViscosity(Array Q, Array Unew, real_t dt) {
+  void applyViscosity(Array Q, Array Unew, real_t dt, int ite) {
     auto params = full_params.device_params;
     const real_t dx = params.dx;
     const real_t dy = params.dy;
@@ -116,15 +116,17 @@ public:
         State vf_y = computeViscousFlux(IY);
 
         State un_loc = getStateFromArray(Unew, i, j);
-        un_loc += dt * (vf_x + vf_y);
+        un_loc[IU] += dt * (vf_x[IU] + vf_y[IU]);
+        un_loc[IV] += dt * (vf_x[IV] + vf_y[IV]);
+        un_loc[IE] += dt * (vf_x[IE] + vf_y[IE]);
 
         viscous_contrib += dt * (vf_x[IE] + vf_y[IE]);
         setStateInArray(Unew, i, j, un_loc);
 
       }, Kokkos::Sum<real_t>(total_viscous_contrib));
 
-    // if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
-    //   std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
+    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
+      std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
   }
 };
 

@@ -363,13 +363,15 @@ namespace {
   Q(j, i, IU) = 0.0;
   Q(j, i, IV) = 0.0;
   Q(j, i, IP) = p;
-  // #ifdef MHD
-  //   Q(j, i, IW)  = 0.0;
-  //   Q(j, i, IBX) = params.iso3_bx;
-  //   Q(j, i, IBY) = params.iso3_by;
-  //   Q(j, i, IBZ) = 0.0;
-  //   Q(j, i, IPSI) = 0.0;
-  //   #endif
+  #ifdef MHD
+    Q(j, i, IW)  = 0.0;
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = 0.0;
+    // // Q(j, i, IBX) = params.iso3_bx;
+    // Q(j, i, IBY) = params.iso3_by;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
+    #endif
   }
 
   

@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 
       }
 
-      update.update(Q, U, dt, GLM_ch1);
+      update.update(Q, U, dt, ite, GLM_ch1);
       consToPrim(U, Q, params);
       checkNegatives(Q, params);
 

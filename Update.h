@@ -171,28 +171,28 @@ public:
           fluxR = swap_component(fluxR, dir);
           
           // Remove mechanical flux in a well-balanced fashion
-          if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
-            State q = getStateFromArray(Q, i, j);
-            real_t g = getGravity(i, j, dir, params);
-            if (j==params.jbeg){
-              fluxL = zero_state();
-              fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
-              #ifdef MHD
-              fluxL[IV] -= 0.5 * q[IBY]*q[IBY];
-              fluxL[IBX] = - q[IU] * q[IBY];
-              fluxL[IBZ] = - q[IW] * q[IBY];
-              #endif // MHD
-            }
-            else{
-              fluxR = zero_state();
-              fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
-              #ifdef MHD
-              fluxR[IV] -= 0.5 * q[IBY]*q[IBY];
-              fluxR[IBX] = - q[IU] * q[IBY];
-              fluxR[IBZ] = - q[IW] * q[IBY];
-              #endif
-            }
-          }
+          // if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
+          //   State q = getStateFromArray(Q, i, j);
+          //   real_t g = getGravity(i, j, dir, params);
+          //   if (j==params.jbeg){
+          //     fluxL = zero_state();
+          //     fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
+          //     #ifdef MHD
+          //     fluxL[IV] -= 0.5 * q[IBY]*q[IBY];
+          //     fluxL[IBX] = - q[IU] * q[IBY];
+          //     fluxL[IBZ] = - q[IW] * q[IBY];
+          //     #endif // MHD
+          //   }
+          //   else{
+          //     fluxR = zero_state();
+          //     fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
+          //     #ifdef MHD
+          //     fluxR[IV] -= 0.5 * q[IBY]*q[IBY];
+          //     fluxR[IBX] = - q[IU] * q[IBY];
+          //     fluxR[IBZ] = - q[IW] * q[IBY];
+          //     #endif
+          //   }
+          // }
           
 
           auto un_loc = getStateFromArray(Unew, i, j);
@@ -214,7 +214,7 @@ public:
   }
   
 
-  void euler_step(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
+  void euler_step(Array Q, Array Unew, real_t dt, int ite, real_t GLM_ch1) {
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
     // Hyperbolic update
@@ -223,11 +223,11 @@ public:
     computeFluxesAndUpdate(Q, Unew, dt, GLM_ch1);
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-      tc_functor.applyThermalConduction(Q, Unew, dt);
+      tc_functor.applyThermalConduction(Q, Unew, dt, ite);
     if (full_params.device_params.viscosity_active)
-      visc_functor.applyViscosity(Q, Unew, dt);
+      visc_functor.applyViscosity(Q, Unew, dt, ite);
     if (full_params.device_params.heating_active)
-      heat_functor.applyHeating(Q, Unew, dt);
+      heat_functor.applyHeating(Q, Unew, dt, ite);
     sources_functor.applySources(Q, Unew, dt, GLM_ch1);
     // auto params = full_params.device_params;
     // Kokkos::parallel_for(
@@ -244,9 +244,9 @@ public:
   }
 
 
-  void update(Array Q, Array Unew, real_t dt, real_t GLM_ch1) {
+  void update(Array Q, Array Unew, real_t dt, int ite, real_t GLM_ch1) {
     if (full_params.time_stepping == TS_EULER)
-      euler_step(Q, Unew, dt, GLM_ch1);
+      euler_step(Q, Unew, dt, ite, GLM_ch1);
     else if (full_params.time_stepping == TS_RK2) {
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
@@ -255,11 +255,11 @@ public:
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
-      euler_step(Q, Ustar, dt, GLM_ch1);
+      euler_step(Q, Ustar, dt, ite, GLM_ch1);
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt, GLM_ch1);
+      euler_step(Q, Unew, dt, ite, GLM_ch1);
       // SSP-RK2
       Kokkos::parallel_for(
         "RK2 Correct", 

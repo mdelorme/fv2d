@@ -88,7 +88,7 @@ ext = [xmin+0.5*dx, xmax-0.5*dx, ymin+0.5*dy, ymax-0.5*dy]
 vmin, vmax = None, None
 print(f'Rendering animation for file: {cwd}/{filename} and field: {field}')
 for i in tqdm(range(Ni, Nf)):
-  print("B=", find_tri_layer_Bfield(f, i))
+  # print("B=", find_tri_layer_Bfield(f, i))
   fig, ax = plt.subplots(figsize=(12, 12))
   t = f['ite_{:04d}'.format(i)].attrs['time']
   problem = f.attrs['problem'].title().replace('_', ' ')

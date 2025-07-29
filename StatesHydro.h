@@ -4,10 +4,12 @@ namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
 State getStateFromArray(Array arr, int i, int j) {
-  return {arr(j, i, IR),
-          arr(j, i, IU),
-          arr(j, i, IV),
-          arr(j, i, IP)};
+  State res{};
+  res[IR] = arr(j, i, IR);
+  res[IU] = arr(j, i, IU);
+  res[IV] = arr(j, i, IV);
+  res[IE] = arr(j, i, IP);
+  return res;
 } 
 
 KOKKOS_INLINE_FUNCTION
@@ -110,8 +112,14 @@ KOKKOS_INLINE_FUNCTION
 State swap_component(State &q, IDir dir) {
   if (dir == IX)
     return q;
-  else
-    return {q[IR], q[IV], q[IU], q[IP]};
+  else{
+    State qs;
+    qs[IR] = q[IR];
+    qs[IU] = q[IV];
+    qs[IV] = q[IU];
+    qs[IP] = q[IP];
+    return qs;
+  }
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -119,12 +127,12 @@ State computeFlux(State &q, const DeviceParams &params) {
   const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
   const real_t E = (q[IP] / (params.gamma0-1.0) + Ek);
 
-  State fout {
-    q[IR]*q[IU],
-    q[IR]*q[IU]*q[IU] + q[IP],
-    q[IR]*q[IU]*q[IV],
-    (q[IP] + E) * q[IU]
-  };
+  State fout {};
+
+  fout[IR] = q[IR]*q[IU];
+  fout[IU] = q[IR]*q[IU]*q[IU] + q[IP];
+  fout[IV] = q[IR]*q[IU]*q[IV];
+  fout[IE] = (q[IP] + E) * q[IU];
 
   return fout;
 }

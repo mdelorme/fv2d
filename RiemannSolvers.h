@@ -23,15 +23,14 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const DeviceParams &pa
     const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
     const real_t E = (q[IP] / (params.gamma0-1.0) + Ek);
 
-    State fout {
-      q[IR]*q[IU],
-      q[IR]*q[IU]*q[IU] + q[IP],
-      q[IR]*q[IU]*q[IV],
-      (q[IP] + E) * q[IU]
-    };
+    State fout{};
 
+    fout[IR] = q[IR]*q[IU];
+    fout[IU] = q[IR]*q[IU]*q[IU] + q[IP];
+    fout[IV] = q[IR]*q[IU]*q[IV];
+    fout[IE] = (q[IP] + E) * q[IU];
     return fout;
-  };
+    };
 
   State FL = computeFlux(qL, params);
   State FR = computeFlux(qR, params);
@@ -353,7 +352,6 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
 
 KOKKOS_INLINE_FUNCTION
 void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params) {
-  const uint IZ = 2;
   constexpr real_t epsilon = 1.0e-16;
   const real_t B2L = qL[IBX]*qL[IBX] + qL[IBY]*qL[IBY] + qL[IBZ]*qL[IBZ];
   const real_t B2R = qR[IBX]*qR[IBX] + qR[IBY]*qR[IBY] + qR[IBZ]*qR[IBZ];

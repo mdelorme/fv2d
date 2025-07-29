@@ -21,8 +21,17 @@ State getStateFromArray(Array arr, int i, int j) {
 
 KOKKOS_INLINE_FUNCTION
 void setStateInArray(Array arr, int i, int j, State st) {
-  for (int ivar=0; ivar < Nfields; ++ivar)
-  arr(j, i, ivar) = st[ivar];
+  // for (int ivar=0; ivar < Nfields; ++ivar)
+  // arr(j, i, ivar) = st[ivar];
+  arr(j, i, IR) = st[IR];
+  arr(j, i, IU) = st[IU];
+  arr(j, i, IV) = st[IV];
+  arr(j, i, IW) = st[IW];
+  arr(j, i, IP) = st[IP];
+  arr(j, i, IBX) = st[IBX];
+  arr(j, i, IBY) = st[IBY];
+  arr(j, i, IBZ) = st[IBZ];
+  arr(j, i, IPSI) = st[IPSI];
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -42,10 +51,10 @@ State primToCons(State &q, const DeviceParams &params) {
   res[IV] = q[IR]*q[IV];
   res[IW] = q[IR]*q[IW];
   
-  real_t Ek = 0.5 * q[IR] * (q[IU]*q[IU] + q[IV]*q[IV] + q[IW]*q[IW]);
+  real_t Ek = 0.5 * (res[IU]*res[IU] + res[IV]*res[IV] + res[IW]*res[IW]) / q[IR];
   real_t Em = 0.5 * (q[IBX]*q[IBX] + q[IBY]*q[IBY] + q[IBZ]*q[IBZ]);
   real_t Epsi = (params.riemann_solver==IDEALGLM ? 0.5*q[IPSI]*q[IPSI] : 0.0);
-  res[IE] = Ek + Em + Epsi + q[IP] / (params.gamma0-1.0);
+  res[IE] = (Ek + q[IP] / (params.gamma0-1.0) + Em + Epsi);
   res[IBX] = q[IBX];
   res[IBY] = q[IBY];
   res[IBZ] = q[IBZ];
@@ -186,8 +195,20 @@ real_t ComputeGlobalDivergenceSpeed(Array Q, const Params &full_params) {
   State swap_component(State &q, IDir dir) {
     if (dir == IX)
     return q;
-    else
-    return {q[IR], q[IV], q[IU], q[IW], q[IP], q[IBY], q[IBX], q[IBZ], q[IPSI]};
+    else {
+      State qs;
+
+      qs[IR] = q[IR];
+      qs[IU] = q[IV];
+      qs[IV] = q[IU];
+      qs[IW] = q[IW];
+      qs[IP] = q[IP];
+      qs[IBX] = q[IBY]; 
+      qs[IBY] = q[IBX];
+      qs[IBZ] = q[IBZ];
+      qs[IPSI] = q[IPSI];
+      return qs;
+    }
   }
 
 KOKKOS_INLINE_FUNCTION

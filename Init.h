@@ -476,6 +476,7 @@ namespace {
     Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }
+  #endif // MHD
 
   /**
    * @brief Lax-Liu config #13 setup
@@ -750,7 +751,7 @@ public:
     : full_params(full_params) {
     std::map<std::string, InitType> init_map {
       {"sod_x", SOD_X},
-      {"sod_x_inverse", SOD_X_INVERSE},
+     // {"sod_x_inverse", SOD_X_INVERSE},
       {"sod_y", SOD_Y},
       {"blast", BLAST},
       {"hot_bubble", HOT_BUBBLE},
@@ -803,12 +804,12 @@ public:
                               case HOT_BUBBLE:      initHotBubble(Q, i, j, params); break;
                               case RAYLEIGH_TAYLOR: initRayleighTaylor(Q, i, j, params); break;
                               case H84:             initH84(Q, i, j, params, random_pool); break;
-                              case C91:             initC91(Q, i, j, params, random_pool); break;
+                              
                               #ifdef MHD
                               case MHD_SOD_X:       initMHDSodX(Q, i, j, params); break;
                               case MHD_SOD_Y:       initMHDSodY(Q, i, j, params); break;
                               case ORSZAG_TANG:     initOrszagTang(Q, i, j, params); break;
-                              case KELVIN_HELMOLTZ: initKelvinHelmoltz(Q, i, j, params, random_pool); break;
+                              //case KELVIN_HELMOLTZ: initKelvinHelmoltz(Q, i, j, params, random_pool); break;
                               case DAI_WOODWARD:    initDaiWoodward(Q, i, j, params); break;
                               case BRIO_WU2:        initBrioWu2(Q, i, j, params); break;
                               case SLOW_RAREFACTION: initSlowRarefaction(Q, i, j, params); break;
@@ -816,12 +817,13 @@ public:
                               case EXPANSION2:      initExpansion2(Q, i, j, params); break;
                               case SHU_OSHER:       initShuOsher(Q, i, j, params); break;
                               case ARTIFICIAL_NON_ZERO_DIVB: initArtificialNonZeroDivB(Q, i, j, params); break;
-                              case BlAST_MHD_STANDARD: initBlastMHDStandard(Q, i, j, params); break;
-                              case BlAST_MHD_LOW_BETA: initBlastMHDLowBeta(Q, i, j, params); break;
-                              case ROTATED_SHOCK_TUBE: initRotatedShockTube(Q, i, j, params); break;
-                              case MHD_ROTOR:       initMHDRotor(Q, i, j, params); break;
-                              case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
+                              //case BlAST_MHD_STANDARD: initBlastMHDStandard(Q, i, j, params); break;
+                              //case BlAST_MHD_LOW_BETA: initBlastMHDLowBeta(Q, i, j, params); break;
+                              //case ROTATED_SHOCK_TUBE: initRotatedShockTube(Q, i, j, params); break;
+                              //case MHD_ROTOR:       initMHDRotor(Q, i, j, params); break;
+                              //case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
                               #endif //MHD
+                              case C91:             initC91(Q, i, j, params, random_pool); break;
                             }
                           });
                           

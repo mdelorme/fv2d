@@ -27,7 +27,7 @@ public:
                               // Traditional Hydro time-step
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
-                              real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dy;
+                              inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dy;
                               if (mhd_run) // In this case, we compute the MHD time-step below.
                                 inv_dt_hyp_loc = 0.0; 
 

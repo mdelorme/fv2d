@@ -113,7 +113,7 @@ public:
     File file(h5_filename, File::Truncate);
     FILE* xdmf_fd = fopen(xmf_filename.c_str(), "w+");
     BoundaryManager bc(params);
-    bc.fillBoundaries(Q);
+    bc.fillBoundaries(Q, t);
 
     file.createAttribute("Ntx",  device_params.Ntx);
     file.createAttribute("Nty",  device_params.Nty);
@@ -223,7 +223,7 @@ public:
     File file(params.filename_out + ".h5", flag_h5);
     FILE* xdmf_fd = fopen((params.filename_out + ".xdmf").c_str(), flag_xdmf);
     BoundaryManager bc(params);
-    bc.fillBoundaries(Q);
+    bc.fillBoundaries(Q, t);
 
     if (iteration == 0) {
       file.createAttribute("Ntx",  device_params.Ntx);

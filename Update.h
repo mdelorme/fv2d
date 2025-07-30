@@ -363,8 +363,8 @@ public:
           State fluxL, fluxR;
           real_t poutL, poutR;
 
-          riemann(qL, qCL, fluxL, -1, poutL);
-          riemann(qCR, qR, fluxR,  1, poutR);
+          riemann(qL, qCL, fluxL, poutL);
+          riemann(qCR, qR, fluxR, poutR);
 
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);

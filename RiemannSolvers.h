@@ -413,12 +413,12 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   if (Ustar[IX] > 0.0) {
     q = qL;
     Bstar = qR[IBX];
-    pout = qL[IP];
+    // pout = qL[IP];
   }
   else {
     q = qR;
     Bstar = qL[IBX];
-    pout = qR[IP];
+    // pout = qR[IP];
   }
   const real_t beta_min = 1.0e-3;
   const real_t alfven_max = 10.0;
@@ -437,11 +437,13 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
     flux[IBX] = u[IBX] * uS - q[IBX] * Ustar[IX];
     flux[IBY] = u[IBY] * uS - q[IBX] * Ustar[IY];
     flux[IBZ] = u[IBZ] * uS - q[IBX] * Ustar[IZ];
+    pout = Pstar[IX] - getMagneticPressure(Vect{q[IBX], q[IBY], q[IBZ]});
   }
   else {
     flux[IBX] = u[IBX] * uS - Bstar * Ustar[IX];
     flux[IBY] = u[IBY] * uS - Bstar * Ustar[IY];
     flux[IBZ] = u[IBZ] * uS - Bstar * Ustar[IZ];
+    pout = Pstar[IX] - getMagneticPressure(Vect{Bstar, q[IBY], q[IBZ]});
   }
   flux[IPSI] = 0.0;
   // pout = Pstar[IX];

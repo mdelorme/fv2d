@@ -274,4 +274,10 @@ State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params) {
   res[IPSI] = 2.0 * (betaR*qR[IPSI] - betaL*qL[IPSI]);
   return res;
 }
+
+KOKKOS_INLINE_FUNCTION
+real_t getMagneticPressure(const Vect B) {
+  return 0.5 * (B[IX]*B[IX] + B[IY]*B[IY] + B[IZ]*B[IZ]);
+}
+
 }

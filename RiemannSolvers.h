@@ -182,8 +182,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   const real_t uS = (rCR*uR + rCL*uL - pTR + pTL) / (rCR+rCL);
   
   // Single Star state
-  const real_t pTS = (rCR*pTL + rCL*pTR - rCR*rCL*(uR-uL)) / (rCR+rCL); 
-  const real_t pS  = (rCR*pL+rCL*pR+rCL*rCR*(uL-uR))/(rCR+rCL); // Gas pressure
+  const real_t pTS = (rCR*pTL + rCL*pTR - rCR*rCL*(uR-uL)) / (rCR+rCL);
 
   // Single star densities
   const real_t rLS = rL * (SL-uL)/(SL-uS);
@@ -294,7 +293,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP] = pTS;
     e_tot = ELS;
 
-    p_gas_out = pS;
+    p_gas_out = pTS - getMagneticPressure(Vect{Bx, ByLS, BzLS});
   }
   else if (uS > 0.0) { // qL**
     q[IR] = rLS;
@@ -308,7 +307,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP]   = pTS;
     e_tot = ELSS;
 
-    p_gas_out = pS;
+    p_gas_out = pTS - getMagneticPressure(Vect{Bx, BySS, BzSS});
   }
   else if (SRS > 0.0) { // qR**
     q[IR] = rRS;
@@ -322,7 +321,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP]   = pTS;
     e_tot = ERSS;
 
-    p_gas_out = pS;
+    p_gas_out = pTS - getMagneticPressure(Vect{Bx, BySS, BzSS});
   }
   else if (SR > 0.0) { // qR*
     q[IR] = rRS;
@@ -336,7 +335,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP] = pTS;
     e_tot = ERS;
 
-    p_gas_out = pS;
+    p_gas_out = pTS - getMagneticPressure(Vect{Bx, ByRS, BzRS});
   }
   else { // SR < 0.0; qR
     q = qR;

@@ -117,19 +117,18 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &p
     E = ER;
     pout = pR;
   }
-
+  flux = zero_state();
   flux[IR] = st[IR]*st[IU];
   flux[IU] = st[IR]*st[IU]*st[IU]+st[IP];
   flux[IV] = flux[IR]*st[IV];
   flux[IE] = (E + st[IP])*st[IU];
-
-  #ifdef MHD
-  flux[IW] = 0.0;
-  flux[IBX] = 0.0;
-  flux[IBY] = 0.0;
-  flux[IBZ] = 0.0;
-  flux[IPSI] = 0.0;
-  #endif
+  // #ifdef MHD
+  //   flux[IW] = 0.0;
+  //   flux[IBX] = 0.0;
+  //   flux[IBY] = 0.0;
+  //   flux[IBZ] = 0.0;
+  //   flux[IPSI] = 0.0;
+  // #endif //MHD
 }
 
 #ifdef MHD
@@ -202,7 +201,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   real_t vLS, vRS, wLS, wRS, ByLS, ByRS, BzLS, BzRS;
 
   // Switching to two state on the left ?
-  if (std::abs(econvL) < smalle*Bx*Bx) {
+  if (fabs(econvL) < smalle*Bx*Bx) {
     vLS = vL;
     wLS = wL;
     ByLS = ByL;
@@ -216,7 +215,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   }
 
   // Switching to two state on the right ?
-  if (std::abs(econvR) < smalle*Bx*Bx) {
+  if (fabs(econvR) < smalle*Bx*Bx) {
     vRS  = vR;
     wRS  = wR;
     ByRS = ByR;

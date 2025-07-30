@@ -123,6 +123,14 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &p
   flux[IU] = st[IR]*st[IU]*st[IU]+st[IP];
   flux[IV] = flux[IR]*st[IV];
   flux[IE] = (E + st[IP])*st[IU];
+
+  #ifdef MHD
+  flux[IW] = 0.0;
+  flux[IBX] = 0.0;
+  flux[IBY] = 0.0;
+  flux[IBZ] = 0.0;
+  flux[IPSI] = 0.0;
+  #endif
 }
 
 #ifdef MHD
@@ -177,6 +185,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
   
   // Single Star state
   const real_t pTS = (rCR*pTL + rCL*pTR - rCR*rCL*(uR-uL)) / (rCR+rCL); 
+  const real_t pS  = (rCR*pL+rCL*pR+rCL*rCR*(uL-uR))/(rCR+rCL); // Gas pressure
 
   // Single star densities
   const real_t rLS = rL * (SL-uL)/(SL-uS);
@@ -287,7 +296,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP] = pTS;
     e_tot = ELS;
 
-    p_gas_out = qL[IP];
+    p_gas_out = pS;
   }
   else if (uS > 0.0) { // qL**
     q[IR] = rLS;
@@ -301,7 +310,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP]   = pTS;
     e_tot = ELSS;
 
-    p_gas_out = qL[IP];
+    p_gas_out = pS;
   }
   else if (SRS > 0.0) { // qR**
     q[IR] = rRS;
@@ -315,7 +324,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP]   = pTS;
     e_tot = ERSS;
 
-    p_gas_out = qR[IP];
+    p_gas_out = pS;
   }
   else if (SR > 0.0) { // qR*
     q[IR] = rRS;
@@ -329,7 +338,7 @@ void hlld(State &qL, State &qR, State &flux, real_t &p_gas_out, const real_t Bx,
     q[IP] = pTS;
     e_tot = ERS;
 
-    p_gas_out = qR[IP];
+    p_gas_out = pS;
   }
   else { // SR < 0.0; qR
     q = qR;

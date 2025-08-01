@@ -100,6 +100,38 @@ namespace fv2d {
     else
       return fillAbsorbing(Q, iref, jref);
   }
+
+  KOKKOS_INLINE_FUNCTION
+  State getNormalMagFieldAndFlux(State u, State &flux, real_t ch, IDir dir, const DeviceParams &params) {
+    // Assume we're at the y_min or y_max boundary
+    if (dir == IX) {
+      return u;
+    }
+    
+    State q = consToPrim(u, params);
+    q[IBX] = 0.0;
+    q[IBY] = params.iso3_by;
+    q[IBZ] = 0.0;
+    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
+      q[IPSI] = 0.0;
+      // We can also recompute the flux
+    const real_t udotB = q[IBX]*q[IU] + q[IBY]*q[IV] + q[IBZ]*q[IW];
+    // Magnetic flux
+    flux[IBX] = q[IBX] * q[IV] - q[IBY] * q[IU];
+    flux[IBY] = q[IBY] * q[IV] - q[IBY] * q[IV];
+    flux[IBZ] = q[IBZ] * q[IV] - q[IBY] * q[IW];
+
+    // Modification of the hydro flux
+    const real_t pmag = getMagneticPressure({q[IBX], q[IBY], q[IBZ]});
+    flux[IU] -= q[IBY] * q[IBX];
+    flux[IV] -= q[IBY] * q[IBY] - pmag;
+    flux[IW] -= q[IBY] * q[IBZ];
+    flux[IE] -= q[IBY] * udotB - q[IV] * pmag;
+
+    // GLM Flux
+    flux[IBY] += ch*ch * q[IPSI];
+    return primToCons(q, params); // Important point as it recomputes the total energy !
+  }
 } // anonymous namespace
 
 

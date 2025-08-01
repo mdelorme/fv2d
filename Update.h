@@ -173,27 +173,14 @@ public:
           
           // Remove mechanical flux in a well-balanced fashion
           if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
-            State q = getStateFromArray(Q, i, j);
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg){
               fluxL = zero_state();
               fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
-              // printf("poutR = %f\n", poutR);
-              #ifdef MHD
-              fluxL[IV] -= 0.5 * q[IBY]*q[IBY];
-              fluxL[IBX] = - q[IU] * q[IBY];
-              fluxL[IBZ] = - q[IW] * q[IBY];
-              #endif // MHD
             }
             else{
               fluxR = zero_state();
               fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
-              // printf("poutL = %f\n", poutL); 
-              #ifdef MHD
-              fluxR[IV] -= 0.5 * q[IBY]*q[IBY];
-              fluxR[IBX] = - q[IU] * q[IBY];
-              fluxR[IBZ] = - q[IW] * q[IBY];
-              #endif
             }
           }
           
@@ -206,6 +193,10 @@ public:
             un_loc[IV] += dt * Q(j, i, IR) * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
+          if (j==params.jbeg) 
+            un_loc = getNormalMagFieldAndFlux(un_loc, fluxL, ch_dedner, dir, params);
+          if (j==params.jend-1)
+            un_loc = getNormalMagFieldAndFlux(un_loc, fluxR, ch_dedner, dir, params);
           setStateInArray(Unew, i, j, un_loc);
         };
 

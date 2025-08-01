@@ -26,14 +26,15 @@ if no_rewrite:
       start_ite = max(start_ite, ite+1)
 
 
-f = h5py.File('run_bak.h5', 'r')
+f = h5py.File('/local/home/lb281911/runs/THREE_LAYER/test_mhd.h5', 'r')
+print(os.listdir('/local/home/lb281911/runs/THREE_LAYER'))
 Nf = len(f)-2
 
 x = np.array(f['x'])
 y = np.array(f['y'])
 dy = y[1]-y[0]
-Nx = x.shape[0]
-Ny = y.shape[0]
+Nx = int(f.attrs['Nx'])
+Ny = int(f.attrs['Ny'])
 g = 20.0
 y1 = 1.5
 y2 = 2.5
@@ -67,7 +68,7 @@ def get_array(field, ite):
     dP = (prs[2:,:] - prs[:-2,:]) / (2.0 * dy)
     return dP - rho[1:-1,:]*g
   else:
-    path = f'ite_{ite}/{field}'
+    path = f'ite_{ite:04d}/{field}'
     return np.array(f[path]).reshape((Ny, Nx))
 
 def plot_field(field, cax, i, clim=None, cmap='viridis'):

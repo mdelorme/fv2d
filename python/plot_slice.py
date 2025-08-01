@@ -5,6 +5,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import argparse
+
 from fv2d_utils import latexify, get_quantity
 
 # Suppression et création du répertoire de rendu
@@ -15,58 +17,52 @@ os.mkdir('render')
 # Paramètres
 show_grid = False
 
-field = 'rho'
-if '--field' in sys.argv:
-    i = sys.argv.index('--field')
-    field = sys.argv[i+1]
+parser = argparse.ArgumentParser()
 
-solvers = ['']
-if '--solver' in sys.argv:
-    i = sys.argv.index('--solver')
-    solvers = [sys.argv[i+1]]
+parser.add_argument("-f", "--file",
+                    nargs='+',
+                    # type='checkpath',
+                    required=True, 
+                    help="Path of the `.h5` file to plot."
+                    )
 
-yslice = None
-if '--yslice' in sys.argv:
-    i = sys.argv.index('--yslice')
-    if i+1 >= len(sys.argv):
-        print('[ERROR] Please provide a y-slice index after --yslice')
-        sys.exit(1)
-    yslice = float(sys.argv[i+1])
+parser.add_argument('-s', "--solver",
+                    # default=[" "],
+                    # nargs='*',
+                    help="Solver associated with the `.h5`file."
+                    )
 
-xslice = None
-if '--xslice' in sys.argv:
-    i = sys.argv.index('--xslice')
-    if i+1 >= len(sys.argv):
-        print('[ERROR] Please provide an x-slice index after --xslice')
-        sys.exit(1)
-    xslice = float(sys.argv[i+1])
+parser.add_argument('-t', '--field',
+                    choices=latexify.keys(),
+                    default="rho",
+                    metavar="FIELD",
+                    help="Field to plot."
+                    )
 
-if '--file' in sys.argv:
-    i = sys.argv.index('--file')
-    if i+1 >= len(sys.argv):
-        print('[ERROR] Please provide a filename after --file')
-        sys.exit(1)
-    filenames = [sys.argv[i+1]]
-elif '--files' in sys.argv:
-    i = sys.argv.index('--files')
+parser.add_argument('-y', '--yslice',
+                    type=float,
+                    help="Y-slice index to plot. If not provided, the middle y-slice will be used.",
+                    default=None
+                    )
 
-    if i+1 >= len(sys.argv):
-        print('[ERROR] Please provide a list of filenames after --files')
-        sys.exit(1)
+parser.add_argument("-x", "--xslice",
+                    type=float,
+                    help="X-slice index to plot. If not provided, the middle x-slice will be used.",
+                    default=None
+                    )
 
-    if "--solvers" not in sys.argv:
-        print('[ERROR] Please provide a list of solvers after --solvers for each file.')
-        sys.exit(1)
+args = parser.parse_args()
 
-    filenames = sys.argv[i+1].split(',')
-    solvers = sys.argv[sys.argv.index('--solvers') + 1].split(',')
-    if not all(os.path.exists(fn) for fn in filenames):
-        print(f'[ERROR] One or more files in {filenames} do not exist.')
-        sys.exit(1)
-else:
-    print('[ERROR] Please provide a file using --file or --files option.')
-    sys.exit(1)
+xslice = args.xslice
+yslice = args.yslice
+solvers = args.solver
+field = args.field
 
+if args.xslice and args.yslice:
+    print("[ERROR] Please select --xslice or --yslice but not both.") # TODO: utiliser les groupes exclusifs
+    sys.exit(0)
+
+filenames = args.file
 with h5py.File(filenames[0], 'r') as f:
     # on suppose que tous les fichiers ont le même pas de temps
     Nf = len(f) - 2
@@ -85,7 +81,6 @@ with h5py.File(filenames[0], 'r') as f:
     dx = x[1] - x[0]
     dy = y[1] - y[0]
     ext = [xmin - 0.5*dx, xmax + 0.5*dx, ymin - 0.5*dy, ymax + 0.5*dy]
-# print(x)
 
 def find_index_closest(array, value):
     idx = (np.abs(array - value)).argmin()
@@ -93,15 +88,21 @@ def find_index_closest(array, value):
 
 if yslice:
     y = y.reshape((Nx+1, Ny+1)) #access all the y values at x=0
-    idx = find_index_closest(y[0, :], yslice)
-x_slice = x[:Nx]
+    idxY = find_index_closest(y[0, :], yslice)
+    x = x[:Nx]
+if xslice:
+    x = x.reshape((Nx+1, Ny+1)) #access all the x values at y=0
+    print(x)
+    idxX = find_index_closest(x[:, 0], xslice) - 1
+    y = y[:Ny]
 
 # Fonction pour tracer les champs
 def plot_field(field, cax, i, filename, solver):
     with h5py.File(filename, 'r') as f:
         path = f'ite_{i:04d}/{field}'
         arr =  get_quantity(f, i, field)
-        y_slice = arr[Ny//2, :] if yslice is None else arr[idx, :]
+        y_slice = arr[Ny//2, :] if yslice is None else arr[idxY, :]
+        x_slice = x[:Nx] if xslice is None else arr[:, idxX]
         cax.plot(x_slice, y_slice, label=solver)
         cax.set_xlabel(r'$x$')
         cax.set_xlim((xmin-dx, xmax+dx))

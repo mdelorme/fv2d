@@ -48,16 +48,18 @@ dx = x[1]-x[0]
 dy = y[1]-y[0]
 
 ext = [xmin-0.5*dx, xmax+0.5*dx, ymin-0.5*dy, ymax+0.5*dy]
-
-is_mhd = True if 'bx' in f['ite_0000'] else False
+# Dtermine if we have one unique time step or all of them in the same file
+is_multiple = True if 'ite_0000' in f else False # long boolean expression for clarity
+if not is_multiple:
+  Nf = 1
+print(f"Multiple ? {is_multiple=}")
+is_mhd = True if ((is_multiple and 'bx' in f['ite_0000']) or (not is_multiple and 'bx' in f)) else False
 
 def plot_field(field, cax, i):
-  path = f'ite_{i:04d}/{field}'
+  path = f'ite_{i:04d}/{field}' if is_multiple else str(field)
   arr = np.array(f[path]).reshape((Ny, Nx))
   legend = latexify[field]
-  # if field == 'bz': # for the loop advection i want to check the mag field intensity
-  #   arr = np.sqrt(np.array(f[f'ite_{i:04d}/bx'])**2 + np.array(f[f'ite_{i:04d}/by'])**2)
-  #   legend = r'$\sqrt{B_x^2 + B_y^2}$'
+
   cax.imshow(arr, extent=ext, origin='lower')
   cax.set_title(legend)
 
@@ -75,7 +77,8 @@ def plot_field(field, cax, i):
 print(f'Rendering animation for file: {cwd}/{filename}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(3, 3, figsize=(12, 12)) if is_mhd else plt.subplots(2, 2, figsize=(10, 10))
-  t = f['ite_{:04d}'.format(i)].attrs['time']
+  t = f['ite_{:04d}'.format(i)].attrs['time'] if is_multiple else f.attrs['time']
+  i = i if is_multiple else -1
   problem = f.attrs['problem'].title().replace('_', ' ')
   plt.suptitle(rf'{problem} - Time: {t:.3f} - $N_x={Nx} \times N_y={Ny}$')
   plot_field('rho', ax[0,0], i)
@@ -88,6 +91,7 @@ for i in tqdm(range(Nf)):
     plot_field('bz', ax[2,2], i)
     plot_field('psi', ax[2,0], i)
     plot_field('divB', ax[2,1], i)
-
+  plt.subplots_adjust(wspace=0.1, hspace=0.01)
+  plt.tight_layout()
   plt.savefig('render/img_{:04}.png'.format(i))
   plt.close('all')

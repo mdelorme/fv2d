@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--file", nargs='+', required=True, help="Path of the `.h5` file(s) to plot.")
 parser.add_argument('-s', "--solver", help="Solver associated with the `.h5` file(s).")
 parser.add_argument("-t", "--field", choices=latexify.keys(), default="rho", metavar="FIELD", help="Field to plot.")
-parser.add_argument('-c', '--colormap', choices=list(colormaps)[:10], default='plasma', help="Matplotlib colormap")
+parser.add_argument('-c', '--colormap', choices=list(colormaps), default='plasma', help="Matplotlib colormap")
 parser.add_argument("-i", "--init", type=int, default=0, help="Which iteration to start from.")
 parser.add_argument("-l", "--last", type=int, default=-1, help="Which iteration to end at.")
 parser.add_argument('--flipy', action='store_true', help="Flip the y-axis (useful for some simulations).")
@@ -68,7 +68,7 @@ for filename in file_iterator:
 
         for i in time_iterator:
             if i % args.fps == 0:
-                fig, ax = plt.subplots(figsize=(12, 12))
+                fig, ax = plt.subplots(figsize=(16, 8))
                 t = f[f'ite_{i:04d}'].attrs['time'] if is_multiple else f.attrs['time']
                 problem = f.attrs['problem'].title().replace('_', ' ')
                 plt.suptitle(f'{problem} (solver: {solver}) - t={t:.3f} - {Nx=}, {Ny=}')
@@ -77,7 +77,7 @@ for filename in file_iterator:
                 im = ax.imshow(arr, extent=ext, origin='lower', cmap=args.colormap, aspect='auto')
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size="5%", pad=0.05)
-                plt.colorbar(im, cax=cax)
+                plt.colorbar(im, cax=cax, boundaries=(-0.006, 0.006))
                 ax.set_title(latexify[field])
 
                 if show_grid:

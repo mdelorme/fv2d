@@ -1,8 +1,6 @@
 #pragma once
 
 #include <highfive/H5Easy.hpp>
-#include <ostream>
-#include <iomanip>
 #include <filesystem>
 
 #include "SimInfo.h"
@@ -12,75 +10,149 @@ using namespace H5Easy;
 namespace fv2d {
 
 constexpr int ite_nzeros = 4;
-constexpr std::string_view ite_prefix = "ite_";
+
+consteval auto io_entry(std::string_view name, auto... ivars) { return std::make_pair(name, std::to_array({ ivars... })); }
+
+// register output variables : name & indices
+constexpr auto io_variables = std::make_tuple(
+  io_entry("rho",      IR),
+  io_entry("velocity", IU, IV),
+  io_entry("prs",      IP)
+);
 
   // xdmf strings
 namespace {
-  char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
-<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" [
-<!ENTITY file "%s:">
-<!ENTITY fdim "%d %d">
-<!ENTITY gdim "%d %d">
-<!ENTITY GridEntity '
-<Topology TopologyType="Quadrilateral" NodesPerElement="4" NumberOfElements="&fdim;">
-  <DataItem Dimensions="&fdim; 4" NumberType="UInt" Precision="4" Format="HDF">&file;/connectivity</DataItem>
-</Topology>
-<Geometry GeometryType="XY">
-  <DataItem Dimensions="&gdim; 2" NumberType="Float" Precision="8" Format="HDF">&file;/coordinates</DataItem>
-</Geometry>'>
-]>
-<Xdmf Version="3.0">
-<Domain>
-  <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
-    )xml";
-  #define format_xdmf_header(params, filename) \
-          (filename).c_str(),                  \
-          params.Ny,     params.Nx,            \
-          params.Ny + 1, params.Nx + 1
-  char str_xdmf_footer[] =
-  R"xml(
+constexpr std::string_view str_xdmf_footer_unique = R"xml(</Grid>
+</Domain>
+</Xdmf>)xml";
+constexpr std::string_view str_xdmf_main_footer = R"xml(
   </Grid>
 </Domain>
 </Xdmf>)xml";
-
-  char str_xdmf_ite_header[] =
-  R"xml(
-    <Grid Name="%s" GridType="Uniform">
-      <Time Value="%.12lg" />
-      &GridEntity;)xml";
-  #define format_xdmf_ite_header(name, time) \
-          (name).c_str(), time
-  char str_xdmf_scalar_field[] =
-  R"xml(
-      <Attribute Name="%s" AttributeType="Scalar" Center="Cell">
-        <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
-      </Attribute>)xml";
-  #define format_xdmf_scalar_field(group, field) \
-          field, (group).c_str(), field
-  char str_xdmf_vector_field[] =
-  R"xml(
-      <Attribute Name="%s" AttributeType="Vector" Center="Cell">
-        <DataItem Dimensions="&fdim; 2" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
-      </Attribute>)xml";
-  #define format_xdmf_vector_field(group, field) \
-          field, (group).c_str(), field
-  char str_xdmf_ite_footer[] =
-  R"xml(
-    </Grid>
-    )xml";
-  } // anonymous namespace
+}
 
 class IOManager {
-  using Table = std::vector<real_t>;
-  using Table2 = std::vector<std::array<real_t, 2>>;
+  template<std::size_t N>
+  using Table = std::vector<std::array<real_t, N>>;
+
+  template<std::size_t I, typename F, typename... Tuples>
+  constexpr void call_index(F&& func, Tuples&&... tuples) {
+    std::invoke(std::forward<F>(func), std::get<I>(std::forward<Tuples>(tuples))...);
+  }
+
+  template<typename F, typename... Tuples, std::size_t... I>
+  constexpr void for_each_tuples_aux(F&& func, std::index_sequence<I...>, Tuples&&... tuples) {
+    ( (call_index<I>(std::forward<F>(func), std::forward<Tuples>(tuples)...)), ... );
+  }
+
+  template<typename F, typename... Tuples>
+  constexpr void for_each_tuples(F&& func, Tuples&&... tuples) {
+    using FirstTuple = std::remove_reference_t<std::tuple_element_t<0, std::tuple<Tuples...>>>;
+    constexpr std::size_t N = std::tuple_size_v<FirstTuple>;
+    for_each_tuples_aux(std::forward<F>(func), std::make_index_sequence<N>{}, std::forward<Tuples>(tuples)...);
+  }
+
+  template<std::size_t... I>
+  constexpr auto make_tables_aux(std::index_sequence<I...>) {
+    using Tabs = std::tuple<Table<std::tuple_size_v<decltype(std::get<I>(io_variables).second)>>...>;
+    Tabs tabs;
+    return tabs;
+  } 
+
+  auto make_tables() {
+    const std::size_t capacity = device_params.Nx * device_params.Ny;
+    constexpr std::size_t N = std::tuple_size_v<decltype(io_variables)>;
+    auto tabs{make_tables_aux(std::make_index_sequence<N>{})};
+    std::apply([capacity](auto&... vec){ (vec.reserve(capacity), ...) ;}, tabs);
+    return tabs;
+  }
+
+  template<std::size_t... I>
+  constexpr auto tuple_repeat(std::index_sequence<I...>, const auto&... t) {
+    return std::tuple_cat((static_cast<void>(I), std::make_tuple(t...))...);
+  } 
+
+  auto get_xdmf_format_tuple(const char* grid_name, real_t time, const char* file, const char* group) {
+    constexpr std::size_t N = std::tuple_size_v<decltype(io_variables)>;
+    const auto head = std::make_tuple(xdmf_str.c_str(), grid_name, time, file, file);
+    const auto tail = tuple_repeat(std::make_index_sequence<N>{}, file, group);
+    return std::tuple_cat(head, tail);
+  }
+
+  std::string format_string(auto&&... args) {
+    const int buf_size = std::snprintf(nullptr, 0, args...);
+    std::vector<char> buf(buf_size + 1);
+    std::snprintf(buf.data(), buf_size+1, args...);
+    return std::string(buf.data(), buf_size);
+  }
+  
+  template<typename... T> // overload for tuple
+  std::string format_string(const std::tuple<T...>& tuple) {
+    const int buf_size = std::apply(std::snprintf, std::tuple_cat(std::make_tuple(nullptr, 0), tuple));
+    std::vector<char> buf(buf_size + 1);
+    std::apply(std::snprintf, std::tuple_cat(std::make_tuple(buf.data(), buf_size+1), tuple));
+    return std::string(buf.data(), buf_size);
+  }
+
+  std::string init_xdmf_str() {
+    std::ostringstream o;
+    const std::string field_size_str = format_string("%d %d", device_params.Ny,   device_params.Nx);
+    const std::string grid_size_str  = format_string("%d %d", device_params.Ny+1, device_params.Nx+1);
+
+    if (params.multiple_outputs) {
+      o << R"xml(<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0">
+<Domain>)xml";
+    }
+
+    constexpr std::string_view ite_begin = R"xml(
+  <Grid Name="%%s" GridType="Uniform">
+    <Time Value="%%.12lg" />
+    <Topology TopologyType="Quadrilateral" NodesPerElement="4" NumberOfElements="%s">
+      <DataItem Dimensions="%s 4" NumberType="UInt" Precision="4" Format="HDF">%%s:/connectivity</DataItem>
+    </Topology>
+    <Geometry GeometryType="XY">
+      <DataItem Dimensions="%s 2" NumberType="Float" Precision="%lu" Format="HDF">%%s:/coordinates</DataItem>
+    </Geometry>)xml";
+
+    o << format_string(ite_begin.data(), field_size_str.c_str(), field_size_str.c_str(), grid_size_str.c_str(), sizeof(real_t));
+
+    for_each_tuples([&](const auto &io_var){
+      constexpr std::size_t dim = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
+      constexpr std::string_view field_type = (dim > 3) ? "Matrix" : (dim > 1) ? "Vector" : "Scalar";
+      const std::string_view name = io_var.first;
+      
+      constexpr std::string_view xdmf_field_str = R"xml(
+    <Attribute Name="%s" AttributeType="%s" Center="Cell">
+      <DataItem Dimensions="%s %lu" NumberType="Float" Precision="%lu" Format="HDF">%%s:/%%s%s</DataItem>
+    </Attribute>)xml";
+      
+      o << format_string(xdmf_field_str.data(), name.data(), field_type.data(), field_size_str.c_str(), dim, sizeof(real_t), name.data());
+    }, io_variables);
+
+    o << R"xml(
+  </Grid>
+)xml";
+    
+    if (params.multiple_outputs) {
+      o << R"xml(</Domain>
+</Xdmf>)xml";
+    }
+    else {
+      o << str_xdmf_footer_unique.data();
+    }
+    return o.str();
+  }
 
 public:
   Params params;
   DeviceParams &device_params;
-  bool force_file_truncation = false;
+  bool first_iteration = true;
+  const std::string xdmf_str;
 
   IOManager(Params &params)
-    : params(params), device_params(params.device_params) 
+    : params(params), device_params(params.device_params), xdmf_str(init_xdmf_str())
     {
       if (!std::filesystem::exists(params.output_path)) {
         std::cout << "Output path does not exist, creating directory `" << params.output_path << "`." << std::endl;
@@ -90,8 +162,32 @@ public:
       std::ofstream out_ini_local("last.ini");
       params.reader.outputValues(out_ini_local);
 
-      std::ofstream out_ini(params.output_path + "/" + params.filename_out + ".ini");
+      std::ofstream out_ini(params.output_path + params.filename_out + ".ini");
       params.reader.outputValues(out_ini);
+
+      if (params.restart_file == "") 
+      {
+        // initialize xdmf for unique output
+        if (!params.multiple_outputs) {
+          std::ofstream xdmf_file_unique(params.output_path + params.filename_out + ".xmf", std::fstream::trunc);
+          xdmf_file_unique << R"xml(<?xml version="1.0" ?>
+  <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+  <Xdmf Version="3.0">
+  <Domain>
+  <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+  )xml" << str_xdmf_footer_unique.data();
+        }
+
+        // initialize xdmf main for multiple output
+        else {
+          std::ofstream xdmf_main_file(params.output_path + params.filename_out + "_main.xmf", std::fstream::trunc);
+          xdmf_main_file << R"xml(<?xml version="1.0" ?>
+  <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+  <Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" Version="3.0">
+  <Domain Name="MainTimeSeries">
+    <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">)xml" << str_xdmf_main_footer.data();
+        }
+      }
     };
 
   ~IOManager() = default;
@@ -118,24 +214,21 @@ public:
       basename = oss.str();
     }
     else {
-      oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
+      oss << "ite_" << std::setw(ite_nzeros) << std::setfill('0') << iteration;
       iteration_str = oss.str();
       basename = params.filename_out;
     }
     
     const std::string h5_filename  = basename + ".h5";
     const std::string xmf_filename = basename + ".xmf";
-    const std::string output_path = params.output_path + "/";
 
-    const bool write_attrs = (is_multiple || force_file_truncation || iteration == 0);
+    const bool write_attrs = (is_multiple || first_iteration);
       
-    auto flag_h5 = (write_attrs ? File::Truncate : File::ReadWrite);
-    auto flag_xdmf = (write_attrs ? "w+" : "r+");
-    File file(output_path + h5_filename, flag_h5);
-    FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), flag_xdmf);
+    const auto flag_h5 = (write_attrs ? File::Truncate : File::ReadWrite);
+    File file(params.output_path + h5_filename, flag_h5);
 
     if (write_attrs) {
-      force_file_truncation = false;
+      first_iteration = false;
       file.createAttribute("Ntx", device_params.Ntx);
       file.createAttribute("Nty", device_params.Nty);
       file.createAttribute("Nx", device_params.Nx);
@@ -146,7 +239,10 @@ public:
       file.createAttribute("jend", device_params.jend);
       file.createAttribute("problem", params.problem);
       
-      Table2 coordinates;
+      const int capacity = device_params.Ntx * device_params.Nty;
+
+      Table<2> coordinates;
+      coordinates.reserve(capacity);
       // -- vertex pos
       for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
         for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
@@ -159,6 +255,7 @@ public:
       file.createDataSet("coordinates", coordinates);
 
       std::vector<std::array<uint32_t, 4>> connectivity;
+      coordinates.reserve(capacity);
       // -- connectivity
       for (int j=device_params.jbeg; j < device_params.jend; ++j) {
         for (int i=device_params.ibeg; i < device_params.iend; ++i) {
@@ -167,35 +264,31 @@ public:
         }
       }
       file.createDataSet("connectivity", connectivity);
-
-      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, h5_filename));
-      if constexpr (!is_multiple) 
-        fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
     
     auto Qhost = Kokkos::create_mirror(Q);
     Kokkos::deep_copy(Qhost, Q);
 
-    Table trho, tprs;
-    Table2 tvel;
-
+    auto tvars = make_tables();
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
       for (int i=device_params.ibeg; i<device_params.iend; ++i) {
-        real_t rho = Qhost(j, i, IR);
-        real_t u   = Qhost(j, i, IU);
-        real_t v   = Qhost(j, i, IV);
-        real_t p   = Qhost(j, i, IP);
-
-        trho.push_back(rho);
-        tvel.push_back({u, v});
-        tprs.push_back(p);
+        for_each_tuples([&](const auto &io_var, auto& tvar) {
+          constexpr std::size_t n_var = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
+          
+          tvar.emplace_back();
+          auto &back = tvar.back();
+          for (std::size_t id=0; id<n_var; id++)
+            back[id] = Q(j, i, io_var.second[id]);
+        }, io_variables, tvars);
       }
     }
 
     auto save_groups = [&](auto &g) {
-      g.createDataSet("rho", trho);
-      g.createDataSet("velocity", tvel);
-      g.createDataSet("prs", tprs);
+      for_each_tuples([&](const auto &io_var, const auto& tvar) {
+        const std::string var_name{io_var.first};
+        g.createDataSet(var_name, tvar);
+      }, io_variables, tvars);
+
       g.createAttribute("time", t);
       g.createAttribute("iteration", iteration);
     };
@@ -214,16 +307,24 @@ public:
     }
     else {
       group = iteration_str + "/";
-      fseek(xdmf_fd, -sizeof(str_xdmf_footer), SEEK_END);
     }
 
-    fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "rho"));
-    fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity"));
-    fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "prs"));
-    fprintf(xdmf_fd, "%s", str_xdmf_ite_footer);
-    fprintf(xdmf_fd, "%s", str_xdmf_footer);
-    fclose(xdmf_fd);
+    constexpr auto flag_xdmf = std::fstream::out | (is_multiple ? std::fstream::trunc : std::fstream::in);
+    std::fstream xdmf_file(params.output_path + xmf_filename, flag_xdmf);
+    if constexpr (!is_multiple) {
+      xdmf_file.seekp(-str_xdmf_footer_unique.size(), std::fstream::end);
+    }
+
+    const auto xdmf_print_format = get_xdmf_format_tuple(iteration_str.c_str(), t, h5_filename.c_str(), group.c_str());
+    xdmf_file << format_string(xdmf_print_format);
+
+    // xdmf main for multiple output
+    if constexpr (is_multiple) {
+      std::fstream xdmf_main_file(params.output_path + params.filename_out + "_main.xmf", std::fstream::out | std::fstream::in);
+      xdmf_main_file.seekp(-str_xdmf_main_footer.size(), std::fstream::end);
+      xdmf_main_file << format_string(R"xml(
+    <xi:include href="%s" xpointer="xpointer(//Xdmf/Domain/Grid)" />)xml", xmf_filename.c_str()) << str_xdmf_main_footer.data();
+    }
   }
 
   RestartInfo loadSnapshot(Array &Q) {
@@ -239,15 +340,14 @@ public:
       restart_file = restart_file.substr(0, delim_multi + 3);
     }
 
-    if ( !params.multiple_outputs && std::filesystem::equivalent(restart_file, params.output_path + "/" + params.filename_out + ".h5") ) {
+    if ( !params.multiple_outputs && std::filesystem::equivalent(restart_file, params.output_path + params.filename_out + ".h5") ) {
       if (delim_multi != std::string::npos) {
         std::cerr << "Invalid restart file : if your restart file and output file are "
                      "the same, you can only start from the last iteration." << std::endl << std::endl;
         throw std::runtime_error("ERROR : Invalid restart_file.");
       }
-    }
-    else {
-      this->force_file_truncation = true;
+      // do not truncate the file if restart_file is the same as output_file.
+      this->first_iteration = false;
     }
     
     File file(restart_file, File::ReadOnly);
@@ -262,7 +362,7 @@ public:
     }
     else {
       if (group == "") {
-        const size_t last_ite_index = file.getNumberObjects() - 1; // first groups are : coordinates and connectivity, then all the ite_xxxx. 
+        const size_t last_ite_index = file.getNumberObjects() - 1; // first groups are : coordinates/ and connectivity/, following by all the ite_xxxx/. 
         group = file.getObjectName(last_ite_index);
       }
       HighFive::Group h5_group = file.getGroup(group);
@@ -273,7 +373,7 @@ public:
       group = group + "/";
     }
 
-    auto Nt = getShape(file, group + "rho")[0];
+    auto Nt = getShape(file, group + std::string{std::get<0>(io_variables).first})[0];
 
     if (Nt != device_params.Nx*device_params.Ny) {
       std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = " 
@@ -285,29 +385,24 @@ public:
 
     std::cout << "Loading restart data from hdf5" << std::endl;
 
-    auto load_and_copy = [&]<std::size_t N>(const std::string var_name, const std::array<IVar, N>& var_id) {
-      using Elem  = std::conditional_t<N == 1, real_t, std::array<real_t, N>>;
-      using Table = std::vector<Elem>;
-      auto table = load<Table>(file, group + var_name);
-      
-      // Parallel for here ?
-      int lid = 0;
-      for (int y=0; y < device_params.Ny; ++y) {
-        for (int x=0; x < device_params.Nx; ++x) {
-          Elem elem = table[lid++];
-          if constexpr (N == 1)
-            Qhost(y+device_params.jbeg, x+device_params.ibeg, var_id[0]) = elem;
-          else {
-            for (int i=0; i<N; i++) {
-              Qhost(y+device_params.jbeg, x+device_params.ibeg, var_id[i]) = elem[i];
-            }
-          }
-        }
+    auto tvars = make_tables();
+    for_each_tuples([&](const auto &io_var, auto &tvar) {
+      const std::string var_name{io_var.first};
+      tvar = std::move(load<std::remove_reference_t<decltype(tvar)>>(file, group + var_name));
+    }, io_variables, tvars);
+
+    std::size_t lid = 0;
+    for (int y=0; y < device_params.Ny; ++y) {
+      for (int x=0; x < device_params.Nx; ++x) {
+        for_each_tuples([&](const auto &io_var, auto& tvar) {
+          constexpr std::size_t n_var = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
+
+          for (std::size_t id=0; id < n_var; id++)
+            Qhost(y+device_params.jbeg, x+device_params.ibeg, io_var.second[id]) = tvar[lid][id];
+        }, io_variables, tvars);
+        lid++;
       }
-    };
-    load_and_copy("rho",      std::array{IR});
-    load_and_copy("velocity", std::array{IU, IV});
-    load_and_copy("prs",      std::array{IP});
+    }
 
     Kokkos::deep_copy(Q, Qhost);
 
@@ -322,7 +417,7 @@ public:
 
     std::cout << "Restart finished !" << std::endl;
 
-    if (force_file_truncation) {
+    if (first_iteration) {
       file.~File(); // free the h5 before saving
       saveSolution(Q, iteration, time);
     }

@@ -278,7 +278,7 @@ public:
           tvar.emplace_back();
           auto &back = tvar.back();
           for (std::size_t id=0; id<n_var; id++)
-            back[id] = Q(j, i, io_var.second[id]);
+            back[id] = Qhost(j, i, io_var.second[id]);
         }, io_variables, tvars);
       }
     }

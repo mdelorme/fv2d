@@ -81,17 +81,15 @@ class IOManager {
 
   std::string format_string(auto&&... args) {
     const int buf_size = std::snprintf(nullptr, 0, args...);
-    std::vector<char> buf(buf_size + 1);
-    std::snprintf(buf.data(), buf_size+1, args...);
-    return std::string(buf.data(), buf_size);
+    std::string str(buf_size + 1, '\0');
+    std::snprintf(str.data(), buf_size + 1, args...);
+    str.resize(buf_size);
+    return str;
   }
   
   template<typename... T> // overload for tuple
   std::string format_string(const std::tuple<T...>& tuple) {
-    const int buf_size = std::apply(std::snprintf, std::tuple_cat(std::make_tuple(nullptr, 0), tuple));
-    std::vector<char> buf(buf_size + 1);
-    std::apply(std::snprintf, std::tuple_cat(std::make_tuple(buf.data(), buf_size+1), tuple));
-    return std::string(buf.data(), buf_size);
+    return std::apply([&](auto&&... args) -> std::string { return format_string(std::forward<decltype(args)>(args)...); }, tuple);
   }
 
   std::string init_xdmf_str() {

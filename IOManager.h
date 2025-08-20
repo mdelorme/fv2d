@@ -238,11 +238,9 @@ public:
       file.createAttribute("jbeg", device_params.jbeg);
       file.createAttribute("jend", device_params.jend);
       file.createAttribute("problem", params.problem);
-      
-      const int capacity = device_params.Ntx * device_params.Nty;
 
       Table<2> coordinates;
-      coordinates.reserve(capacity);
+      coordinates.reserve((device_params.Nx + 1) * (device_params.Ny + 1));
       // -- vertex pos
       for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
         for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
@@ -255,7 +253,7 @@ public:
       file.createDataSet("coordinates", coordinates);
 
       std::vector<std::array<uint32_t, 4>> connectivity;
-      coordinates.reserve(capacity);
+      connectivity.reserve(device_params.Nx * device_params.Ny);
       // -- connectivity
       for (int j=device_params.jbeg; j < device_params.jend; ++j) {
         for (int i=device_params.ibeg; i < device_params.iend; ++i) {

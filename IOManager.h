@@ -171,10 +171,10 @@ public:
         if (!params.multiple_outputs) {
           std::ofstream xdmf_file_unique(params.output_path + params.filename_out + ".xmf", std::fstream::trunc);
           xdmf_file_unique << R"xml(<?xml version="1.0" ?>
-  <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-  <Xdmf Version="3.0">
-  <Domain>
-  <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0">
+<Domain>
+<Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
   )xml" << str_xdmf_footer_unique.data();
         }
 
@@ -182,10 +182,10 @@ public:
         else {
           std::ofstream xdmf_main_file(params.output_path + params.filename_out + "_main.xmf", std::fstream::trunc);
           xdmf_main_file << R"xml(<?xml version="1.0" ?>
-  <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-  <Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" Version="3.0">
-  <Domain Name="MainTimeSeries">
-    <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">)xml" << str_xdmf_main_footer.data();
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" Version="3.0">
+<Domain Name="MainTimeSeries">
+  <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">)xml" << str_xdmf_main_footer.data();
         }
       }
     };

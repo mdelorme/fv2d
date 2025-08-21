@@ -132,6 +132,7 @@ compute_values = {
 }
 
 def get_quantity(f, i, field):
+  """set i to -1 to ignore, behaviour is to change"""
   if field in ('rho', 'prs', 'u', 'v', 'w', 'bx', 'by', 'bz', 'psi', 'divB'):
     return get_prim_array(f, i, field)
   elif field in compute_values:

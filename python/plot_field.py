@@ -9,6 +9,7 @@ import numpy as np
 import sys
 import argparse
 import subprocess
+import concurrent.futures
 from fv2d_utils import latexify, get_quantity, find_tri_layer_Bfield
 
 if os.path.exists('render'):
@@ -39,9 +40,9 @@ field = args.field
 filenames = args.file
 solver = args.solver
 
-file_iterator = tqdm(filenames, desc="Processing files") if len(filenames) > 1 else filenames
+# file_iterator = tqdm(filenames, desc="Processing files") if len(filenames) > 1 else filenames
 
-for filename in file_iterator:
+def plot_snapshot(filename):
     checkfile(filename)
     with h5py.File(filename, 'r') as f:
         Nf = len(f) - 2 if args.last == -1 else args.last
@@ -89,16 +90,21 @@ for filename in file_iterator:
                 plt.savefig(f'render/img_{int(t):04d}.png')
                 plt.close('all')
 
-if args.saveMP4:
-    command = [
-        "ffmpeg",
-        "-framerate", str(args.fps),
-        "-pattern_type", "glob",
-        "-i", "render/img_*.png",
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-        f"{field}.mp4"
-    ]
-    subprocess.run(command, cwd=cwd)
-    print(f'[INFO] Animation saved as {field}.mp4')
+
+if __name__ == "__main__":
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        list(tqdm(executor.map(plot_snapshot, filenames), desc="Processing files", total=len(filenames)))
+
+    if args.saveMP4:
+        command = [
+            "ffmpeg",
+            "-framerate", str(args.fps),
+            "-pattern_type", "glob",
+            "-i", "render/img_*.png",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+            f"{field}.mp4"
+        ]
+        subprocess.run(command, cwd=cwd)
+        print(f'[INFO] Animation saved as {field}.mp4')

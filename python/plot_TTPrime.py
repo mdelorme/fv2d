@@ -7,6 +7,8 @@ import numpy as np
 import sys
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import glob
+from pathlib import Path
+import concurrent.futures
 
 import matplotlib as mpl
 mpl.rc('xtick', labelsize=12)
@@ -79,13 +81,45 @@ yend = 13.6820142565237
 y1 = 1.0
 y2 = 9.755395581941308
 RHO0 = 100
-dir = '/local/home/lb281911/runs/THREE_LAYER/fivewaves_MHD/'
+dir = '.'
+if '--dir' in sys.argv:
+    i = sys.argv.index('--dir')
+    dir = sys.argv[i+1]
 
+# dir = '/local/home/lb281911/runs/THREE_LAYER/old_fivewaves/'
+print("Rendering animation for directory :", Path(dir).absolute())
 
 file = fv2d_output(dir=dir,y1=y1,y2=y2)
 
 
 snap = file.Nf-1
+# get energies for all timesetps
+e = np.zeros(snap)
+Ec = np.zeros(snap)
+Em = np.zeros(snap)
+Etot = np.zeros(snap)
+time = np.zeros(snap)
+for t in range(snap):
+    v2 = file.returnVariable(t, 'u')**2 + file.returnVariable(t, 'v')**2 + file.returnVariable(t, 'w')**2
+    B2 = file.returnVariable(t, 'bx')**2 + file.returnVariable(t, 'by')**2 + file.returnVariable(t, 'bz')**2
+    e[t] = np.sum(file.returnVariable(t, 'prs')/(file.returnVariable(t, 'rho')*(5/3 - 1)))
+    Ec[t] = 1/2 * np.sum(file.returnVariable(t, 'rho') * v2)
+    Em[t] = 1/2 * np.sum(B2)
+    time[t] = file.returnTime(t)
+    Etot[t] = Ec[t] + Em[t]
+
+plt.figure(figsize=(7, 7))
+plt.title(rf"Evolution of magnetic and kinetic energies - $\frac{{E_{{mag}}}}{{E_c}} \approx {Em[0]/Ec[0]:.3f}$")
+plt.plot(time, Etot, '--g', label='$E_{tot}(t)$')
+# plt.plot(time, e, label="$e(t)$")
+plt.plot(time, Ec, label="$E_c(t)$")
+plt.plot(time, Em, label="$E_{mag}$")
+plt.semilogy()
+plt.legend()
+plt.xlabel("Time")
+plt.ylabel("Total Energy")
+plt.grid()
+plt.savefig(dir + '/EnergyContribution.png')
 
 fig, (ax1,ax2,ax3,ax4) = plt.subplots(1,4,figsize=(12,3))
 ax1.plot(file.y_depth,np.mean(file.returnVariable(0,'T'),axis=1)*5800,c='k')
@@ -113,10 +147,8 @@ plt.tight_layout()
 plt.savefig(dir+'/VerticalProfiles.png',bbox_inches=0)
 
 
-for snap in tqdm(np.arange(file.Nf-1)):
-
+def plot_TTPrime(snap):
     ext = [file.xmin*d_unit/1e6, file.xmax*d_unit/1e6, (file.ymin-file.y1)*d_unit/1e6, (file.ymax-file.y1)*d_unit/1e6]
-
     snap4 = '{:04}'.format(snap)
     fig, ax = plt.subplot_mosaic('''C''', figsize=(8, 6))
     ax['C'].text(0.01,1.01,'T-<T>',c='k',fontsize=10,ha='left',va='bottom',transform=ax['C'].transAxes)
@@ -144,16 +176,11 @@ for snap in tqdm(np.arange(file.Nf-1)):
     ax['C'].set_facecolor('lightgrey')
     plt.savefig(dir+'/img_{:04}.png'.format(snap))
     plt.close('all')
-if os.path.exists(dir+'/fv2d_avT.mp4')==True:
-    os.system('rm -r ' +dir+ '/fv2d_avT.mp4')
-os.system('ffmpeg -r 24 -pattern_type glob -i "'+dir+'/img_*.png" -s:v 1890x970 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p '+dir+'/fv2d_avT.mp4')
-os.system('rm -r ' +dir+ '/img_*.png')
 
 
 
-v_unit=d_unit/t_unit
-for snap in np.arange(file.Nf-1):
-
+def plot_vertical_velocity(snap):
+    v_unit=d_unit/t_unit
     ext = [file.xmin*d_unit/1e6, file.xmax*d_unit/1e6, (file.ymin-file.y1)*d_unit/1e6, (file.ymax-file.y1)*d_unit/1e6]
 
     snap4 = '{:04}'.format(snap)
@@ -162,8 +189,8 @@ for snap in np.arange(file.Nf-1):
     C = ax['C'].imshow(np.flipud(v)*v_unit/1e3,extent=ext, cmap='bwr',vmin=-0.8,vmax=0.8)
     X,Y = np.meshgrid(file.x_width,file.y_depth)
     Bx = file.returnVariable(snap,'bx')
-    By = -file.returnVariable(snap,'by')
-    ax['C'].streamplot(X,Y,Bx,By,density=1,color='k',linewidth=0.5)
+    By = np.flipud(file.returnVariable(snap,'by'))
+    ax['C'].streamplot(X,Y,Bx,By,density=1,color='k',linewidth=0.5, broken_streamlines=False)
     ax['C'].contour(file.returnVariable(snap,'rho'),extent=ext,levels=[RHO0],colors=['k'],linewidths=[0.5],alpha=0.5)
     ax['C'].text(0.01,1.01,'vertical velocity km/s',c='k',fontsize=10,ha='left',va='bottom',transform=ax['C'].transAxes)
     time = file.returnTime(snap)
@@ -186,7 +213,20 @@ for snap in np.arange(file.Nf-1):
     ax['C'].set_facecolor('lightgrey')
     plt.savefig(dir+'/img_{:04}.png'.format(snap))
     plt.close('all')
-if os.path.exists(dir+'/fv2d_vz.mp4')==True:
-    os.system('rm -r ' +dir+ '/fv2d_vz.mp4')
-os.system('ffmpeg -r 24 -pattern_type glob -i "'+dir+'/img_*.png" -s:v 1890x970 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p '+dir+'/fv2d_vz.mp4')
-os.system('rm -r ' +dir+ '/img_*.png')
+
+if __name__ == "__main__":
+    all_snaps = list(range(file.Nf - 1))
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        list(tqdm(executor.map(plot_TTPrime, all_snaps), desc="Processing files", total=len(all_snaps)))
+    if os.path.exists(dir+'/fv2d_avT.mp4')==True:
+        os.system('rm -r ' +dir+ '/fv2d_avT.mp4')
+    os.system('ffmpeg -r 24 -pattern_type glob -i "'+dir+'/img_*.png" -s:v 1890x970 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p '+dir+'/fv2d_avT.mp4')
+    os.system('rm -r ' +dir+ '/img_*.png')
+    
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        list(tqdm(executor.map(plot_vertical_velocity, all_snaps), desc="Processing files", total=len(all_snaps)))
+
+    if os.path.exists(dir+'/fv2d_vz.mp4')==True:
+        os.system('rm -r ' +dir+ '/fv2d_vz.mp4')
+    os.system('ffmpeg -r 24 -pattern_type glob -i "'+dir+'/img_*.png" -s:v 1890x970 -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p '+dir+'/fv2d_vz.mp4')
+    os.system('rm -r ' +dir+ '/img_*.png')

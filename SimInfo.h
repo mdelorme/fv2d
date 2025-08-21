@@ -127,6 +127,12 @@ enum BCTC_Mode {
   BCTC_NO_CONDUCTION,     // Top and bottom flux of cell are matched
 };
 
+// Magnetic Field Behaviour at the boundary
+enum BCMAG_Mode {
+  BCMAG_NONE,     // Do nothing special
+  BCMAG_NORMAL_FIELD   // Set all components to 0 except for the normal component
+};
+
 enum ViscosityMode {
   VSC_CONSTANT
 };
@@ -167,7 +173,7 @@ struct DeviceParams {
   bool heating_active;
   HeatingMode heating_mode;
   bool log_total_heating;
-
+  
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
@@ -190,11 +196,11 @@ struct DeviceParams {
   real_t b02_kappa1;
   real_t b02_kappa2;
   real_t b02_thickness;
-
+  
   // Currie 2020
   real_t c20_H;
   real_t c20_heating_fac;
-
+  
   // Tri-Layer
   real_t tri_y1, tri_y2;
   real_t tri_pert;
@@ -234,6 +240,10 @@ struct DeviceParams {
   DivCleaning div_cleaning = NO_DC;
   real_t cr = 0.18; // GLMMHD
   real_t GLM_scale = 1.0; // \in ]0;1] - IdealGLM scale factor for value of cleaning speed ch
+  
+  // Magnetic Boundary
+  BCMAG_Mode bcmag_ymin, bcmag_ymax; // At the moment we suppose that BC for mag field is only needed for By TODO: Change this behaviour
+  real_t bcmag_ymin_value, bcmag_ymax_value;
   
   
   // Mesh
@@ -311,6 +321,7 @@ struct DeviceParams {
     if (div_cleaning == DERIGS) {
       throw std::runtime_error("Derigs div cleaning is not implemented yet !");
     };
+
     // Physics
     epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
     gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
@@ -378,6 +389,15 @@ struct DeviceParams {
     };
     heating_mode = read_map(reader, heating_map, "heating", "mode", "tri_layer");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
+    // Magnetic field boundaries
+    std::map<std::string, BCMAG_Mode> bcmag_map{
+      {"none", BCMAG_NONE},
+      {"normal_field", BCMAG_NORMAL_FIELD}
+    };
+    bcmag_ymin = read_map(reader, bcmag_map, "magnetic_boundary", "bcmag_ymin", "none");
+    bcmag_ymax = read_map(reader, bcmag_map, "magnetic_boundary", "bcmag_ymax", "none");
+    bcmag_ymin_value = reader.GetFloat("magnetic_boundary", "bcmag_ymin_value", 0.0);
+    bcmag_ymax_value = reader.GetFloat("magnetic_boundary", "bcmag_ymax_value", 0.0);
 
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
@@ -595,6 +615,11 @@ void print_ini_file(const Params &p) {
   std::cout << "bctc_ymax          = " << dp.bctc_ymax << std::endl;
   std::cout << "bctc_ymin_value    = " << dp.bctc_ymin_value << std::endl; 
   std::cout << "bctc_ymax_value    = " << dp.bctc_ymax_value << std::endl;
+  std::cout << "bcmag_ymin         = " << dp.bcmag_ymin << std::endl;
+  std::cout << "bcmag_ymax         = " << dp.bcmag_ymax << std::endl;
+  std::cout << "bcmag_ymin_value   = " << dp.bcmag_ymin_value << std::endl;
+  std::cout << "bcmag_ymax_value   = " << dp.bcmag_ymax_value << std::endl;
+  std::cout << "div cleaning       = " << dp.div_cleaning << std::endl;
   std::cout << "viscosity          = " << dp.viscosity_active << std::endl;
   std::cout << "mu                 = " << dp.mu << std::endl;
   std::cout << "viscosity_mode     = " << dp.viscosity_mode << std::endl;

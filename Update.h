@@ -194,9 +194,9 @@ public:
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
           if (j==params.jbeg) 
-            un_loc = getNormalMagFieldAndFlux(un_loc, fluxL, ch_dedner, dir, params);
+            un_loc = getNormalMagFieldAndFlux(un_loc, fluxL, i, j, ch_dedner, dir, params);
           if (j==params.jend-1)
-            un_loc = getNormalMagFieldAndFlux(un_loc, fluxR, ch_dedner, dir, params);
+            un_loc = getNormalMagFieldAndFlux(un_loc, fluxR, i, j, ch_dedner, dir, params);
           setStateInArray(Unew, i, j, un_loc);
         };
 

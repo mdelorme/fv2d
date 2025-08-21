@@ -102,7 +102,7 @@ namespace fv2d {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State getNormalMagFieldAndFlux(State u, State &flux, real_t ch, IDir dir, const DeviceParams &params) {
+  State getNormalMagFieldAndFlux(State u, State &flux, int i, int j, real_t ch, IDir dir, const DeviceParams &params) {
     // Assume we're at the y_min or y_max boundary
     if (dir == IX) {
       return u;
@@ -110,13 +110,19 @@ namespace fv2d {
     
     State q = consToPrim(u, params);
     q[IBX] = 0.0;
-    q[IBY] = params.iso3_by;
+    q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymax_value;
     q[IBZ] = 0.0;
     if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
       q[IPSI] = 0.0;
-      // We can also recompute the flux
+    // We can also recompute the flux
+    // Hydro Flux
+    flux[IR] = q[IR] * q[IV];
+    flux[IU] = flux[IR] * q[IU];
+    flux[IV] = flux[IR] * q[IV] + q[IP];
+    flux[IW] = flux[IR] * q[IW];
+    flux[IE] = (q[IP] + u[IE]) * q[IV];
+    // Magnetic Flux
     const real_t udotB = q[IBX]*q[IU] + q[IBY]*q[IV] + q[IBZ]*q[IW];
-    // Magnetic flux
     flux[IBX] = q[IBX] * q[IV] - q[IBY] * q[IU];
     flux[IBY] = q[IBY] * q[IV] - q[IBY] * q[IV];
     flux[IBZ] = q[IBZ] * q[IV] - q[IBY] * q[IW];
@@ -124,9 +130,9 @@ namespace fv2d {
     // Modification of the hydro flux
     const real_t pmag = getMagneticPressure({q[IBX], q[IBY], q[IBZ]});
     flux[IU] -= q[IBY] * q[IBX];
-    flux[IV] -= q[IBY] * q[IBY] - pmag;
+    flux[IV] -= q[IBY] * q[IBY] - pmag; // TODO: S'assurer que c'est bien un signe -
     flux[IW] -= q[IBY] * q[IBZ];
-    flux[IE] -= q[IBY] * udotB - q[IV] * pmag;
+    flux[IE] -= q[IBY] * udotB - q[IV] * pmag; // Pareil ici, pmag ?
 
     // GLM Flux
     flux[IBY] += ch*ch * q[IPSI];

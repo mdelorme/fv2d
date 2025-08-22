@@ -102,7 +102,7 @@ namespace fv2d {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State getNormalMagFieldAndFlux(State u, State &flux, int i, int j, real_t ch, IDir dir, const DeviceParams &params) {
+  State getNormalMagFieldAndFlux(State u, State &flux, real_t ch, IDir dir, const DeviceParams &params) {
     // Assume we're at the y_min or y_max boundary
     if (dir == IX) {
       return u;
@@ -110,7 +110,7 @@ namespace fv2d {
     
     State q = consToPrim(u, params);
     q[IBX] = 0.0;
-    q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymax_value;
+    // q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymax_value; // Non ! Ça ce serait pour une valeur fixée, pour un champ normal on touche pas à By
     q[IBZ] = 0.0;
     if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
       q[IPSI] = 0.0;

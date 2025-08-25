@@ -102,6 +102,7 @@ namespace fv2d {
     // State q;
     State q = getStateFromArray(Q, isym, jsym);
     Pos p = geo.mapc2p_center(i, j);
+    // Pos p = geo.mapc2p_center(isym, jsym);
 
     const real_t r = norm(p);
     // const real_t r = params.radial_radius;

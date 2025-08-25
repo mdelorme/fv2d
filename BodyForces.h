@@ -37,9 +37,9 @@ public:
   ~GravityFunctor() = default;
 
   void applyGravity(Array Q, Array Unew, real_t dt) {
-    auto full_params = this->full_params;
-    auto params = full_params.device_params;
-    auto geometry = this->geometry;
+    auto &full_params = this->full_params;
+    auto &params = full_params.device_params;
+    auto &geometry = this->geometry;
 
     Kokkos::parallel_for(
       "Gravity", 
@@ -76,9 +76,9 @@ class HeatingFunctor {
     ~HeatingFunctor() = default;
   
     void applyHeating(Array Q, Array Unew, real_t dt) {
-      auto full_params = this->full_params;
-      auto params = full_params.device_params;
-      auto geometry = this->geometry;
+      auto &full_params = this->full_params;
+      auto &params = full_params.device_params;
+      auto &geometry = this->geometry;
       bool no_cooling = params.no_cooling;
 
       Kokkos::parallel_for(
@@ -87,7 +87,7 @@ class HeatingFunctor {
         KOKKOS_LAMBDA(const int i, const int j) {
           Pos pos = geometry.mapc2p_center(i,j);
           const real_t r = norm(pos);
-          real_t Q = params.spl_heating.GetValue(r);
+          real_t Q = params.spl_heating(r);
           if (no_cooling && Q < 0) Q = 0;
           Unew(j, i, IE) += dt * Q;
         });
@@ -97,14 +97,16 @@ class HeatingFunctor {
 class CoriolisFunctor {
   public:
     Params full_params;
+    Geometry geometry;
   
     CoriolisFunctor(const Params &full_params) 
-      : full_params(full_params) {};
+      : full_params(full_params), geometry(full_params.device_params) {};
     ~CoriolisFunctor() = default;
   
     void applyCoriolis(Array Q, Array Unew, real_t dt) {
-      auto full_params = this->full_params;
-      auto params = full_params.device_params;
+      auto &full_params = this->full_params;
+      auto &params = full_params.device_params;
+      auto &geometry = this->geometry;
       const real_t omega = params.coriolis_omega; 
   
       Kokkos::parallel_for(
@@ -119,6 +121,13 @@ class CoriolisFunctor {
             const real_t rhovNew = Unew(j, i, IV);
             Unew(j, i, IU) += dt * omega * (rhovOld + rhovNew);
             Unew(j, i, IV) -= dt * omega * (rhouOld + rhouNew);
+          #elif 1
+            const Pos pos = geometry.mapc2p_center(i,j);
+            const real_t rho = params.spl_rho(norm(pos)) * Q(j, i, IR);
+            const real_t rhou = rho * Q(j, i, IU);
+            const real_t rhov = rho * Q(j, i, IV);
+            Unew(j, i, IU) += dt * 2 * omega * rhov;
+            Unew(j, i, IV) -= dt * 2 * omega * rhou;
           #else
             const real_t rhou = Unew(j, i, IU);
             const real_t rhov = Unew(j, i, IV);

@@ -37,7 +37,7 @@ public:
       KOKKOS_LAMBDA(const int i, const int j) {
         auto getVelocity = [](Array arr, int i, int j) -> Pos {return {arr(j, i, IU), arr(j, i, IV)};};
 
-        const auto gradP = computeGradient(Q, getVelocity, j, i, geometry, params.gradient_type);
+        const auto gradP = computeGradient(Q, getVelocity, i, j, geometry, params.gradient_type);
         const Pos r_P = geometry.mapc2p_center(i, j);
         const Pos velocity_P = getVelocity(Q, i, j);
 
@@ -46,7 +46,7 @@ public:
           int jN = j + (side == ILEFT ? -1 : 1) * (dir == IY);
 
           const Pos velocity_N = getVelocity(Q, iN, jN);
-          const auto gradN = computeGradient(Q, getVelocity, jN, iN, geometry, params.gradient_type);
+          const auto gradN = computeGradient(Q, getVelocity, iN, jN, geometry, params.gradient_type);
 
         // unit vector from cell P to cell N
           Pos e_PN = geometry.mapc2p_center(iN, jN) - r_P;
@@ -117,7 +117,7 @@ public:
         State FD = compute_flux(IY, ILEFT);
         State FU = compute_flux(IY, IRIGHT);
         
-        if (params.zero_flux_boundary) {
+        if (params.zero_flux_viscous_boundary) {
           if (i==params.ibeg)
             FL = {0,0,0,0};
           else if(i==params.iend-1)
@@ -131,6 +131,9 @@ public:
         real_t V = geometry.cellArea(i,j);
         State un_loc = getStateFromArray(Unew, i, j);
         un_loc += dt * (FL + FR + FD + FU) / V;
+
+        params.debug_array(j, i, IFLUX_VISCO) = ((FL + FR + FD + FU) / V)[IE];
+
         setStateInArray(Unew, i, j, un_loc);
       });
   }

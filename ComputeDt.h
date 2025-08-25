@@ -24,7 +24,7 @@ public:
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
 
-    const real_t Cv = params.spl_rho.header.Cp - params.spl_rho.header.R;
+    const real_t Cp = params.spl_rho.header.Cp;
 
     Kokkos::parallel_reduce("Computing DT",
                             full_params.range_dom,
@@ -48,7 +48,7 @@ public:
                               if (params.thermal_conductivity_active) {
                                 const real_t kappa = params.spl_kappa(r);
                                 const real_t rho = q[IR];
-                                inv_dt_par_tc_loc = 2.0*kappa / (rho * Cv * dl*dl);
+                                inv_dt_par_tc_loc = 2.0*kappa / (rho * Cp * dl*dl);
                               }
                               
                               real_t inv_dt_par_visc_loc = params.epsilon;

@@ -38,6 +38,7 @@ public:
     auto geometry = this->geometry;
     // const real_t kappa = params.kappa;
     const real_t R = params.spl_rho.header.R;
+    const real_t threshold = params.bctc_threshold;
 
     Kokkos::parallel_for(
       "Thermal conduction", 
@@ -46,31 +47,32 @@ public:
         
         // wb alpha beta : 
         auto getGamma = [&](const real_t r) -> real_t {
-          const real_t alpha = params.spl_rho(r);
-          const real_t beta = params.spl_prs(r);
-          return beta / alpha / R;
+          const real_t rho = params.spl_rho(r);
+          const real_t prs = params.spl_prs(r);
+          return prs / (rho * R);
         };
         auto getDerivGamma = [&](const real_t r) -> real_t {
-          // créé une spline de température ?
+          // créer une spline de température ?
           const real_t rho = params.spl_rho(r);
           const real_t prs = params.spl_prs(r);
           const real_t drho = params.spl_rho.GetDerivative(r);
           const real_t dprs = params.spl_prs.GetDerivative(r);
-          const real_t dT = (dprs - prs / rho * drho ) / rho / R;
+          const real_t dT = (dprs - prs / rho * drho ) / (rho * R);
           return dT;
         };
         auto getTemperature = [](Array arr, int i, int j) -> real_t {return arr(j, i, IP) / arr(j, i, IR);};
 
-        auto gradP = computeGradient(Q, getTemperature, j, i,   geometry, params.gradient_type);
+        auto gradP = computeGradient(Q, getTemperature, i, j,   geometry, params.gradient_type);
         real_t T_P = getTemperature(Q, i, j);
         Pos r_P = geometry.mapc2p_center(i, j);
         
         auto compute_flux = [&](IDir dir, ISide side) {
-          int iN = i + (side == ILEFT ? -1 : 1) * (dir == IX);
-          int jN = j + (side == ILEFT ? -1 : 1) * (dir == IY);
+          int iN = i + ((dir == IX) ? (side == ILEFT ? -1 : 1) : 0);
+          int jN = j + ((dir == IY) ? (side == ILEFT ? -1 : 1) : 0);
           
           real_t T_N = getTemperature(Q, iN, jN);
-          auto gradN = computeGradient(Q, getTemperature, jN, iN, geometry, params.gradient_type);
+          auto gradN = computeGradient(Q, getTemperature, iN, jN, geometry, params.gradient_type);
+
           Pos e_PN = geometry.mapc2p_center(iN, jN) - r_P;
           const real_t d_PN = norm(e_PN);
           e_PN = e_PN / d_PN;
@@ -100,6 +102,17 @@ public:
               correction = dot(gradN - gradP, f1f * e_T) * A_d / d_PN;
             }
           }
+//           { 
+//             const real_t normA_f = sqrt(normA_f2);
+//             const Pos f0f = v_Pf - dot(v_Pf, e_PN)*e_PN;
+// 
+//             real_t tmp;
+//             const Pos tmp2 = geometry.getRotationMatrix(i, j, dir, side, tmp);
+//             const Pos e_T = {-tmp2[IY], tmp2[IX]};
+// 
+//             const real_t f1f = norm(f0f) * A_d/normA_f;
+//             correction = dot(gradN - gradP, f1f * e_T) * A_d / d_PN;
+//           }
 
           Pos u_r = geometry.faceCenter(i, j, dir, side);
           const real_t r_f = norm(u_r);
@@ -111,6 +124,7 @@ public:
 
           const real_t gradT_f = gamma_f * gradT_gamma_f + T_gamma_f * dgamma_f;
           const real_t kappa_f = params.spl_kappa(r_f);
+          
           return kappa_f * gradT_f;
         };
 
@@ -122,8 +136,11 @@ public:
 
 
         auto lambda_bc = [&](real_t &bc_flux, BCTC_Mode bc, IDir dir, ISide side) {
-          // const real_t sign = (side == ILEFT) ? -1.0 : 1.0;
-          const real_t face_length = norm(geometry.getOrientedFaceArea(i, j, dir, side));
+          auto u_f = geometry.getOrientedFaceArea(i, j, dir, side);
+          const real_t face_length = norm(u_f);
+//           u_f = u_f / face_length;
+//           const real_t factor = dot(u_f, r_P / r); // facteur F*area : dot(u_oriented_area, u_r) 
+
           const real_t rf = norm(geometry.faceCenter(i, j, dir, side));
           const real_t kappa_bc = params.spl_kappa(rf);
 
@@ -145,6 +162,24 @@ public:
             case BCTC_FIXED_GRADIENT: {
               const real_t dgamma_f = getDerivGamma(rf);
               bc_flux = face_length * kappa_bc * dgamma_f;
+              break;
+            }
+            case BCTC_EQUILIBRATE: {
+              const real_t r = norm(r_P);
+              const real_t T_C = T_P * getGamma(r);
+              const real_t T_boundary = getGamma(rf);
+              const auto dr = rf - r;
+
+              if (1 - T_boundary / T_C > threshold) {
+                const real_t dgamma_f = getDerivGamma(rf);
+                bc_flux = face_length * kappa_bc * dgamma_f;
+              } 
+              else if (1 - T_boundary / T_C < -threshold) {
+                bc_flux = face_length * kappa_bc * (T_boundary - T_C) / dr;
+              }
+              else {
+                bc_flux = 0.0;
+              }
               break;
             }
             default: break;
@@ -202,7 +237,9 @@ public:
 
         // And updating using a Godunov-like scheme
         Unew(j, i, IE) += dt * (FL + FR + FU + FD) / V;
+        params.debug_array(j, i, IFLUX_THERM) = ((FL + FR + FU + FD) / V);
       });
+      // printf("\n");
   }
 };
 

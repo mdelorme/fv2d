@@ -166,11 +166,15 @@ public:
   Array slopesX, slopesY;
   Array psi;
 
+  uint64_t negatives_density_count;
+  uint64_t negatives_pressure_count;
+
   UpdateFunctor(const Params &full_params)
     : full_params(full_params),     bc_manager(full_params),
       tc_functor(full_params),      visc_functor(full_params), 
       grav_functor(full_params),    coriolis_functor(full_params),
-      heating_functor(full_params), geometry(full_params.device_params) {
+      heating_functor(full_params), geometry(full_params.device_params), 
+      negatives_density_count(0),    negatives_pressure_count(0) {
       
       auto device_params = full_params.device_params;
       slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
@@ -477,7 +481,7 @@ public:
         { // alpha beta scheme 
           grav_in_step = Q(j, i, IR) / cellArea * grav_in_step;
 
-          if (params.wb_grav_grad_correction) { // surement a delete
+          if (params.wb_grav_grad_correction) { // --> à delete
             const real_t r = norm(geometry.mapc2p_center(i,j));
             const real_t beta = params.spl_prs(r);
             grav_in_step[IX] += beta * slopesX(j, i, IP);
@@ -492,8 +496,8 @@ public:
   }
 
   void checkNegatives(Array &Q, const Params &full_params) {
-    uint64_t negative_density  = 0;
-    uint64_t negative_pressure = 0;
+    uint64_t negatives_density  = 0;
+    uint64_t negatives_pressure = 0;
     uint64_t nan_count = 0;
 
     auto params = full_params.device_params;
@@ -530,14 +534,31 @@ public:
           if (std::isnan(Q(j, i, ivar)))
             lnan_count++;
 
-      }, negative_density, negative_pressure, nan_count);
+      }, negatives_density, negatives_pressure, nan_count);
 
-      if (negative_density) 
-        std::cout << "--> negative density: " << negative_density << std::endl;
-      if (negative_pressure)
-        std::cout << "--> negative pressure: " << negative_pressure << std::endl;
-      if (nan_count)
-        std::cout << "--> NaN detected." << std::endl;
+      negatives_density_count += negatives_density;
+      negatives_pressure_count += negatives_pressure;
+
+//       if (negatives_density) 
+//         std::cout << "WARNING: negative density: " << negatives_density << std::endl;
+//       if (negatives_pressure)
+//         std::cout << "WARNING: negative pressure: " << negatives_pressure << std::endl;
+      if (nan_count) {
+        std::cout << "ERROR: NaN detected." << std::endl;
+        Kokkos::abort("Nan detected, exit...");
+      }
+  }
+
+  void log_negatives_count() {
+    const int log_freq = full_params.log_frequency;
+
+    if (negatives_density_count) 
+        std::cout << "WARNING: negative density count: " << static_cast<real_t>(negatives_density_count) / log_freq << " in average over " << log_freq << " iterations." << std::endl;
+    if (negatives_pressure_count)
+        std::cout << "WARNING: negative pressure count: " << static_cast<real_t>(negatives_pressure_count) / log_freq << "in  average over " << log_freq << " iterations." << std::endl;
+
+    negatives_density_count = 0;
+    negatives_pressure_count = 0;
   }
 
   void euler_step(Array Q, Array Unew, real_t dt) {
@@ -600,6 +621,7 @@ public:
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
+      checkNegatives(Q, full_params);
       euler_step(Q, Unew, dt);
 
       // SSP-RK2

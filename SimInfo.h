@@ -25,14 +25,45 @@ using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 // Access debug array in a kernel with `device_params.debug_array(j, i, IDebugArray)`
 
 enum IDebugArray { 
-  // IFLUX_VISCO=0,
-  // IFLUX_THERM=0,
+  IFLUX_VISCO,
+  IFLUX_THERM,
+//   IGRAD_T_X,
+//   IGRAD_T_Y,
+
+//   IFLUX_THERM_0,
+//   IFLUX_THERM_1,
+//   IFLUX_THERM_2,
+//   IFLUX_THERM_3,
+
+// IAREA_L_X,
+// IAREA_L_Y,
+// IAREA_R_X,
+// IAREA_R_Y,
+// IAREA_U_X,
+// IAREA_U_Y,
+// IAREA_D_X,
+// IAREA_D_Y,
 };
 auto register_debug_array = std::to_array<std::pair<std::string_view, IDebugArray>>({ {},
   /*   { "name",     ID (as to be in range [0,N-1]  },   */
-  // {"energy_visco",  IFLUX_VISCO},
-  // {"energy_therm",  IFLUX_THERM},
-  // {"dt_hydro",  IDT_HYDRO},
+{"energy_visco",  IFLUX_VISCO},
+{"energy_therm",  IFLUX_THERM},
+// {"gradTx",  IGRAD_T_X},
+// {"gradTy",  IGRAD_T_Y},
+//
+// {"energy_therm_0",  IFLUX_THERM_0},
+// {"energy_therm_1",  IFLUX_THERM_1},
+// {"energy_therm_2",  IFLUX_THERM_2},
+// {"energy_therm_3",  IFLUX_THERM_3},
+//
+// {"area_L_X",  IAREA_L_X},
+// {"area_L_Y",  IAREA_L_Y},
+// {"area_R_X",  IAREA_R_X},
+// {"area_R_Y",  IAREA_R_Y},
+// {"area_U_X",  IAREA_U_X},
+// {"area_U_Y",  IAREA_U_Y},
+// {"area_D_X",  IAREA_D_X},
+// {"area_D_Y",  IAREA_D_Y},
 });
 
 using DebugArray = Kokkos::View<real_t***>;
@@ -108,7 +139,8 @@ enum BCTC_Mode {
   BCTC_NONE,              // Nothing special done
   BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
   BCTC_FIXED_GRADIENT,    // Lock the gradient at the boundary
-  BCTC_ZERO               // Zero flux out
+  BCTC_ZERO,              // Zero flux out
+  BCTC_EQUILIBRATE        // swap between fixed grad, fixed temperature, or zero flux based on relative difference of the centered temperature and boudary temperature
 };
 
 enum ViscosityMode {
@@ -369,12 +401,14 @@ struct DeviceParams {
   real_t kappa;
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
+  real_t bctc_threshold;
   
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
   real_t prandtl;
+  bool zero_flux_viscous_boundary;
   
   // Polytropes and such
   real_t m1;
@@ -598,12 +632,14 @@ struct DeviceParams {
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
       {"fixed_gradient",    BCTC_FIXED_GRADIENT},
-      {"zero",              BCTC_ZERO}
+      {"zero",              BCTC_ZERO},
+      {"equilibrate",       BCTC_EQUILIBRATE}
     };
     bctc_ymin = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymin", "none");
     bctc_ymax = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymax", "none");
     bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
     bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);
+    bctc_threshold = reader.GetFloat("thermal_conduction", "threshold", 0.1);
 
     // Heating
     std::map<std::string, HeatingType> heating_map{
@@ -626,7 +662,7 @@ struct DeviceParams {
     viscosity_mode = reader.GetMapValue(viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
     prandtl = reader.GetFloat("viscosity", "prandtl", 1.0);
-    zero_flux_boundary = reader.GetBoolean("viscosity", "zero_flux_boundary", false); 
+    zero_flux_viscous_boundary = reader.GetBoolean("viscosity", "zero_flux_viscous_boundary", false); 
 
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);
@@ -777,8 +813,8 @@ Params readInifile(std::string filename) {
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
   res.range_dom = ParallelRange({res.device_params.ibeg, res.device_params.jbeg}, {res.device_params.iend, res.device_params.jend});
-//   res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
-  res.range_xbound = ParallelRange({0, 0}, {res.device_params.Ng, res.device_params.Nty});
+  res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
+//   res.range_xbound = ParallelRange({0, 0}, {res.device_params.Ng, res.device_params.Nty});
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
   

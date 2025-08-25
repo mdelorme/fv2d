@@ -429,8 +429,8 @@ public:
     }
     KOKKOS_INLINE_FUNCTION
     Pos getCenter(int i, int j) const{ 
-      return {params.xmin + (i-params.ibeg+0.5) * params.dx,
-              params.ymin + (j-params.jbeg+0.5) * params.dy};
+      return {params.xmin + ((i-params.ibeg)+0.5) * params.dx,
+              params.ymin + ((j-params.jbeg)+0.5) * params.dy};
     }
 };
 }

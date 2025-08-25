@@ -18,12 +18,12 @@ Kokkos::Array<State, ndim> LeastSquareGradient(const Array&              Q,
 {
 
   constexpr int nb_neighbors = wide_stencil ? 8 : 4;
-  Kokkos::Array<State, nb_neighbors> stencil;
-  Kokkos::Array<Pos,   nb_neighbors> distances;
+  Kokkos::Array<State, nb_neighbors> stencil{0};
+  Kokkos::Array<Pos,   nb_neighbors> distances{0};
 
   // fill stencil & distance matrix
   {
-    Pos main_centroid = geometry.mapc2p_center(i,j);
+    Pos r_P = geometry.mapc2p_center(i,j);
     State main_state = getState(Q, i, j);
     int id = 0;
 
@@ -34,8 +34,13 @@ Kokkos::Array<State, ndim> LeastSquareGradient(const Array&              Q,
           if(ii==i && jj==j) 
             continue;
           
-          stencil[id] = getState(Q, ii, jj) - main_state;
-          distances[id] = geometry.mapc2p_center(ii,jj) - main_centroid;
+          const Pos r_i = geometry.mapc2p_center(ii,jj);
+//           const real_t weight = norm(r_i - r_P); // weighted least-square
+       constexpr real_t weight = 1.0;
+          
+          stencil[id] = weight * (getState(Q, ii, jj) - main_state);
+
+          distances[id] = weight * (r_i - r_P);
           id++;
         }
       }
@@ -46,9 +51,13 @@ Kokkos::Array<State, ndim> LeastSquareGradient(const Array&              Q,
         for (int side : {-1, +1}){
           int ii = i + (dir == IX ? side : 0);
           int jj = j + (dir == IY ? side : 0);
+          
+          const Pos r_i = geometry.mapc2p_center(ii,jj);
+//           const real_t weight = norm(r_i - r_P); // weighted least-square
+          constexpr real_t weight = 1.0;
 
-          stencil[id] = getState(Q, ii, jj) - main_state;
-          distances[id] = geometry.mapc2p_center(ii,jj) - main_centroid;
+          stencil[id] = weight * (getState(Q, ii, jj) - main_state);
+          distances[id] = weight * (r_i - r_P);
           id++;
         }
       }
@@ -68,7 +77,7 @@ Kokkos::Array<State, ndim> LeastSquareGradient(const Array&              Q,
     }
     
   // inverse of (D^T * D) -> invDD_Mat
-  Kokkos::Array<real_t, ndim*ndim> invDD_Mat;
+  Kokkos::Array<real_t, ndim*ndim> invDD_Mat{0};
   real_t det_DD;
   {
     const real_t *a = DD_Mat[0];
@@ -100,7 +109,7 @@ Kokkos::Array<State, ndim> LeastSquareGradient(const Array&              Q,
   
   // compute gradient
   using Gradient = Kokkos::Array<State, ndim>;
-  Gradient gradient = {0};
+  Gradient gradient{0};
   for (int i=0; i<ndim; ++i){
     State gi{0};
     for (int k=0; k<nb_neighbors; k++){
@@ -123,14 +132,14 @@ Kokkos::Array<State, ndim> LeastSquareNodeGradient(const Array&              Q,
                                                    const Geometry&           geometry )
 {
   constexpr int nb_neighbors = 4;
-  Kokkos::Array<State, nb_neighbors> node_values;
-  Kokkos::Array<Pos,   nb_neighbors> distances;
+  Kokkos::Array<State, nb_neighbors> node_values{0};
+  Kokkos::Array<Pos,   nb_neighbors> distances{0};
 
   // fill stencil & distance matrix
   {
     // fill stencil & centroids
-    Kokkos::Array<State, 3*3> stencil;
-    Kokkos::Array<Pos,   3*3> centroids;
+    Kokkos::Array<State, 3*3> stencil{0};
+    Kokkos::Array<Pos,   3*3> centroids{0};
     Pos main_center = geometry.mapc2p_center(i,j);
     State main_state = getState(Q, i, j);
     
@@ -147,7 +156,7 @@ Kokkos::Array<State, ndim> LeastSquareNodeGradient(const Array&              Q,
       for (int l : {0, 1}) {
         Pos node_pos = geometry.getNode(i+k,j+l);
         real_t sum_inv_distance = 0;
-        State node_value = {0};
+        State node_value{0};
   
         for (int kk : {k, k+1}) {
           for (int ll : {l, l+1}) {
@@ -175,7 +184,7 @@ Kokkos::Array<State, ndim> LeastSquareNodeGradient(const Array&              Q,
     }
     
   // inverse of (D^T * D) -> invDD_Mat
-  Kokkos::Array<real_t, ndim*ndim> invDD_Mat;
+  Kokkos::Array<real_t, ndim*ndim> invDD_Mat{0};
   real_t det_DD;
   {
     const real_t *a = DD_Mat[0];
@@ -207,7 +216,7 @@ Kokkos::Array<State, ndim> LeastSquareNodeGradient(const Array&              Q,
   
   // compute gradient
   using Gradient = Kokkos::Array<State, ndim>;
-  Gradient gradient = {0};
+  Gradient gradient{0};
   for (int i=0; i<ndim; ++i){
     State gi{0};
     for (int k=0; k<nb_neighbors; k++){
@@ -233,11 +242,11 @@ Kokkos::Array<State, ndim> CellBasedGradient(const Array&              Q,
   using Gradient = Kokkos::Array<State, ndim>;
 
   State main_state = getState(Q, i, j);
-  Pos main_centroid = geometry.mapc2p_center(i,j);
+  Pos r_P = geometry.mapc2p_center(i,j);
   real_t area = geometry.cellArea(i, j);
 
   // gradient
-  Gradient gradient = {0};
+  Gradient gradient{0};
   for (IDir dir : {IX, IY}){
     for (ISide side : {ILEFT, IRIGHT}) { 
       const int sign = (side == ILEFT) ? -1 : 1;
@@ -250,7 +259,7 @@ Kokkos::Array<State, ndim> CellBasedGradient(const Array&              Q,
       {
         auto face_center = geometry.faceCenter(i,j, dir, side);
         real_t f1 = dist(face_center, geometry.mapc2p_center(ii,jj));
-        real_t f2 = dist(face_center, main_centroid);
+        real_t f2 = dist(face_center, r_P);
         f = f1 / (f1 + f2);
       }
       State facevalue = (1-f) * neighbor_state + f * main_state;
@@ -283,8 +292,8 @@ Kokkos::Array<State, ndim> NodeBasedGradient(const Array&              Q,
                                              const Geometry&           geometry )
 {
   // fill stencil & centroids
-  Kokkos::Array<State, 3*3> stencil;
-  Kokkos::Array<Pos,   3*3> centroids;
+  Kokkos::Array<State, 3*3> stencil{0};
+  Kokkos::Array<Pos,   3*3> centroids{0};
   
   for (int k=0; k<=2; k++) {
     for (int l=0; l<=2; l++) {
@@ -296,13 +305,13 @@ Kokkos::Array<State, ndim> NodeBasedGradient(const Array&              Q,
   }
 
   // compute nodebased gradient
-  Kokkos::Array<State, 2*2> node_values;
+  Kokkos::Array<State, 2*2> node_values{0};
 
   for (int k : {0, 1}) {
     for (int l : {0, 1}) {
       Pos node_pos = geometry.getNode(i+k,j+l);
       real_t sum_inv_distance = 0;
-      State node_value = {0};
+      State node_value{0};
 
       for (int kk : {k, k+1}) {
         for (int ll : {l, l+1}) {
@@ -316,7 +325,7 @@ Kokkos::Array<State, ndim> NodeBasedGradient(const Array&              Q,
   }
 
   using Gradient = Kokkos::Array<State, ndim>;
-  Gradient gradient = {0};
+  Gradient gradient{0};
   for (IDir dir : {IX, IY}) {
     for(ISide side : {ILEFT, IRIGHT}) {
       const int s = (side == ILEFT) ?  0 : 1;
@@ -337,7 +346,7 @@ Kokkos::Array<State, ndim> NodeBasedGradient(const Array&              Q,
   return gradient;
 }
 
-template<typename FunctionAccessor, int ndim=2> KOKKOS_INLINE_FUNCTION
+template<typename FunctionAccessor> KOKKOS_INLINE_FUNCTION
 auto computeGradient(const Array& Q, const FunctionAccessor& getState, const int i, const int j, const Geometry& geometry, const GradientType gradient_type)
 {
   using State = decltype(getState(Q, 0, 0));

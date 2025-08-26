@@ -101,8 +101,12 @@ namespace fv2d {
       return fillAbsorbing(Q, iref, jref);
   }
 
+  #ifdef MHD
+  /**
+   * @brief Boundary values and flux for a normal Magnetic Field Boundary Condition
+   */
   KOKKOS_INLINE_FUNCTION
-  State getNormalMagFieldAndFlux(State u, State &flux, real_t ch, IDir dir, const DeviceParams &params) {
+  State getNormalMagFieldAndFlux(State u, State &flux, int i, int j, real_t ch, IDir dir, const DeviceParams &params) {
     // Assume we're at the y_min or y_max boundary
     if (dir == IX) {
       return u;
@@ -110,17 +114,17 @@ namespace fv2d {
     
     State q = consToPrim(u, params);
     q[IBX] = 0.0;
-    // q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymax_value; // Non ! Ça ce serait pour une valeur fixée, pour un champ normal on touche pas à By
+    q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymin_value;
     q[IBZ] = 0.0;
     if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
       q[IPSI] = 0.0;
-    // We can also recompute the flux
+    // We should also recompute the flux
     // Hydro Flux
     flux[IR] = q[IR] * q[IV];
     flux[IU] = flux[IR] * q[IU];
     flux[IV] = flux[IR] * q[IV] + q[IP];
     flux[IW] = flux[IR] * q[IW];
-    flux[IE] = (q[IP] + u[IE]) * q[IV];
+    flux[IE] = (q[IP] + u[IE]) * q[IV]; // Note, u[IE] already contains the mag energy.
     // Magnetic Flux
     const real_t udotB = q[IBX]*q[IU] + q[IBY]*q[IV] + q[IBZ]*q[IW];
     flux[IBX] = q[IBX] * q[IV] - q[IBY] * q[IU];
@@ -130,14 +134,15 @@ namespace fv2d {
     // Modification of the hydro flux
     const real_t pmag = getMagneticPressure({q[IBX], q[IBY], q[IBZ]});
     flux[IU] -= q[IBY] * q[IBX];
-    flux[IV] -= q[IBY] * q[IBY] - pmag; // TODO: S'assurer que c'est bien un signe -
+    flux[IV] -= q[IBY] * q[IBY] - pmag;
     flux[IW] -= q[IBY] * q[IBZ];
-    flux[IE] -= q[IBY] * udotB - q[IV] * pmag; // Pareil ici, pmag ?
+    flux[IE] -= q[IBY] * udotB - q[IV] * pmag; // Pareil ici, pmag ? / Update : non-nécessaire car énergie mag déja contenue dans u[IE]
 
     // GLM Flux
     flux[IBY] += ch*ch * q[IPSI];
     return primToCons(q, params); // Important point as it recomputes the total energy !
   }
+  # endif //MHD
 } // anonymous namespace
 
 

@@ -99,21 +99,38 @@ Ec = np.zeros(snap)
 Em = np.zeros(snap)
 Etot = np.zeros(snap)
 time = np.zeros(snap)
-for t in range(snap):
-    v2 = file.returnVariable(t, 'u')**2 + file.returnVariable(t, 'v')**2 + file.returnVariable(t, 'w')**2
-    B2 = file.returnVariable(t, 'bx')**2 + file.returnVariable(t, 'by')**2 + file.returnVariable(t, 'bz')**2
-    e[t] = np.sum(file.returnVariable(t, 'prs')/(file.returnVariable(t, 'rho')*(5/3 - 1)))
-    Ec[t] = 1/2 * np.sum(file.returnVariable(t, 'rho') * v2)
-    Em[t] = 1/2 * np.sum(B2)
-    time[t] = file.returnTime(t)
-    Etot[t] = Ec[t] + Em[t]
 
+def compute_energies(t):
+    Ec = 0
+    Emag = 0
+    ein = 0
+    rho = file.returnVariable(t, 'rho')
+    p = file.returnVariable(t, 'prs')
+    u = file.returnVariable(t, 'u')
+    v = file.returnVariable(t, 'v')
+    w = file.returnVariable(t, 'w')
+    bx = file.returnVariable(t, 'bx')
+    by = file.returnVariable(t, 'by')
+    bz = file.returnVariable(t, 'bz')
+    for xi in range(file.Nx):
+        for yi in range(file.Ny):
+            Ec += (u[yi, xi]**2 + v[yi, xi]**2 + w[yi, xi]**2) * rho[yi, xi]/2
+            Emag += (bx[yi, xi]**2 + by[yi, xi]**2 + bz[yi, xi]**2)/2
+            ein += p[yi, xi]/(5/3 - 1)/rho[yi, xi]
+    etot = Ec + Emag + ein
+    return etot, ein, Ec, Emag
+
+for t in tqdm(range(file.Nf - 1), desc='Computing Energies'):
+    Etot[t], e[t], Ec[t], Em[t] = compute_energies(t)
+    time[t] = file.returnTime(t)
+
+grid_surface = (file.x.max() - file.x.min()) * (file.y.max() - file.y.min())
 plt.figure(figsize=(7, 7))
-plt.title(rf"Evolution of magnetic and kinetic energies - $\frac{{E_{{mag}}}}{{E_c}} \approx {Em[0]/Ec[0]:.3f}$")
-plt.plot(time, Etot, '--g', label='$E_{tot}(t)$')
-# plt.plot(time, e, label="$e(t)$")
-plt.plot(time, Ec, label="$E_c(t)$")
-plt.plot(time, Em, label="$E_{mag}$")
+plt.title(rf"Evolution of magnetic and kinetic energies - $\frac{{E_{{mag}}}}{{E_c}} \approx {Em[0]/Ec[0]:.2e}$")
+plt.plot(time, Etot/grid_surface, '--g', label='$E_{tot}(t)$')
+plt.plot(time, e/grid_surface, label="$e(t)$")
+plt.plot(time, Ec/grid_surface, label="$E_c(t)$")
+plt.plot(time, Em/grid_surface, label="$E_{mag}$")
 plt.semilogy()
 plt.legend()
 plt.xlabel("Time")
@@ -189,7 +206,7 @@ def plot_vertical_velocity(snap):
     C = ax['C'].imshow(np.flipud(v)*v_unit/1e3,extent=ext, cmap='bwr',vmin=-0.8,vmax=0.8)
     X,Y = np.meshgrid(file.x_width,file.y_depth)
     Bx = file.returnVariable(snap,'bx')
-    By = np.flipud(file.returnVariable(snap,'by'))
+    By = -file.returnVariable(snap,'by')
     ax['C'].streamplot(X,Y,Bx,By,density=1,color='k',linewidth=0.5, broken_streamlines=False)
     ax['C'].contour(file.returnVariable(snap,'rho'),extent=ext,levels=[RHO0],colors=['k'],linewidths=[0.5],alpha=0.5)
     ax['C'].text(0.01,1.01,'vertical velocity km/s',c='k',fontsize=10,ha='left',va='bottom',transform=ax['C'].transAxes)

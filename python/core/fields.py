@@ -87,7 +87,7 @@ def get_TTPrime(f, i: int):
 compute_values = {
   'Bmag': get_BMag,
   # 'Bperp': get_Bperp,
-  'divBoverB': get_divBoverB,
+  # 'divBoverB': get_divBoverB,
   # 'TT-prime': get_TTPrime,
   # 'rms': get_rms,
 }

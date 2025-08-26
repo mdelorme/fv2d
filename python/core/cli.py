@@ -64,6 +64,18 @@ class PlotCLI:
             default=25,
             help="FPS pour la vidéo."
         )
+        field_parser.add_argument(
+            "--streamplotV",
+            action="store_true",
+            help="Add a streamplot of the velocity vector field."
+        )
+       
+        field_parser.add_argument(
+            "--streamplotB",
+            action="store_true",
+            help="Add a streamplot of the magnetic vector field."
+        )
+         
 
 
     def _add_slice_subcommand(self):

@@ -53,8 +53,8 @@ class Fv2dData:
         self.metadata = self._get_metadata()
         self.Nx = self.metadata['Nx']
         self.Ny = self.metadata['Ny']
-        self.x  = self.metadata['x']
-        self.y  = self.metadata['y']
+        self.x  = np.unique(self.metadata['x'])[1:]
+        self.y  = np.unique(self.metadata['y'])[1:]
         self.ext = self.metadata['ext']
         self.problem = self.metadata['problem']
         

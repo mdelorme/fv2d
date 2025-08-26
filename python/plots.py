@@ -11,7 +11,7 @@ from core.plotting import (
     setup_figure, plot_2d_field, plot_1d_slice,
     plot_side_by_side, plot_overlay,
     plot_multi_field_side_by_side, plot_multi_field_overlay,
-    add_colorbar, add_grid
+    add_colorbar, add_grid, add_streamplot
 )
 from core.cli import PlotCLI
 from core.fields import latexify
@@ -34,16 +34,21 @@ def plot_field(data, snap, args):
     t = data.get_time(snap)
 
     fig, ax = setup_figure(
-        f"{data.problem.title().replace('_', ' ')} - t={t:.3f} - {latexify[args.field]}", #TODO: would make more sense to have latexify as a function
+        f"{data.problem.title().replace('_', ' ')} - t={t:.3f} - {latexify[args.field]}\n(Solver={args.solver})", #TODO: would make more sense to have latexify as a function
         figsize=(16, 8)
     )
     im = plot_2d_field(ax, data.ext, field_data, args.colormap, args.flipy)
+    if args.streamplotV: 
+        add_streamplot(ax, (data[snap]['u'], data[snap]['v']), data.x, data.y, flipy=args.flipy)
+    if args.streamplotB:
+        add_streamplot(ax, (data[snap]['bx'], data[snap]['by']), data.x, data.y, flipy=args.flipy)
     add_colorbar(fig, ax, im, boundaries=(0.0, 0.05))
     if args.show_grid:
         dx = data.x[1] - data.x[0]
         dy = data.y[1] - data.y[0]
         add_grid(ax, data.ext, dx, dy)
-
+    if args.flipy:
+        ax.invert_yaxis()
     plt.savefig(f"render/img_{snap:04d}.png")
     plt.close()
 

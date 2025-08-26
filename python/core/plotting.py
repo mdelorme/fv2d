@@ -24,10 +24,17 @@ def add_grid(ax, ext, dx, dy):
     ax.grid(which="minor", color='w', linestyle='-', linewidth=0.5)
     ax.tick_params(which="minor", bottom=False, left=False)
 
+# TODO: Not working, enters in an infinite loop
+def add_streamplot(ax, fields, x, y, flipy: bool=False):
+    v1, v2 = fields
+    factor = -1 if flipy else 1
+    ax.streamplot(x, y, v1, factor*v2, density=1, color="k", linewidth=0.5, broken_streamlines=False)
+
 
 def plot_2d_field(ax, ext: list, field_data, colormap: str='plasma', flipy: bool=False):
     im = ax.imshow(
-        np.flipud(field_data) if flipy else field_data,
+        # np.flipud(field_data) if flipy else field_data,
+        field_data,
         extent=ext,
         origin='lower',
         cmap=colormap,
@@ -56,7 +63,8 @@ def plot_side_by_side(axes, x, y, field_datas, labels, colormap='plasma', flipy=
     ims = []
     for ax, data, label in zip(axes, field_datas, labels):
         im = ax.imshow(
-            np.flipud(data) if flipy else data,
+            # np.flipud(data) if flipy else data,
+            data,
             extent=[x.min(), x.max(), y.min(), y.max()],
             origin='lower',
             cmap=colormap,

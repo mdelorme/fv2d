@@ -2,6 +2,7 @@ import argparse
 from matplotlib import colormaps
 from fv2d_utils import latexify
 
+# TODO: create a parent parser to hold all similar args
 class PlotCLI:
     """Classe pour gérer la ligne de commande et les sous-commandes."""
 
@@ -15,12 +16,6 @@ class PlotCLI:
     def _create_parser(self):
         """Crée le parser principal avec l'option commune `--file`."""
         parser = argparse.ArgumentParser(description="Outil de traçage pour simulations.")
-        # parser.add_argument(
-        #     "-f", "--file",
-        #     nargs='+',
-        #     required=True,
-        #     help="Chemin vers le(s) fichier(s) .h5 (ou motif comme 'simulation_*.h5')."
-        # )
         return parser
 
     def _add_field_subcommand(self):
@@ -35,8 +30,12 @@ class PlotCLI:
         field_parser.add_argument(
             "-t", "--field",
             choices=latexify.keys(),
-            default="rho",
+            required=True,
             help="Champ à tracer (ex: 'rho', 'bx')."
+        )
+        field_parser.add_argument(
+            "--solver",
+            help="Solver associated with the `.h5` file(s)."
         )
         field_parser.add_argument(
             "--colormap",
@@ -66,6 +65,7 @@ class PlotCLI:
             help="FPS pour la vidéo."
         )
 
+
     def _add_slice_subcommand(self):
         """Ajoute la sous-commande `slice` (slices 1D)."""
         slice_parser = self.subparsers.add_parser('slice', help="Trace des slices 1D.")
@@ -91,6 +91,26 @@ class PlotCLI:
             "-x", "--xslice",
             type=float,
             help="Valeur de x pour la slice verticale (ex: x=1.0)."
+        )
+        slice_parser.add_argument(
+            "--solver",
+            help="Solver associated with the `.h5` file(s)."
+        )
+        slice_parser.add_argument(
+            "--colormap",
+            choices=list(colormaps),
+            default="plasma",
+            help="Colormap à utiliser."
+        )
+        slice_parser.add_argument(
+            "--show-grid",
+            action="store_true",
+            help="Affiche une grille sur les plots."
+        )
+        slice_parser.add_argument(
+            "--flipy",
+            action="store_true",
+            help="Inverse l'axe y."
         )
         slice_parser.add_argument(
             "--save-mp4",
@@ -137,6 +157,10 @@ class PlotCLI:
             help="Labels pour chaque champ/simulation."
         )
         compare_parser.add_argument(
+            "--solver",
+            help="Solver associated with the `.h5` file(s)."
+        )
+        compare_parser.add_argument(
             "--colormap",
             choices=list(colormaps),
             default="plasma",
@@ -145,7 +169,7 @@ class PlotCLI:
         compare_parser.add_argument(
             "--show-grid",
             action="store_true",
-            help="Affiche une grille."
+            help="Affiche une grille sur les plots."
         )
         compare_parser.add_argument(
             "--flipy",

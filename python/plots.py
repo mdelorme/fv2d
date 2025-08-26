@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import concurrent.futures
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 from core.h5 import Fv2dData, get_slice_data
 from core.plotting import (
@@ -13,6 +14,8 @@ from core.plotting import (
     add_colorbar, add_grid
 )
 from core.cli import PlotCLI
+from core.fields import latexify
+
 
 def generate_video(output_pattern, output_file, fps):
     """Génère une vidéo MP4 à partir des images."""
@@ -24,34 +27,32 @@ def generate_video(output_pattern, output_file, fps):
     subprocess.run(command, check=True)
     print(f"[INFO] Vidéo sauvegardée sous {output_file}")
 
-def plot_field(filename, args):
-    """Trace un champ 2D pour un fichier donné."""
-    data = Fv2dData([filename])
-    output_dir = f"render/{os.path.basename(filename)}"
-    os.makedirs(output_dir, exist_ok=True)
 
-    for i in range(len(data)):
-        field_data = data[i][args.field]
-        t = data.get_time(i)
+def plot_field(data, snap, args):
+    """Trace un champ 2D pour un champ à un pas de temps donné."""
+    field_data = data[snap][args.field]
+    t = data.get_time(snap)
 
-        fig, ax = setup_figure(
-            f"{data.metadata.problem} - t={t:.3f} - {args.field}",
-            figsize=(16, 8)
-        )
-        im = plot_2d_field(ax, data.metadata.x, data.metadata.y, field_data, args.colormap, args.flipy)
-        add_colorbar(fig, ax, im)
-        if args.show_grid:
-            dx = data.metadata.x[1] - data.metadata.x[0]
-            dy = data.metadata.y[1] - data.metadata.y[0]
-            add_grid(ax, data.metadata.ext, dx, dy)
-        plt.savefig(f"{output_dir}/img_{i:04d}.png")
-        plt.close()
+    fig, ax = setup_figure(
+        f"{data.problem.title().replace('_', ' ')} - t={t:.3f} - {latexify[args.field]}", #TODO: would make more sense to have latexify as a function
+        figsize=(16, 8)
+    )
+    im = plot_2d_field(ax, data.ext, field_data, args.colormap, args.flipy)
+    add_colorbar(fig, ax, im, boundaries=(0.0, 0.05))
+    if args.show_grid:
+        dx = data.x[1] - data.x[0]
+        dy = data.y[1] - data.y[0]
+        add_grid(ax, data.ext, dx, dy)
+
+    plt.savefig(f"render/img_{snap:04d}.png")
+    plt.close()
+
 
 def plot_slice(filename, args):
     """Trace une slice 1D pour un fichier donné."""
     data = SimulationData([filename])
     slice_data = get_slice_data(filename, args.field, args.xslice, args.yslice)
-    output_dir = f"render/{os.path.basename(filename)}"
+    output_dir = f"{os.path.dirname(filename)}/render/{os.path.basename(filename.strip('.h5'))}"
     os.makedirs(output_dir, exist_ok=True)
 
     for i in range(len(data)):
@@ -59,7 +60,7 @@ def plot_slice(filename, args):
         t = data.get_time(i)
 
         fig, ax = setup_figure(
-            f"{data.metadata.problem} - t={t:.3f} - Slice {'y' if args.yslice else 'x'}={args.yslice if args.yslice else args.xslice}",
+            f"{data.problem} - t={t:.3f} - Slice {'y' if args.yslice else 'x'}={args.yslice if args.yslice else args.xslice}",
             figsize=(12, 8)
         )
 
@@ -80,7 +81,7 @@ def compare_fields_in_simulation(filename, args):
     data = SimulationData([filename])
     field_names = args.fields if args.fields else [args.field]
     labels = args.labels if args.labels else field_names
-    output_dir = f"render/compare_fields_{os.path.basename(filename)}"
+    output_dir = f"{os.path.dirname(filename)}/render/compare_fields_{os.path.basename(filename.strip('.h5'))}"
     os.makedirs(output_dir, exist_ok=True)
 
     for i in range(len(data)):
@@ -92,14 +93,14 @@ def compare_fields_in_simulation(filename, args):
             if len(field_datas) == 1:
                 axes = [axes]
             im = plot_multi_field_side_by_side(
-                axes, data.metadata.x, data.metadata.y,
+                axes, data.x, data.y,
                 field_datas, field_names, args.colormap, args.flipy
             )
             add_colorbar(fig, axes[0], im, orientation='horizontal')
         else:  # mode == "overlay"
             fig, ax = plt.subplots(figsize=(12, 8))
             im = plot_multi_field_overlay(
-                ax, data.metadata.x, data.metadata.y,
+                ax, data.x, data.y,
                 field_datas, field_names, args.colormap, args.flipy
             )
             add_colorbar(fig, ax, im)
@@ -113,7 +114,7 @@ def compare_fields_between_simulations(filenames, args):
     datasets = [SimulationData([f]) for f in filenames]
     labels = args.labels if args.labels else [os.path.basename(f) for f in filenames]
     field_name = args.fields[0] if args.fields else args.field
-    output_dir = f"render/compare_{field_name}"
+    output_dir = f"{os.path.dirname(filename)}/render/compare_{field_name}"
     os.makedirs(output_dir, exist_ok=True)
 
     n_iterations = len(datasets[0])
@@ -125,41 +126,34 @@ def compare_fields_between_simulations(filenames, args):
             fig, axes = plt.subplots(1, len(datasets), figsize=(5 * len(datasets), 8))
             if len(datasets) == 1:
                 axes = [axes]
-            im = plot_side_by_side(axes, datasets[0].metadata.x, datasets[0].metadata.y, field_datas, labels, args.colormap, args.flipy)
+            im = plot_side_by_side(axes, datasets[0].x, datasets[0].y, field_datas, labels, args.colormap, args.flipy)
             add_colorbar(fig, axes[0], im, orientation='horizontal')
         else:  # mode == "overlay"
             fig, ax = plt.subplots(figsize=(12, 8))
-            im = plot_overlay(ax, datasets[0].metadata.x, datasets[0].metadata.y, field_datas, labels, args.colormap, args.flipy)
+            im = plot_overlay(ax, datasets[0].x, datasets[0].y, field_datas, labels, args.colormap, args.flipy)
             add_colorbar(fig, ax, im)
 
         plt.suptitle(f"Comparaison de {field_name} à t={times[0]:.3f}")
         plt.savefig(f"{output_dir}/compare_{i:04d}.png")
         plt.close()
 
+
 def run_field_command(args):
-    """Exécute la commande `field` avec `submit()`."""
-    if os.path.exists('render'):
-        shutil.rmtree('render')
-    os.mkdir('render')
-
+    """Exécute la commande `field`"""
+    data = Fv2dData(args.file)
+    snapshots = list(range(len(data)))
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = []
-        for filename in args.file:
-            future = executor.submit(plot_field, filename, args)
-            futures.append(future)
-
+        futures = [executor.submit(plot_field, data, snap, args) for snap in snapshots]
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Processing files"):
-            future.result()  # Attend la fin du traitement
-
+            future.result() 
+    
     if args.save_mp4:
-        generate_video("render/*/img_*.png", f"{args.field}.mp4", args.fps)
+        filename = args.file[0]
+        generate_video("render/img_*.png", f"{os.path.dirname(filename)}/{args.field}.mp4", args.fps)
+
 
 def run_slice_command(args):
-    """Exécute la commande `slice` avec `submit()`."""
-    if os.path.exists('render'):
-        shutil.rmtree('render')
-    os.mkdir('render')
-
+    """Exécute la commande `slice`"""
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = []
         for filename in args.file:
@@ -169,23 +163,24 @@ def run_slice_command(args):
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Processing files"):
             future.result()
 
+
 def run_compare_command(args):
     """Exécute la commande `compare`."""
-    if os.path.exists('render'):
-        shutil.rmtree('render')
-    os.mkdir('render')
-
     if len(args.file) == 1 and args.fields and len(args.fields) > 1:
         compare_fields_in_simulation(args.file[0], args)
         if args.save_mp4:
-            generate_video("render/compare_fields_*/compare_*.png", "compare_fields.mp4", args.fps)
+            generate_video(f"{os.path.dirname(filename)}/render/compare_fields_*/compare_*.png", f"{os.path.dirname(filename)}/compare_fields.mp4", args.fps)
     else:
         compare_fields_between_simulations(args.file, args)
         if args.save_mp4:
             field_name = args.fields[0] if args.fields else args.field
-            generate_video(f"render/compare_{field_name}/compare_*.png", f"compare_{field_name}.mp4", args.fps)
+            generate_video(f"{os.path.dirname(filename)}/render/compare_{field_name}/compare_*.png", f"{os.path.dirname(filename)}/compare_{field_name}.mp4", args.fps)
 
 def main():
+    if os.path.exists('render'):
+        shutil.rmtree('render')
+    os.mkdir('render')
+
     cli = PlotCLI()
     args = cli.parse_args()
 

@@ -2,41 +2,41 @@ import h5py
 import numpy as np
 import glob
 import os
-# from fields import get_quantity
+from core.fields import compute_values
 
 
-class MetaData:
-    """ Class to hold the metadata of the simulation."""
-    def __init__(self, file: str) -> None:
-        self.file = file
-        self.metadata = self._extract_metadata()
-        self.Nx = self.metadata['Nx']
-        self.Ny = self.metadata['Ny']
-        self.x  = self.metadata['x']
-        self.y  = self.metadata['y']
-        self.ext = self.metadata['ext']
-        self.problem = f.medata['problem']
+# class MetaData:
+#     """ Class to hold the metadata of the simulation."""
+#     def __init__(self, file: str) -> None:
+#         self.file = file
+#         self.metadata = self._extract_metadata()
+#         self.Nx = self.metadata['Nx']
+#         self.Ny = self.metadata['Ny']
+#         self.x  = self.metadata['x']
+#         self.y  = self.metadata['y']
+#         self.ext = self.metadata['ext']
+#         self.problem = self.metadata['problem']
     
-    def _extract_metadata(self) -> dict:
-        with h5py.File(self.file, 'r') as f:
-            Nx = f.attrs['Nx']
-            Ny = f.attrs['Ny']
-            x = np.array(f.attrs['x'])
-            y = np.array(f.attrs['y'])
-            xmin, xmax = x.min(), x.max()
-            ymin, ymax = y.min(), y.max()
-            dx, dy = x[1] - x[0], y[1] - y[0]
-            ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
-            return {
-                'Nx': Nx,
-                'Ny': Ny,
-                'x': x,
-                'y': y,
-                'ext': ext,
-                'problem': f.attrs['problem'].title()
-            }
+#     def _extract_metadata(self) -> dict:
+#         with h5py.File(self.file, 'r') as f:
+#             Nx = f.attrs['Nx']
+#             Ny = f.attrs['Ny']
+#             x = np.array(f['x'])
+#             y = np.array(f['y'])
+#             xmin, xmax = x.min(), x.max()
+#             ymin, ymax = y.min(), y.max()
+#             dx, dy = x[1] - x[0], y[1] - y[0]
+#             ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
+#             return {
+#                 'Nx': Nx,
+#                 'Ny': Ny,
+#                 'x': x,
+#                 'y': y,
+#                 'ext': ext,
+#                 'problem': f.attrs['problem'].title()
+#             }
 
-
+# TODO: Ajouter la possibilité de tracer des fonctions customisées (comme dans fv2d utils)
 class Fv2dData:
     """
     Class to access simulation data stored in HDF5 files in a unified manner :
@@ -50,7 +50,14 @@ class Fv2dData:
         self.files = self._get_simulation_files(file_pattern)
         self.metadata = self._get_metadata()
         self.is_multi_iteration = self._check_multi_iteration()
-    
+        self.metadata = self._get_metadata()
+        self.Nx = self.metadata['Nx']
+        self.Ny = self.metadata['Ny']
+        self.x  = self.metadata['x']
+        self.y  = self.metadata['y']
+        self.ext = self.metadata['ext']
+        self.problem = self.metadata['problem']
+        
     def _check_multi_iteration(self) -> bool:
         """
         Check if the data is stored in multiple files or a single file with multiple iterations.
@@ -61,18 +68,20 @@ class Fv2dData:
         else:
             return False
     
+    # Pas besoin d'utiliser glob car déjà pris en charge par argparse. On aura dans tous les cas une liste de fichiers.
     def _get_simulation_files(self, file_pattern) -> list:
         """
         Returns the list of files to handle.
         """
-        if isinstance(file_pattern, str):
+        if isinstance(file_pattern, str): # should not happen. Add an assert?
+            assert False, "Unexpected behaviour, misuse of the class FV2dData"
             file_pattern = [file_pattern]
         if len(file_pattern) == 1 and self._check_multi_iteration_for_file(file_pattern[0]):
             return file_pattern # Case 1: one file with multiple iterations
         else:
             # Case 2: Several mono-iteration files
-            files = sorted(glob.glob(file_pattern[0]))
-            if not files:
+            files = sorted(file_pattern)
+            if not files: # should be handled differently
                 raise FileNotFoundError(f"No files found matching pattern: {file_pattern[0]}")
             return files
     
@@ -83,11 +92,27 @@ class Fv2dData:
         with h5py.File(file_path, 'r') as f:
             return 'ite_0000' in f
     
-    def _get_metadata(self) -> MetaData:
+    def _get_metadata(self) -> dict:
         """
         Extract metadata from the first file.
         """
-        return MetaData(self.files[0])
+        with h5py.File(self.files[0], 'r') as f:
+            Nx = f.attrs['Nx']
+            Ny = f.attrs['Ny']
+            x = np.array(f['x'])
+            y = np.array(f['y'])
+            xmin, xmax = x.min(), x.max()
+            ymin, ymax = y.min(), y.max()
+            dx, dy = x[1] - x[0], y[1] - y[0]
+            ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
+            return {
+                'Nx': Nx,
+                'Ny': Ny,
+                'x': x,
+                'y': y,
+                'ext': ext,
+                'problem': f.attrs['problem'].title()
+            }
     
     def __len__(self) -> int:
         """
@@ -109,18 +134,21 @@ class Fv2dData:
                 return self._get_iteration_data(f, i)
         else:
             with h5py.File(self.files[i], 'r') as f:
-                return self._get_iteration_data(f)
+                return self._get_iteration_data(f, i)
     
     def _get_iteration_data(self, f, i):
         data = {}
         if self.is_multi_iteration:
             group = f[f'ite_{i:04d}']
             for var in group:
-                data[var] = np.array(group[var])
+                data[var] = np.array(group[var]).reshape(self.Ny, self.Nx)
         else:
             for var in f:
                 if var not in ['x', 'y']:  # x and y already in metadata
-                    data[var] = np.array(f[var])
+                    data[var] = np.array(f[var]).reshape(self.Ny, self.Nx)
+        # Add custom values
+        for field, fn in compute_values.items():
+            data[field] = fn(data, self.metadata)
         return data
     
     def get_time(self, i):

@@ -1,3 +1,5 @@
+
+from typing import Any
 import numpy as np
 
 # Pass from field name to Latex representation
@@ -19,52 +21,18 @@ latexify = {
 }
 
 
-# def _path(i, field):
-#   path = f'ite_{i:04d}/{field}' if i != -1 else str(field)
-#   return path
-
-def get_shape(f) -> tuple[int, int]:
-  """Get the shape of the grid from the h5 file."""
-  Nx = f.attrs['Nx']
-  Ny = f.attrs['Ny']
-  return (Ny, Nx)
-
-def get_prim_array(f, i, field):
-  Nx = f.attrs['Nx']
-  Ny = f.attrs['Ny']
-  path = f'ite_{i:04d}/{field}' if i != -1 else str(field)
-  return np.array(f[path]).reshape((Ny, Nx))
-
-
-def _compute_2D_magnnorm(f, i: int, excludedir: str):
-  """Compute 2D magnetic field norm by excluding a specified component."""
-
-  if excludedir == 'x':
-    b1 = np.array(f[_path(i, 'by')])
-    b2 = np.array(f[_path(i, 'bz')])
-  elif excludedir == 'y':
-    b1 = np.array(f[_path(i, 'bx')])
-    b2 = np.array(f[_path(i, 'bz')])
-  elif excludedir == 'z':
-    b1 = np.array(f[_path(i, 'bx')])
-    b2 = np.array(f[_path(i, 'by')])
-  else:
-    raise ValueError(f"Direction to exclude must be in ('x', 'y', 'z'), not {excludedir}")
-  
-  return np.sqrt(b1**2 + b2**2)
-
-def get_BMag(f, i: int):
+def get_BMag(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
   """ Compute the norm of the magnetic field from a h5 file containing primitive variables.
       The magnetic field is in 2D and is supposed to have the norm sqrt{B_x^2 + B_y^2}.
 
     Args:
-      - f : h5py.File
+      - data : dict containing the primitive values at time i
       - i : iteration level of the simulation
     
     Returns :
       - Bmag : np.ndarray 
   """
-  return _compute_2D_magnnorm(f, i, excludedir='z').reshape((f.attrs['Ny'], f.attrs['Nx']))
+  return np.sqrt(data['bx']**2 + data['by']**2 + data['bz']**2) 
 
 
 def get_rms(f, i: int):
@@ -99,18 +67,13 @@ def get_Bperp(f, i: int):
   return _compute_2D_magnnorm(f, i, excludedir='x')
 
 
-def get_divBoverB(f, i: int):
-  Nx = int(f.attrs['Nx'])
-  Ny = int(f.attrs['Ny'])
-  x = np.array(f['x'])
-  dx = x[1]-x[0]
-  bx = np.array(f[_path(i, 'bx')]).reshape((Ny, Nx))
-  by = np.array(f[_path(i, 'by')]).reshape((Ny, Nx))
-  bz = np.array(f[_path(i, 'bz')]).reshape((Ny, Nx))
-  divB = np.abs(np.array(f[_path(i, 'divB')]).reshape((Ny, Nx)))
-  Bmag = np.sqrt(bx**2 + by**2 + bz**2)
-  arr = np.log(dx * divB / Bmag)
+def get_divBoverB(data: list[int, dict], metadata: dict[str, Any]) -> np.ndarray:
+  """Returns a value computed from the primitive variables in data"""
+  dx = metadata['x'][1] - metadata['x'][0]
+  Bmag = get_BMag(data)
+  arr = np.log(dx * data['divB'] / Bmag)
   return arr
+
 
 def get_TTPrime(f, i: int):
   """ Compute the temperature fluctuation T - <T>."""
@@ -123,17 +86,8 @@ def get_TTPrime(f, i: int):
 
 compute_values = {
   'Bmag': get_BMag,
-  'Bperp': get_Bperp,
+  # 'Bperp': get_Bperp,
   'divBoverB': get_divBoverB,
-  'TT-prime': get_TTPrime,
-  'rms': get_rms,
+  # 'TT-prime': get_TTPrime,
+  # 'rms': get_rms,
 }
-
-def get_quantity(f, i, field):
-  """set i to -1 to ignore, behaviour is to change"""
-  if field in ('rho', 'prs', 'u', 'v', 'w', 'bx', 'by', 'bz', 'psi', 'divB'):
-    return get_prim_array(f, i, field)
-  elif field in compute_values:
-    return compute_values[field](f, i)
-  else:
-    raise ValueError(f'No known quantity to evaluate for {field=}.')

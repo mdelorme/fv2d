@@ -114,7 +114,7 @@ namespace fv2d {
     
     State q = consToPrim(u, params);
     q[IBX] = 0.0;
-    q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymin_value;
+    // q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymin_value;
     q[IBZ] = 0.0;
     if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
       q[IPSI] = 0.0;

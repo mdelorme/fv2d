@@ -55,6 +55,12 @@ class Fv2dData:
         self.Ny = self.metadata['Ny']
         self.x  = np.unique(self.metadata['x'])[1:]
         self.y  = np.unique(self.metadata['y'])[1:]
+        self.dx = self.metadata['dx']
+        self.dy = self.metadata['dy']
+        self.xmin = self.x.min()
+        self.xmax = self.x.max()
+        self.ymin = self.y.min()
+        self.ymax = self.y.max()
         self.ext = self.metadata['ext']
         self.problem = self.metadata['problem']
         
@@ -110,6 +116,8 @@ class Fv2dData:
                 'Ny': Ny,
                 'x': x,
                 'y': y,
+                'dx': dx,
+                'dy': dy,
                 'ext': ext,
                 'problem': f.attrs['problem'].title()
             }
@@ -124,17 +132,38 @@ class Fv2dData:
         else:
             return len(self.files) # One file = one iteration
     
-    def __getitem__(self, i):
+    def __getitem__(self, key):
         """
-        Allows the user to access the data with `data[i]`.
-        Returns a dict with all available variables.
+        Permet d'accéder aux données avec :
+        - data[i] : retourne toutes les variables à l'itération i.
+        - data[i, 'rho'] : retourne uniquement le champ 'rho' à l'itération i.
         """
-        if self.is_multi_iteration:
-            with h5py.File(self.files[0], 'r') as f:
-                return self._get_iteration_data(f, i)
+        i = key[0] if isinstance(key, tuple) else key
+        file = self.files[0] if self.is_multi_iteration else self.files[i]
+        if isinstance(key, tuple):
+            # Cas : data[i, 'rho']
+            i, field = key
+            with h5py.File(file, 'r') as f:
+                return self._get_field_data(f, i, field)
         else:
-            with h5py.File(self.files[i], 'r') as f:
-                return self._get_iteration_data(f, i)
+            # Cas : data[i]
+            with h5py.File(file, 'r') as f:
+                return self._get_iteration_data(f, key)
+    
+    def _get_field_data(self, f, i, field):
+        data = {}
+        if self.is_multi_iteration:
+            group = f[f'ite_{i:04d}']
+            for var in group:
+                data[var] = np.array(group[var]).reshape(self.Ny, self.Nx)
+        else:
+            for var in f:
+                if not var in {'x', 'y'}:
+                    data[var] = np.array(f[var]).reshape(self.Ny, self.Nx)
+        # Add custom values
+        if field not in {'rho', 'prs', 'u', 'v', 'w', 'bx', 'by', 'bz', 'divB', 'psi'}:
+            data[field] = compute_values[field](data, self.metadata)
+        return data[field]
     
     def _get_iteration_data(self, f, i):
         data = {}
@@ -144,11 +173,7 @@ class Fv2dData:
                 data[var] = np.array(group[var]).reshape(self.Ny, self.Nx)
         else:
             for var in f:
-                if var not in ['x', 'y']:  # x and y already in metadata
-                    data[var] = np.array(f[var]).reshape(self.Ny, self.Nx)
-        # Add custom values
-        for field, fn in compute_values.items():
-            data[field] = fn(data, self.metadata)
+                data[var] = np.array(f[var]).reshape(self.Ny, self.Nx)
         return data
     
     def get_time(self, i):

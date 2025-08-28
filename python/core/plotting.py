@@ -12,10 +12,10 @@ def setup_figure(title: str, figsize=(12, 12)):
     return fig, ax
 
 
-def add_colorbar(fig, ax, im, boundaries=(-0.006, 0.006)):
+def add_colorbar(fig, ax, im):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.1)
-    plt.colorbar(im, cax=cax, boundaries=boundaries)
+    plt.colorbar(im, cax=cax)
 
 
 def add_grid(ax, ext, dx, dy):
@@ -24,21 +24,38 @@ def add_grid(ax, ext, dx, dy):
     ax.grid(which="minor", color='w', linestyle='-', linewidth=0.5)
     ax.tick_params(which="minor", bottom=False, left=False)
 
-# TODO: Not working, enters in an infinite loop
 def add_streamplot(ax, fields, x, y, flipy: bool=False):
     v1, v2 = fields
     factor = -1 if flipy else 1
     ax.streamplot(x, y, v1, factor*v2, density=1, color="k", linewidth=0.5, broken_streamlines=False)
 
+def add_quiver(ax, fields, x, y, flipy: bool=False):
+    v1, v2 = fields
+    factor = -1 if flipy else 1
+    ax.quiver(x, y, v1, factor*v2, color="k")
 
-def plot_2d_field(ax, ext: list, field_data, colormap: str='plasma', flipy: bool=False):
+def add_contours(ax, field_contours, x, y):
+    contour_levels = np.linspace(field_contours.min(), field_contours.max(), 10)  # Niveaux des contours
+    contours = ax.contour(
+        x, y, field_contours,
+        levels=contour_levels,
+        colors='black',
+        linewidths=1,
+        alpha=0.7
+    )
+
+
+def plot_2d_field(ax, ext: list, field_data, colormap: str='plasma', boundaries=(None, None), flipy: bool=False):
+    vmin, vmax = boundaries
     im = ax.imshow(
         # np.flipud(field_data) if flipy else field_data,
         field_data,
         extent=ext,
         origin='lower',
         cmap=colormap,
-        aspect='auto'
+        aspect='auto',
+        vmin=vmin,
+        vmax=vmax
     )
     return im
 

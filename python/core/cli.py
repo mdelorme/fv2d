@@ -65,6 +65,11 @@ class PlotCLI:
             help="FPS pour la vidéo."
         )
         field_parser.add_argument(
+            "--quiverB",
+            action="store_true",
+            help="Add a quiver plot of the magnetic vector field."
+        )
+        field_parser.add_argument(
             "--streamplotV",
             action="store_true",
             help="Add a streamplot of the velocity vector field."
@@ -75,7 +80,19 @@ class PlotCLI:
             action="store_true",
             help="Add a streamplot of the magnetic vector field."
         )
-         
+        
+        field_parser.add_argument(
+            "--contours",
+            choices=latexify.keys(),
+            default=None,
+            help="Add contours of the specified field."
+        )
+
+        field_parser.add_argument(
+            "-b", "--boundaries",
+            nargs=2,
+            help="Minimum and maximum values to display on the image."
+        )
 
 
     def _add_slice_subcommand(self):

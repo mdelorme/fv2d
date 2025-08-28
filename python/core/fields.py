@@ -1,5 +1,6 @@
 
 from typing import Any
+from dataclasses import dataclass
 import numpy as np
 
 # Pass from field name to Latex representation
@@ -19,6 +20,20 @@ latexify = {
   'TT-prime': r'$T - <T>$', # Added for the tri-layer
   'rms': r'$\frac{v}{<v^2> - <v>^2}$',  # Added for the tri-layer
 }
+
+
+@dataclass
+class UnitsThreeLayers:
+  ystart: float = 0.0
+  yend: float = 13.6820142565237
+  y1: float = 1.0
+  y2: float = 9.755395581941308
+  t_unit: int = 60 # 1 minute
+  cs_unit: float = 7100.0 # photosphere sound speed m/s
+  d_unit: float = t_unit*cs_unit
+  a_unit: float = d_unit/t_unit**2
+  solar_g: float = 274/a_unit
+  solar_10Mm: float = 10e6/d_unit
 
 
 def get_BMag(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
@@ -47,19 +62,9 @@ def get_rms(f, i: int):
   v_rms = np.sqrt(v2_avg - v_avg**2)
   return v / v_rms  # Reshape to match the grid dimensions (Ny, Nx)
 
-
-def find_tri_layer_Bfield(f, i):
-  Nx, Ny = f.attrs['Nx'], f.attrs['Ny']
-  vx = get_prim_array(f, i, 'v').reshape(Ny, Nx)
-  vy = get_prim_array(f, i, 'v').reshape(Ny, Nx)
-  rho = get_prim_array(f, i, 'rho')
-  x, y = np.array(f['x']), np.array(f['y'])
-  B2_avg = 0
-  for i in range(Nx):
-    for j in range(Ny):
-      v2 = vx[j, i]**2 + vy[j, i]**2
-      B2_avg += rho[j, i] * v2
-  return np.sqrt(B2_avg)/((x.max() - x.min()) * (y.max() - y.min()))
+def get_T(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
+  """ Compute the temperature from primitive variables."""
+  return data['prs'] / data['rho']
 
 
 def get_Bperp(f, i: int):
@@ -75,19 +80,16 @@ def get_divBoverB(data: list[int, dict], metadata: dict[str, Any]) -> np.ndarray
   return arr
 
 
-def get_TTPrime(f, i: int):
+def get_TTPrime(data, metadata):
   """ Compute the temperature fluctuation T - <T>."""
-  rho = get_prim_array(f, i, 'rho')
-  prs = get_prim_array(f, i, 'prs')
-  T = prs / rho
-  Tbar = np.average(T, axis=1)
-  Tprime = np.tile(Tbar, (T.shape[1], 1)).T
-  return T - Tprime
+  T = get_T(data, metadata)
+  averageT = np.tile(np.nanmean(T, axis=1),(metadata['Nx'], 1)).T
+  return T - averageT
+
 
 compute_values = {
   'Bmag': get_BMag,
-  # 'Bperp': get_Bperp,
-  # 'divBoverB': get_divBoverB,
-  # 'TT-prime': get_TTPrime,
+  'divBoverB': get_divBoverB,
+  'TT-prime': get_TTPrime,
   # 'rms': get_rms,
 }

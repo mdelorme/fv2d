@@ -81,17 +81,26 @@ class PlotCLI:
             help="Add a streamplot of the magnetic vector field."
         )
         
+
         field_parser.add_argument(
+            "-b", "--boundaries",
+            nargs=2,
+            help="Minimum and maximum values to display on the image."
+        )
+
+        contours_group = field_parser.add_argument_group("contours", "Add contours of the specified field.")
+        contours_group.add_argument(
             "--contours",
             choices=latexify.keys(),
             default=None,
             help="Add contours of the specified field."
         )
 
-        field_parser.add_argument(
-            "-b", "--boundaries",
-            nargs=2,
-            help="Minimum and maximum values to display on the image."
+        contours_group.add_argument(
+            "-l", "--levels",
+            nargs='*',
+            default=5,
+            help="Level values for the contour plot."
         )
 
 

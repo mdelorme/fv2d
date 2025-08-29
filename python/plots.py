@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# scripts/plot.py
 import os
 import shutil
 import subprocess
@@ -33,7 +31,7 @@ def plot_field(data, snap, args):
     field_data = data[snap, args.field]
     t = data.get_time(snap)
     title = f"{data.problem.title().replace('_', ' ')} - t={t:.3f} - {latexify[args.field]}" #TODO: would make more sense to have latexify as a function
-    title += "\n(Solver={args.solver})" if args.solver else ""
+    title += f"\n(Solver={args.solver})" if args.solver else ""
     fig, ax = setup_figure(
         title,
         figsize=(16, 8)
@@ -41,17 +39,17 @@ def plot_field(data, snap, args):
     vmin, vmax = None, None
     if args.boundaries:
         vmin, vmax = args.boundaries
-    data.ext = [
-        (data.xmin-data.dx)*UnitsThreeLayers.d_unit/1e6, 
-        data.xmax*UnitsThreeLayers.d_unit/1e6,
-        (data.ymin-UnitsThreeLayers.y1)*UnitsThreeLayers.d_unit/1e6,
-        (data.ymax-UnitsThreeLayers.y1)*UnitsThreeLayers.d_unit/1e6
-        ]
+    # data.ext = [
+    #     (data.xmin-data.dx)*UnitsThreeLayers.d_unit/1e6, 
+    #     data.xmax*UnitsThreeLayers.d_unit/1e6,
+    #     (data.ymin-UnitsThreeLayers.y1)*UnitsThreeLayers.d_unit/1e6,
+    #     (data.ymax-UnitsThreeLayers.y1)*UnitsThreeLayers.d_unit/1e6
+    #     ]
     im = plot_2d_field(ax, data.ext, field_data, args.colormap, boundaries=(vmin, vmax), flipy=args.flipy)
-    ax.axhline(y=UnitsThreeLayers.y1*UnitsThreeLayers.d_unit/1e6,c='k',ls='--',lw=0.5)
-    ax.axhline(y=UnitsThreeLayers.y2*UnitsThreeLayers.d_unit/1e6,c='k',ls='--',lw=0.5)
-    data.y = (data.y - UnitsThreeLayers.y1)*UnitsThreeLayers.d_unit/1e6
-    data.x = data.x * UnitsThreeLayers.d_unit / 1e6
+    # ax.axhline(y=UnitsThreeLayers.y1*UnitsThreeLayers.d_unit/1e6,c='k',ls='--',lw=0.5)
+    # ax.axhline(y=UnitsThreeLayers.y2*UnitsThreeLayers.d_unit/1e6,c='k',ls='--',lw=0.5)
+    # data.y = (data.y - UnitsThreeLayers.y1)*UnitsThreeLayers.d_unit/1e6
+    # data.x = data.x * UnitsThreeLayers.d_unit / 1e6
     add_colorbar(fig, ax, im)
     
     if args.streamplotV: 
@@ -61,13 +59,15 @@ def plot_field(data, snap, args):
     if args.quiverB:
         add_quiver(ax, (data[snap, 'bx'], data[snap, 'by']), data.x, data.y, flipy=args.flipy)
     if args.contours:
-        add_contours(ax, data[snap, args.contours], x=data.x, y=data.y)
+        levels = int(args.levels[0]) if len(args.levels) == 1 else args.levels
+        add_contours(ax, data[snap, args.contours], x=data.x, y=data.y, levels=levels)
     if args.show_grid:  
         add_grid(ax, data.ext, data.dx, data.dy)
     if args.flipy:
         ax.invert_yaxis()
-    ax.set_ylabel("Depth [Mm]")
-    ax.set_xlabel("Width [Mm]")
+        # ax.invert_xaxis()
+    # ax.set_ylabel("Depth [Mm]")
+    # ax.set_xlabel("Width [Mm]")
     plt.savefig(f"render/img_{snap:04d}.png")
     plt.close()
 

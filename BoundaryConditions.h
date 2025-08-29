@@ -139,7 +139,9 @@ namespace fv2d {
     flux[IE] -= q[IBY] * udotB - q[IV] * pmag; // Pareil ici, pmag ? / Update : non-nécessaire car énergie mag déja contenue dans u[IE]
 
     // GLM Flux
-    flux[IBY] += ch*ch * q[IPSI];
+    // flux[IBY] += ch*ch * q[IPSI];
+    flux[IBY] = q[IPSI];
+    flux[IPSI] = ch*ch
     return primToCons(q, params); // Important point as it recomputes the total energy !
   }
   # endif //MHD

@@ -24,24 +24,50 @@ def add_grid(ax, ext, dx, dy):
     ax.grid(which="minor", color='w', linestyle='-', linewidth=0.5)
     ax.tick_params(which="minor", bottom=False, left=False)
 
+
 def add_streamplot(ax, fields, x, y, flipy: bool=False):
     v1, v2 = fields
     factor = -1 if flipy else 1
-    ax.streamplot(x, y, v1, factor*v2, density=1, color="k", linewidth=0.5, broken_streamlines=False)
+    ax.streamplot(
+        x, y, v1, factor*v2, 
+        density=(1.07, 1),
+        color="k",
+        linewidth=0.5,
+        arrowsize=1.5,
+        # start_points=start_points.T,
+        broken_streamlines=False
+    )
 
-def add_quiver(ax, fields, x, y, flipy: bool=False):
+
+def add_quiver(ax, fields, x, y, flipy: bool=False, density: int=5):
     v1, v2 = fields
     factor = -1 if flipy else 1
-    ax.quiver(x, y, v1, factor*v2, color="k")
+    v1 = v1[::density, ::density]
+    v2 = v2[::density, ::density]
+    norm = np.sqrt(v1**2 + v2**2)
+    size = 5
+    ax.quiver(
+        x[::density], y[::density], 
+        v1/norm, factor*v2/norm,
+        color="white",
+        angles='xy',
+        scale=1.8,
+        scale_units="xy",
+        # width=0.05,
+        headwidth=5,
+        headlength=7,
+        minshaft=4,
+        minlength=0.2,
+    )
 
-def add_contours(ax, field_contours, x, y):
-    contour_levels = np.linspace(field_contours.min(), field_contours.max(), 10)  # Niveaux des contours
+
+def add_contours(ax, field_contours, x, y, levels=5):
     contours = ax.contour(
         x, y, field_contours,
-        levels=contour_levels,
+        levels=levels,
         colors='black',
         linewidths=1,
-        alpha=0.7
+        alpha=0.8
     )
 
 
@@ -65,6 +91,7 @@ def plot_1d_slice(ax, x_or_y, slice_data, field, solver=None, coords=None):
     ax.set_xlabel(r'$x$' if coords.startswith('$(x,') else r'$y$')
     ax.set_ylabel(latexify[field] + coords)
     ax.legend()
+
 
 def plot_side_by_side(axes, x, y, field_datas, labels, colormap='plasma', flipy=False):
     """

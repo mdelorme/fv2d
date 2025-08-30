@@ -22,11 +22,18 @@ constexpr auto io_variables = std::make_tuple(
 
   // xdmf strings
 namespace {
-constexpr std::string_view str_xdmf_footer_unique = R"xml(</Grid>
-</Domain>
-</Xdmf>)xml";
+constexpr std::string_view str_xdmf_main_header = R"xml(<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" Version="3.0">
+<Domain Name="MainTimeSeries">
+  <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">)xml";
+constexpr std::string_view str_xdmf_main_ite = R"xml(
+    <xi:include href="%s" xpointer="xpointer(//Xdmf/Domain/Grid)" />)xml";
 constexpr std::string_view str_xdmf_main_footer = R"xml(
   </Grid>
+</Domain>
+</Xdmf>)xml";
+constexpr std::string_view str_xdmf_footer_unique = R"xml(</Grid>
 </Domain>
 </Xdmf>)xml";
 }
@@ -35,9 +42,9 @@ class IOManager {
   template<std::size_t N>
   using Table = std::vector<std::array<real_t, N>>;
 
-  template<std::size_t I, typename F, typename... Tuples>
+  template<std::size_t Id, typename F, typename... Tuples>
   constexpr void call_index(F&& func, Tuples&&... tuples) {
-    std::invoke(std::forward<F>(func), std::get<I>(std::forward<Tuples>(tuples))...);
+    std::invoke(std::forward<F>(func), std::get<Id>(std::forward<Tuples>(tuples))...);
   }
 
   template<typename F, typename... Tuples, std::size_t... I>
@@ -116,7 +123,7 @@ class IOManager {
 
     o << format_string(ite_begin.data(), field_size_str.c_str(), field_size_str.c_str(), grid_size_str.c_str(), sizeof(real_t));
 
-    for_each_tuples([&](const auto &io_var){
+    for_each_tuples([&](auto &&io_var){
       constexpr std::size_t dim = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
       constexpr std::string_view field_type = (dim > 3) ? "Matrix" : (dim > 1) ? "Vector" : "Scalar";
       const std::string_view name = io_var.first;
@@ -179,11 +186,7 @@ public:
         // initialize xdmf main for multiple output
         else {
           std::ofstream xdmf_main_file(params.output_path + params.filename_out + "_main.xmf", std::fstream::trunc);
-          xdmf_main_file << R"xml(<?xml version="1.0" ?>
-<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-<Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" Version="3.0">
-<Domain Name="MainTimeSeries">
-  <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">)xml" << str_xdmf_main_footer.data();
+          xdmf_main_file << str_xdmf_main_header.data() << str_xdmf_main_footer.data();
         }
       }
     };
@@ -268,7 +271,7 @@ public:
     auto tvars = make_tables();
     for (int j=device_params.jbeg; j<device_params.jend; ++j) {
       for (int i=device_params.ibeg; i<device_params.iend; ++i) {
-        for_each_tuples([&](const auto &io_var, auto& tvar) {
+        for_each_tuples([&](auto &&io_var, auto& tvar) {
           constexpr std::size_t n_var = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
           
           tvar.emplace_back();
@@ -280,7 +283,7 @@ public:
     }
 
     auto save_groups = [&](auto &g) {
-      for_each_tuples([&](const auto &io_var, const auto& tvar) {
+      for_each_tuples([&](auto &&io_var, const auto& tvar) {
         const std::string var_name{io_var.first};
         g.createDataSet(var_name, tvar);
       }, io_variables, tvars);
@@ -318,8 +321,7 @@ public:
     if constexpr (is_multiple) {
       std::fstream xdmf_main_file(params.output_path + params.filename_out + "_main.xmf", std::fstream::out | std::fstream::in);
       xdmf_main_file.seekp(-str_xdmf_main_footer.size(), std::fstream::end);
-      xdmf_main_file << format_string(R"xml(
-    <xi:include href="%s" xpointer="xpointer(//Xdmf/Domain/Grid)" />)xml", xmf_filename.c_str()) << str_xdmf_main_footer.data();
+      xdmf_main_file << format_string(str_xdmf_main_ite.data(), xmf_filename.c_str()) << str_xdmf_main_footer.data();
     }
   }
 
@@ -382,7 +384,7 @@ public:
     std::cout << "Loading restart data from hdf5" << std::endl;
 
     auto tvars = make_tables();
-    for_each_tuples([&](const auto &io_var, auto &tvar) {
+    for_each_tuples([&](auto &&io_var, auto &tvar) {
       const std::string var_name{io_var.first};
       tvar = std::move(load<std::remove_reference_t<decltype(tvar)>>(file, group + var_name));
     }, io_variables, tvars);
@@ -390,7 +392,7 @@ public:
     std::size_t lid = 0;
     for (int y=0; y < device_params.Ny; ++y) {
       for (int x=0; x < device_params.Nx; ++x) {
-        for_each_tuples([&](const auto &io_var, auto& tvar) {
+        for_each_tuples([&](auto &&io_var, auto& tvar) {
           constexpr std::size_t n_var = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
 
           for (std::size_t id=0; id < n_var; id++)
@@ -416,6 +418,28 @@ public:
     if (first_iteration) {
       file.~File(); // free the h5 before saving
       saveSolution(Q, iteration, time);
+
+      // recreate xdmf main
+      if (params.multiple_outputs) {
+
+        // search range of existing file
+        int iteration_min = iteration+1;
+        while(true) {
+          std::ostringstream xmf_filename;
+          xmf_filename << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << --iteration_min << ".xmf";
+          if (!std::filesystem::exists(params.output_path + xmf_filename.str()))
+            break;
+        }
+
+        std::ofstream xdmf_main_file(params.output_path + params.filename_out + "_main.xmf", std::fstream::trunc);
+        xdmf_main_file << str_xdmf_main_header.data();
+        for (int i=iteration_min+1; i<=iteration; i++) {
+          std::ostringstream xmf_filename;
+          xmf_filename << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << i << ".xmf";
+          xdmf_main_file << format_string(str_xdmf_main_ite.data(), xmf_filename.str().c_str());
+        }
+        xdmf_main_file << str_xdmf_main_footer.data();
+      }
     }
 
     return {time, iteration};

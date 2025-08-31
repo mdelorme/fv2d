@@ -20,54 +20,17 @@ using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 
-/* Register Debug Array */
+enum IVar : uint8_t {
+  IR = 0,
+  IU = 1,
+  IV = 2,
+  IP = 3,
+  IE = 3,
 
-// Access debug array in a kernel with `device_params.debug_array(j, i, IDebugArray)`
+  // logs field
 
-enum IDebugArray { 
-  IFLUX_VISCO,
-  IFLUX_THERM,
-//   IGRAD_T_X,
-//   IGRAD_T_Y,
-
-//   IFLUX_THERM_0,
-//   IFLUX_THERM_1,
-//   IFLUX_THERM_2,
-//   IFLUX_THERM_3,
-
-// IAREA_L_X,
-// IAREA_L_Y,
-// IAREA_R_X,
-// IAREA_R_Y,
-// IAREA_U_X,
-// IAREA_U_Y,
-// IAREA_D_X,
-// IAREA_D_Y,
+  SIZE_Q_ARRAY
 };
-auto register_debug_array = std::to_array<std::pair<std::string_view, IDebugArray>>({ {},
-  /*   { "name",     ID (as to be in range [0,N-1]  },   */
-{"energy_visco",  IFLUX_VISCO},
-{"energy_therm",  IFLUX_THERM},
-// {"gradTx",  IGRAD_T_X},
-// {"gradTy",  IGRAD_T_Y},
-//
-// {"energy_therm_0",  IFLUX_THERM_0},
-// {"energy_therm_1",  IFLUX_THERM_1},
-// {"energy_therm_2",  IFLUX_THERM_2},
-// {"energy_therm_3",  IFLUX_THERM_3},
-//
-// {"area_L_X",  IAREA_L_X},
-// {"area_L_Y",  IAREA_L_Y},
-// {"area_R_X",  IAREA_R_X},
-// {"area_R_Y",  IAREA_R_Y},
-// {"area_U_X",  IAREA_U_X},
-// {"area_U_Y",  IAREA_U_Y},
-// {"area_D_X",  IAREA_D_X},
-// {"area_D_Y",  IAREA_D_Y},
-});
-
-using DebugArray = Kokkos::View<real_t***>;
-/* -------------------- */
 
 struct RestartInfo {
   real_t time;
@@ -82,14 +45,6 @@ enum IDir : uint8_t {
 enum ISide : uint8_t {
   ILEFT  = 0,
   IRIGHT = 1
-};
-
-enum IVar : uint8_t {
-  IR = 0,
-  IU = 1,
-  IV = 2,
-  IP = 3,
-  IE = 3
 };
 
 enum RiemannSolver {
@@ -379,9 +334,6 @@ struct Reader {
 
 // All parameters that should be copied on the device
 struct DeviceParams { 
-  // Debug Tool
-  DebugArray debug_array;
-
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
   
@@ -430,6 +382,15 @@ struct DeviceParams {
 
   // Hot bubble
   real_t hot_bubble_g0;
+
+  // Kelvin-Helmholtz
+  real_t kh_y1, kh_y2;
+  real_t kh_a;
+  real_t kh_sigma;
+  real_t kh_rho_fac;
+  real_t kh_uflow;
+  real_t kh_amp;
+  real_t kh_P0;
   
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
@@ -553,9 +514,6 @@ struct DeviceParams {
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
 
-    // Debug tool
-    debug_array = DebugArray("Debug Array", Nty, Ntx, register_debug_array.size()-1);
-    
     // Parameters
     CFL = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{
@@ -698,6 +656,16 @@ struct DeviceParams {
 
     // Hot bubble
     hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
+
+    // Kelvin-Helmholtz
+    kh_a = reader.GetFloat("kelvin_helmholtz", "a", 0.05);
+    kh_amp = reader.GetFloat("kelvin_helmholtz", "amp", 0.01);
+    kh_P0  = reader.GetFloat("kelvin_helmholtz", "P0", 1.0);
+    kh_rho_fac = reader.GetFloat("kelvin_helmholtz", "rho_fac", 0.0);
+    kh_sigma = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
+    kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
+    kh_y1 = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
+    kh_y2 = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
   }
 };
 
@@ -784,6 +752,8 @@ Params readInifile(std::string filename) {
   res.restart_file = reader.Get("run", "restart_file", "");
   res.filename_out = reader.Get("run", "output_filename", "run");
   res.output_path = reader.Get("run", "output_path", ".");
+  if (res.output_path.size() > 0 && res.output_path.back() != '/') 
+    res.output_path.push_back('/');
 
   // Godounov
   std::map<std::string, TimeStepping> ts_map{

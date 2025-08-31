@@ -30,8 +30,7 @@ int main(int argc, char **argv) {
 
     // Allocating main views
     Array U    = Array("U", device_params.Nty, device_params.Ntx, Nfields);
-    Array Q    = Array("Q", device_params.Nty, device_params.Ntx, Nfields);
-
+    Array Q    = Array("Q", device_params.Nty, device_params.Ntx, SIZE_Q_ARRAY);
 
     // Misc vars for iteration
     real_t t = 0.0;

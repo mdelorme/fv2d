@@ -132,7 +132,7 @@ public:
         State un_loc = getStateFromArray(Unew, i, j);
         un_loc += dt * (FL + FR + FD + FU) / V;
 
-        params.debug_array(j, i, IFLUX_VISCO) = ((FL + FR + FD + FU) / V)[IE];
+        // Q(j, i, IFLUX_VISCO) = ((FL + FR + FD + FU) / V)[IE];
 
         setStateInArray(Unew, i, j, un_loc);
       });

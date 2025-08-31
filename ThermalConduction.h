@@ -237,7 +237,7 @@ public:
 
         // And updating using a Godunov-like scheme
         Unew(j, i, IE) += dt * (FL + FR + FU + FD) / V;
-        params.debug_array(j, i, IFLUX_THERM) = ((FL + FR + FU + FD) / V);
+        // Q(j, i, IFLUX_THERM) = ((FL + FR + FU + FD) / V);
       });
       // printf("\n");
   }

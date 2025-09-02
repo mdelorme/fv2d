@@ -35,7 +35,7 @@ def add_streamplot(ax, fields, x, y, flipy: bool=False):
         linewidth=0.5,
         arrowsize=1.5,
         # start_points=start_points.T,
-        broken_streamlines=False
+        broken_streamlines=True
     )
 
 

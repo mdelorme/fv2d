@@ -172,20 +172,26 @@ public:
           fluxR = swap_component(fluxR, dir);
           
           // Remove mechanical flux in a well-balanced fashion
-          if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
-            real_t g = getGravity(i, j, dir, params);
-            if (j==params.jbeg){
-              fluxL = zero_state();
-              fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
-            }
-            else{
-              fluxR = zero_state();
-              fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
-            }
-          }
+          // if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
+          //   real_t g = getGravity(i, j, dir, params);
+          //   if (j==params.jbeg){
+          //     fluxL = zero_state();
+          //     fluxL[IV] = poutR - Q(j, i, IR)*g*params.dy;
+          //   }
+          //   else{
+          //     fluxR = zero_state();
+          //     fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
+          //   }
+          // }
           
-
           auto un_loc = getStateFromArray(Unew, i, j);
+
+          // Apply magnetic boundaries, recomputed by forcing the fluxes.
+          if (j==params.jbeg   && dir == IY)
+            fluxL = getNormalMagFieldFlux(un_loc, i, j, IY, poutL, poutR, ch_dedner, params);
+          if (j==params.jend-1 && dir == IY)
+            fluxR = getNormalMagFieldFlux(un_loc, i, j, IY, poutL, poutR, ch_dedner, params);
+
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
           if (params.gravity_mode != GRAV_NONE) {
@@ -193,10 +199,6 @@ public:
             un_loc[IV] += dt * Q(j, i, IR) * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
-          if (j==params.jbeg)
-            un_loc = getNormalMagFieldAndFlux(un_loc, fluxL, i, j, ch_dedner, dir, params);
-          if (j==params.jend-1)
-            un_loc = getNormalMagFieldAndFlux(un_loc, fluxR, i, j, ch_dedner, dir, params);
           setStateInArray(Unew, i, j, un_loc);
         };
 

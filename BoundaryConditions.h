@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "SimInfo.h"
+#include "Gravity.h"
 
 namespace fv2d {
   namespace {
@@ -103,46 +104,57 @@ namespace fv2d {
 
   #ifdef MHD
   /**
-   * @brief Boundary values and flux for a normal Magnetic Field Boundary Condition
+   * @brief Boundary values and flux for a normal Magnetic Field Boundary Condition.
+   * For normal fields, Bx=Bz=0 at the boundary. 
    */
   KOKKOS_INLINE_FUNCTION
-  State getNormalMagFieldAndFlux(State u, State &flux, int i, int j, real_t ch, IDir dir, const DeviceParams &params) {
-    // Assume we're at the y_min or y_max boundary
-    if (dir == IX) {
-      return u;
-    }
-    
+  State getNormalMagFieldFlux(State &u, int i, int j, IDir dir, const real_t poutL, const real_t poutR, const real_t c_h, const DeviceParams &params) {
+    // TODO: Prendre en compte les autres types de BC si différent de absorbant
+    // TODO: Plus logique surement de passer les flux et de les modifier "inplace".
     State q = consToPrim(u, params);
     q[IBX] = 0.0;
-    // q[IBY] = (j==params.jbeg) ? params.bcmag_ymax_value : params.bcmag_ymin_value;
     q[IBZ] = 0.0;
-    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
-      q[IPSI] = 0.0;
-    // We should also recompute the flux
-    // Hydro Flux
-    flux[IR] = q[IR] * q[IV];
-    flux[IU] = flux[IR] * q[IU];
-    flux[IV] = flux[IR] * q[IV] + q[IP];
-    flux[IW] = flux[IR] * q[IW];
-    flux[IE] = (q[IP] + u[IE]) * q[IV]; // Note, u[IE] already contains the mag energy.
-    // Magnetic Flux
-    const real_t udotB = q[IBX]*q[IU] + q[IBY]*q[IV] + q[IBZ]*q[IW];
-    flux[IBX] = q[IBX] * q[IV] - q[IBY] * q[IU];
-    flux[IBY] = q[IBY] * q[IV] - q[IBY] * q[IV];
-    flux[IBZ] = q[IBZ] * q[IV] - q[IBY] * q[IW];
+    const Vect v {q[IU], q[IV], q[IW]};
+    const Vect B {q[IBX], q[IBY], q[IBZ]};
+    const real_t vnormal = v[dir];
+    const real_t e_hydro = u[IE] - 0.5 * norm2(B);
 
-    // Modification of the hydro flux
-    const real_t pmag = getMagneticPressure({q[IBX], q[IBY], q[IBZ]});
-    flux[IU] -= q[IBY] * q[IBX];
-    flux[IV] -= q[IBY] * q[IBY] - pmag;
-    flux[IW] -= q[IBY] * q[IBZ];
-    flux[IE] -= q[IBY] * udotB - q[IV] * pmag; // Pareil ici, pmag ? / Update : non-nécessaire car énergie mag déja contenue dans u[IE]
-
-    // GLM Flux
-    // flux[IBY] += ch*ch * q[IPSI];
-    flux[IBY] = q[IPSI];
-    flux[IPSI] = ch*ch
-    return primToCons(q, params); // Important point as it recomputes the total energy !
+    State flux_hydro = zero_state();
+    flux_hydro[IR] = q[IR] * vnormal;
+    flux_hydro[IU] = q[IR] * vnormal * v[IX];
+    flux_hydro[IV] = q[IR] * vnormal * v[IY];
+    flux_hydro[IW] = q[IR] * vnormal * v[IZ];
+    flux_hydro[IE] = (e_hydro + q[IP]) * vnormal;
+    if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
+      real_t g = getGravity(i, j, dir, params);
+      if (j==params.jbeg){
+        flux_hydro = zero_state();
+        flux_hydro[IV] = poutR - q[IR]*g*params.dy;
+      }
+      else{
+        flux_hydro = zero_state();
+        flux_hydro[IV] = poutL + q[IR]*g*params.dy;
+      }
+    }
+    const real_t Bnormal = B[dir];
+    Vect ptot {0.0, 0.0, 0.0};
+    ptot[dir] = q[IP] + getMagneticPressure(B);
+    
+    State flux_mhd = zero_state();
+    flux_mhd[IU]  = -B[IX] * Bnormal + ptot[IX];
+    // flux_mhd[IV]  = -B[IY] * Bnormal + ptot[IY];
+    flux_mhd[IW]  = -B[IZ] * Bnormal + ptot[IZ];
+    flux_mhd[IE]  =  norm2(B) * vnormal - Bnormal * dot(v, B);  // We add +0.5B^2 for the energy contribution and, 0.5*B^2 for the pressure contribution (see eq. 3.21 Derigs et al. 2018)
+    flux_mhd[IBX] =  B[IX] * vnormal - v[IX] * Bnormal;
+    flux_mhd[IBY] =  B[IY] * vnormal - v[IY] * Bnormal;
+    flux_mhd[IBZ] =  B[IZ] * vnormal - v[IZ] * Bnormal;
+    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+      IVar IBN = (dir == IX ? IBX : IBY);
+      flux_mhd[IE] += c_h * q[IPSI] * Bnormal; 
+      flux_mhd[IBN] = c_h * q[IPSI];
+      flux_mhd[IPSI] = c_h * B[dir];
+    }
+    return flux_hydro + flux_mhd;
   }
   # endif //MHD
 } // anonymous namespace

@@ -75,7 +75,7 @@ State consToPrim(State &u, const DeviceParams &params) {
   real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV] + res[IW]*res[IW]);
   real_t Em = 0.5 * (u[IBX]*u[IBX] + u[IBY]*u[IBY] + u[IBZ]*u[IBZ]);
   real_t Epsi = (params.riemann_solver==IDEALGLM ? 0.5*u[IPSI]*u[IPSI] : 0.0);
-  
+  // NOTE: N'y a til pas 
   res[IP] = (u[IE] - Ek - Em - Epsi) * (params.gamma0-1.0);
   res[IBX] = u[IBX];
   res[IBY] = u[IBY];
@@ -278,6 +278,32 @@ State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params) {
 KOKKOS_INLINE_FUNCTION
 real_t getMagneticPressure(const Vect B) {
   return 0.5 * (B[IX]*B[IX] + B[IY]*B[IY] + B[IZ]*B[IZ]);
+}
+
+KOKKOS_INLINE_FUNCTION
+State computeMHDFlux(const State &q, const real_t e_tot, const real_t ch, IDir dir, const DeviceParams &params){
+  State flux{};
+  const Vect B {q[IBX], q[IBY], q[IBZ]};
+  const Vect v {q[IU], q[IV], q[IW]};
+  const real_t vnormal = v[dir];
+  const real_t Bnormal = B[dir];
+  const real_t v_dot_B = dot(v, B);
+  Vect ptot {0.0, 0.0, 0.0};
+  ptot[dir] = q[IP] + getMagneticPressure(B);
+  flux[IR]  = q[IR] * vnormal;
+  flux[IU]  = q[IR] * v[IX] * vnormal - B[IX] * Bnormal + ptot[IX];
+  flux[IV]  = q[IR] * v[IY] * vnormal - B[IY] * Bnormal + ptot[IY];
+  flux[IW]  = q[IR] * v[IZ] * vnormal - B[IZ] * Bnormal + ptot[IZ];
+  flux[IE]  = (e_tot + q[IP]) * vnormal - Bnormal * v_dot_B;
+  flux[IBX] =  B[IX] * vnormal - v[IX] * Bnormal;
+  flux[IBY] =  B[IY] * vnormal - v[IY] * Bnormal;
+  flux[IBZ] =  B[IZ] * vnormal - v[IZ] * Bnormal;
+  if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+    IVar IBN = (dir == IX ? IBX : IBY);
+    flux[IBN] = ch * q[IPSI];
+    flux[IPSI] = ch * B[dir];
+  }
+  return flux;
 }
 
 }

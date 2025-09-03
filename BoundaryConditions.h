@@ -138,22 +138,23 @@ namespace fv2d {
     }
     const real_t Bnormal = B[dir];
     Vect ptot {0.0, 0.0, 0.0};
-    ptot[dir] = q[IP] + getMagneticPressure(B);
+    ptot[dir] = getMagneticPressure(B); //q[IP] + 
     
     State flux_mhd = zero_state();
     flux_mhd[IU]  = -B[IX] * Bnormal + ptot[IX];
-    // flux_mhd[IV]  = -B[IY] * Bnormal + ptot[IY];
+    flux_mhd[IV]  = -B[IY] * Bnormal + ptot[IY];
     flux_mhd[IW]  = -B[IZ] * Bnormal + ptot[IZ];
     flux_mhd[IE]  =  norm2(B) * vnormal - Bnormal * dot(v, B);  // We add +0.5B^2 for the energy contribution and, 0.5*B^2 for the pressure contribution (see eq. 3.21 Derigs et al. 2018)
     flux_mhd[IBX] =  B[IX] * vnormal - v[IX] * Bnormal;
     flux_mhd[IBY] =  B[IY] * vnormal - v[IY] * Bnormal;
     flux_mhd[IBZ] =  B[IZ] * vnormal - v[IZ] * Bnormal;
-    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
-      IVar IBN = (dir == IX ? IBX : IBY);
-      flux_mhd[IE] += c_h * q[IPSI] * Bnormal; 
-      flux_mhd[IBN] = c_h * q[IPSI];
-      flux_mhd[IPSI] = c_h * B[dir];
-    }
+
+    // if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+    //   IVar IBN = (dir == IX ? IBX : IBY);
+    //   flux_mhd[IE] += c_h * q[IPSI] * Bnormal; 
+    //   flux_mhd[IBN] = c_h * q[IPSI];
+    //   flux_mhd[IPSI] = c_h * B[dir];
+    // }
     return flux_hydro + flux_mhd;
   }
   # endif //MHD

@@ -102,29 +102,46 @@ namespace fv2d {
       return fillAbsorbing(Q, iref, jref);
   }
 
+
+
+  KOKKOS_INLINE_FUNCTION
+  void applyWellBalanced(Array Q, int i, int j, State &flux_hydro, const real_t pout, const DeviceParams &params) {
+    real_t g = getGravity(i, j, IY, params);
+    flux_hydro = zero_state();
+    real_t sign = (j==params.jbeg ? 1.0 : -1.0);
+    flux_hydro[IV] = pout + sign * Q(j, i, IR) * g * params.dy;
+  }
+
   #ifdef MHD
+
+    /**
+   * @brief For the tri-layer test case with magnetic field, we want a normal field BC, and also a WB scheme, the rest
+   * of the variables are copied from the domain, we have absorbing boundaries.
+   */
+  KOKKOS_INLINE_FUNCTION
+  State fillTriLayerMag(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
+    State q = getStateFromArray(Q, i, j);
+    if ((j==params.jbeg || j==params.jend-1) && dir == IY) {
+      q[IV]  = 0.0; // Vitesse normal nulle, pas de matière qui entre ou sort
+      q[IBX] = 0.0;
+      q[IBZ] = 0.0; // Champ magnétique normal -> Bx=Bz=0 et By_j+1 = By_j
+    }
+    return q;
+  }
+
   /**
    * @brief Boundary values and flux for a normal Magnetic Field Boundary Condition.
    * For normal fields, Bx=Bz=0 at the boundary. 
    */
   KOKKOS_INLINE_FUNCTION
-  State getNormalMagFieldFlux(State &u, int i, int j, IDir dir, const real_t poutL, const real_t poutR, const real_t c_h, const DeviceParams &params) {
+  State applyTriLayersBoundaries(Array Q, int i, int j, IDir dir, const real_t poutL, const real_t poutR, const real_t c_h, const DeviceParams &params) {
     // TODO: Prendre en compte les autres types de BC si différent de absorbant
     // TODO: Plus logique surement de passer les flux et de les modifier "inplace".
-    State q = consToPrim(u, params);
-    q[IBX] = 0.0;
-    q[IBZ] = 0.0;
-    const Vect v {q[IU], q[IV], q[IW]};
-    const Vect B {q[IBX], q[IBY], q[IBZ]};
-    const real_t vnormal = v[dir];
-    const real_t e_hydro = u[IE] - 0.5 * norm2(B);
+    State q = getStateFromArray(Q, i, j);
+    const Vect v {q[IU], 0.0, q[IW]};
+    const Vect B {0.0, q[IBY], 0.0};
 
     State flux_hydro = zero_state();
-    flux_hydro[IR] = q[IR] * vnormal;
-    flux_hydro[IU] = q[IR] * vnormal * v[IX];
-    flux_hydro[IV] = q[IR] * vnormal * v[IY];
-    flux_hydro[IW] = q[IR] * vnormal * v[IZ];
-    flux_hydro[IE] = (e_hydro + q[IP]) * vnormal;
     if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
       real_t g = getGravity(i, j, dir, params);
       if (j==params.jbeg){
@@ -136,25 +153,29 @@ namespace fv2d {
         flux_hydro[IV] = poutL + q[IR]*g*params.dy;
       }
     }
-    const real_t Bnormal = B[dir];
-    Vect ptot {0.0, 0.0, 0.0};
-    ptot[dir] = getMagneticPressure(B); //q[IP] + 
     
     State flux_mhd = zero_state();
-    flux_mhd[IU]  = -B[IX] * Bnormal + ptot[IX];
-    flux_mhd[IV]  = -B[IY] * Bnormal + ptot[IY];
-    flux_mhd[IW]  = -B[IZ] * Bnormal + ptot[IZ];
-    flux_mhd[IE]  =  norm2(B) * vnormal - Bnormal * dot(v, B);  // We add +0.5B^2 for the energy contribution and, 0.5*B^2 for the pressure contribution (see eq. 3.21 Derigs et al. 2018)
-    flux_mhd[IBX] =  B[IX] * vnormal - v[IX] * Bnormal;
-    flux_mhd[IBY] =  B[IY] * vnormal - v[IY] * Bnormal;
-    flux_mhd[IBZ] =  B[IZ] * vnormal - v[IZ] * Bnormal;
+    flux_mhd[IV]  = -0.5 * B[IY]*B[IY];
+    flux_mhd[IBX] = -v[IX] * B[IY];
+    flux_mhd[IBZ] = -v[IZ] * B[IY];
 
-    // if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
-    //   IVar IBN = (dir == IX ? IBX : IBY);
-    //   flux_mhd[IE] += c_h * q[IPSI] * Bnormal; 
-    //   flux_mhd[IBN] = c_h * q[IPSI];
-    //   flux_mhd[IPSI] = c_h * B[dir];
-    // }
+    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+      State qL, qR;
+      if (j==params.jbeg) {
+        qL = getStateFromArray(Q, i, j);
+        qR = q;
+      }
+      else {
+        qR = getStateFromArray(Q, i, j);
+        qL = q;
+      }
+      real_t Bm = qL[IBX]  + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
+      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBX] - qL[IBX]);
+      // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
+
+      flux_mhd[IBX] = psi_m;
+      flux_mhd[IPSI] = c_h * c_h * Bm;
+    }
     return flux_hydro + flux_mhd;
   }
   # endif //MHD
@@ -209,6 +230,7 @@ public:
                                 case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
                                 case BC_TRILAYER_DAMPING: return fillTriLayerDamping(Q, i, j, i, jref, IY, params); break;
+                                case BC_MAG_TRILAYER: return fillTriLayerMag(Q, i, jref, IY, params); break;
                                 default:   return fillPeriodic(Q, i, j, IY, params); break;
                               }
                             };

@@ -90,7 +90,8 @@ enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
   BC_PERIODIC,
-  BC_TRILAYER_DAMPING
+  BC_TRILAYER_DAMPING,
+  BC_MAG_TRILAYER
 };
 
 enum TimeStepping {
@@ -292,7 +293,8 @@ struct DeviceParams {
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
       {"periodic",           BC_PERIODIC},
-      {"tri_layer_damping",  BC_TRILAYER_DAMPING}
+      {"tri_layer_damping",  BC_TRILAYER_DAMPING},
+      {"mag_trilayer",       BC_MAG_TRILAYER}
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");

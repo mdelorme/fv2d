@@ -183,14 +183,14 @@ public:
           //     fluxR[IV] = poutL + Q(j, i, IR)*g*params.dy;
           //   }
           // }
+          // Apply magnetic boundaries, recomputed by forcing the fluxes.
+          if (j==params.jbeg   && dir == IY)
+            fluxL = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
+          if (j==params.jend-1 && dir == IY)
+            fluxR = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
           
           auto un_loc = getStateFromArray(Unew, i, j);
 
-          // Apply magnetic boundaries, recomputed by forcing the fluxes.
-          if (j==params.jbeg   && dir == IY)
-            fluxL = getNormalMagFieldFlux(un_loc, i, j, IY, poutL, poutR, ch_dedner, params);
-          if (j==params.jend-1 && dir == IY)
-            fluxR = getNormalMagFieldFlux(un_loc, i, j, IY, poutL, poutR, ch_dedner, params);
 
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 

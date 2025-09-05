@@ -176,9 +176,28 @@ namespace {
     if (y > -1.0/3.0 && y < 1.0/3.0)
     Q(j, i, IV) = 0.01 * (1.0 + cos(4*M_PI*x)) * (1 + cos(3.0*M_PI*y))/4.0;
   }
-  
+
   #ifdef MHD
 
+  KOKKOS_INLINE_FUNCTION
+  void shearB(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    const real_t d = (pos[IY]-params.ymin)/(params.ymax-params.ymin);
+    const real_t A = Kokkos::sin(M_PI * d);
+    const real_t U0 = 1.0;
+    const real_t V0 = 0.0;
+
+    Q(j, i, IR) = 10.0;
+    Q(j, i, IP) = 10.0;
+    Q(j, i, IU) = U0 * A;
+    Q(j, i, IV) = V0 * A;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = 1e-3;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
+  }
+  
   // 1D MHD Tests
   /**
    * @brief Brio-Wu (MHD Sod Shock) tube aligned along the X axis
@@ -661,6 +680,7 @@ enum InitType {
   ROTATED_SHOCK_TUBE,
   MHD_ROTOR,
   FIELD_LOOP_ADVECTION,
+  SHEAR_B,
   #endif //MHD
   C91
 };
@@ -696,6 +716,7 @@ public:
       {"rotated_shock_tube", ROTATED_SHOCK_TUBE},
       {"mhd_rotor", MHD_ROTOR},
       {"field_loop_advection", FIELD_LOOP_ADVECTION},
+      {"shear_b", SHEAR_B},
       #endif //MHD
       {"C91", C91}
     };
@@ -742,6 +763,7 @@ public:
                               case ROTATED_SHOCK_TUBE: initRotatedShockTube(Q, i, j, params); break;
                               case MHD_ROTOR:       initMHDRotor(Q, i, j, params); break;
                               case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
+                              case SHEAR_B:          shearB(Q, i, j, params); break;
                               #endif //MHD
                             }
                           });

@@ -381,7 +381,7 @@ namespace {
     Pos pos = getPos(params, i, j);
     const real_t d = (pos[IY]-params.ymin)/(params.ymax-params.ymin);
     const real_t A = Kokkos::sin(M_PI * d);
-    const real_t U0 = 1.0;
+    const real_t U0 = 0.1;
     const real_t V0 = 0.0;
 
     Q(j, i, IR) = 10.0;

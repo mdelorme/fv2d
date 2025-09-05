@@ -374,8 +374,27 @@ namespace {
     #endif
   }
 
-  
   #ifdef MHD
+
+  KOKKOS_INLINE_FUNCTION
+  void shearB(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    const real_t d = (pos[IY]-params.ymin)/(params.ymax-params.ymin);
+    const real_t A = Kokkos::sin(M_PI * d);
+    const real_t U0 = 1.0;
+    const real_t V0 = 0.0;
+
+    Q(j, i, IR) = 10.0;
+    Q(j, i, IP) = 10.0;
+    Q(j, i, IU) = U0 * A;
+    Q(j, i, IV) = V0 * A;
+    Q(j, i, IW) = 0.0;
+    Q(j, i, IBX) = 0.0;
+    Q(j, i, IBY) = 1e-3;
+    Q(j, i, IBZ) = 0.0;
+    Q(j, i, IPSI) = 0.0;
+  }
+  
   // Restart initialization
   KOKKOS_INLINE_FUNCTION
   void RestartIso3(Array Q, int i, int j, const DeviceParams &params){
@@ -871,6 +890,7 @@ enum InitType {
   MHD_ROTOR,
   FIELD_LOOP_ADVECTION,
   RESTART_ISO3,
+  SHEAR_B,
   #endif //MHD
   C91,
   B02,
@@ -911,6 +931,7 @@ public:
       {"mhd_rotor", MHD_ROTOR},
       {"field_loop_advection", FIELD_LOOP_ADVECTION},
       {"restart_iso3", RESTART_ISO3},
+      {"shear_b", SHEAR_B},
       #endif //MHD
       {"C91", C91},
       {"tri-layer", TRI_LAYER},
@@ -962,6 +983,7 @@ public:
                               case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
                               // Restart functions
                               case RESTART_ISO3:     RestartIso3(Q, i, j, params); break;
+                              case SHEAR_B:          shearB(Q, i, j, params); break;
                               #endif //MHD
                               case TRI_LAYER:        initTriLayer(Q, i, j, params, random_pool); break;
                               case TRI_LAYER_SMOOTH: initTriLayerSmooth(Q, i, j, params, random_pool); break;

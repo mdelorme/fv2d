@@ -105,11 +105,16 @@ namespace fv2d {
 
 
   KOKKOS_INLINE_FUNCTION
-  void applyWellBalanced(Array Q, int i, int j, State &flux_hydro, const real_t pout, const DeviceParams &params) {
+  void applyWellBalanced(Array Q, int i, int j, State &flux_tot, const real_t pout, const DeviceParams &params) {
     real_t g = getGravity(i, j, IY, params);
-    flux_hydro = zero_state();
     real_t sign = (j==params.jbeg ? 1.0 : -1.0);
-    flux_hydro[IV] = pout + sign * Q(j, i, IR) * g * params.dy;
+    // We overwite the hydro flux
+    // But what to do with the magnetic part?
+    flux_tot[IR] = 0.0;
+    flux_tot[IU] = 0.0;
+    flux_tot[IV] = pout + sign * Q(j, i, IR) * g * params.dy;
+    flux_tot[IW] = 0.0;
+    flux_tot[IE] = 0.0;
   }
 
   #ifdef MHD
@@ -133,6 +138,42 @@ namespace fv2d {
    * @brief Boundary values and flux for a normal Magnetic Field Boundary Condition.
    * For normal fields, Bx=Bz=0 at the boundary. 
    */
+  KOKKOS_INLINE_FUNCTION
+  void applyNormalMagBC(Array Q, int i, int j, State &flux_tot, IDir dir, const DeviceParams &params) {
+    State q = getStateFromArray(Q, i, j);
+    Vect v {q[IU], q[IV], q[IW]};
+    Vect B {q[IBX], q[IBY], q[IBZ]};
+    if (params.well_balanced_flux_at_y_bc)
+      v[IY] = 0.0; // Vitesse normale nulle, pas de matière qui entre ou sort
+    // IDir IBN = (dir == IX ? IBX : IBY); // Index of the normal component of B
+    // B[dir] = q[IBN];
+    State flux_mhd = zero_state();
+    if (dir == IY){
+      flux_mhd[IV]  = -0.5 * B[IY]*B[IY];
+      flux_mhd[IBX] = -v[IX] * B[IY];
+      flux_mhd[IBZ] = -v[IZ] * B[IY];
+    }
+    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+      State qL, qR;
+      if (j==params.jbeg) {
+        qL = getStateFromArray(Q, i, j);
+        qR = q;
+      }
+      else {
+        qR = getStateFromArray(Q, i, j);
+        qL = q;
+      }
+      real_t Bm = qL[IBY]  + 0.5 * (qR[IBY] - qL[IBY]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
+      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBY] - qL[IBY]);
+      // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
+
+      flux_mhd[IBY] = psi_m;
+      flux_mhd[IPSI] = c_h * c_h * Bm;
+    }
+    flux_tot = flux_tot + flux_mhd;
+  }
+
+
   KOKKOS_INLINE_FUNCTION
   State applyTriLayersBoundaries(Array Q, int i, int j, IDir dir, const real_t poutL, const real_t poutR, const real_t c_h, const DeviceParams &params) {
     // TODO: Prendre en compte les autres types de BC si différent de absorbant
@@ -169,11 +210,11 @@ namespace fv2d {
         qR = getStateFromArray(Q, i, j);
         qL = q;
       }
-      real_t Bm = qL[IBX]  + 0.5 * (qR[IBX] - qL[IBX]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
-      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBX] - qL[IBX]);
+      real_t Bm = qL[IBY]  + 0.5 * (qR[IBY] - qL[IBY]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
+      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBY] - qL[IBY]);
       // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
 
-      flux_mhd[IBX] = psi_m;
+      flux_mhd[IBY] = psi_m;
       flux_mhd[IPSI] = c_h * c_h * Bm;
     }
     return flux_hydro + flux_mhd;

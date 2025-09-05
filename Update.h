@@ -172,7 +172,11 @@ public:
           fluxR = swap_component(fluxR, dir);
           
           // Remove mechanical flux in a well-balanced fashion
-          // if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
+          // if (j==params.jbeg && params.well_balanced_flux_at_y_bc && dir == IY)
+          //   applyWellBalanced(Q, i, j, fluxL, poutR, params);
+          // if (j==params.jend-1 && params.well_balanced_flux_at_y_bc && dir == IY)
+          //   applyWellBalanced(Q, i, j, fluxR, poutL, params);
+          
           //   real_t g = getGravity(i, j, dir, params);
           //   if (j==params.jbeg){
           //     fluxL = zero_state();
@@ -184,14 +188,16 @@ public:
           //   }
           // }
           // Apply magnetic boundaries, recomputed by forcing the fluxes.
-          if (j==params.jbeg   && dir == IY)
+          if (j==params.jbeg   && dir == IY && params.boundary_y == BC_MAG_TRILAYER)
             fluxL = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
-          if (j==params.jend-1 && dir == IY)
+          if (j==params.jend-1 && dir == IY && params.boundary_y == BC_MAG_TRILAYER)
             fluxR = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
-          
+          // if (j==params.jbeg && params.bcmag_ymin == BCMAG_NORMAL_FIELD && dir == IY)
+          //   applyNormalMagBC(Q, i, j, fluxL, dir, params);
+          // if (j==params.jend-1 && params.bcmag_ymax == BCMAG_NORMAL_FIELD && dir == IY)
+          //   applyNormalMagBC(Q, i, j, fluxR, dir, params);
+            
           auto un_loc = getStateFromArray(Unew, i, j);
-
-
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
           if (params.gravity_mode != GRAV_NONE) {

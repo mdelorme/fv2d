@@ -12,8 +12,19 @@ namespace fv2d {
    * @brief Absorbing conditions
    */
   KOKKOS_INLINE_FUNCTION
-  State fillAbsorbing(Array Q, int iref, int jref) {
-    return getStateFromArray(Q, iref, jref);
+  State fillAbsorbing(Array Q, int iref, int jref, IDir dir, const DeviceParams &params) {
+    State q = getStateFromArray(Q, iref, jref);
+    #ifdef MHD
+    if ((jref==params.jbeg || jref==params.jend-1) && dir == IY && params.bcmag_ymax== BCMAG_NORMAL_FIELD) {
+      q[IBX] = 0.0;
+      q[IBZ] = 0.0; // Champ magnétique normal -> Bx=Bz=0 et By_j+1 = By_j
+    }
+    // if ((iref==params.ibeg || iref==params.iend-1) && dir == IX && params.bcmag_ymax== BC_MAG_NORMAL) {
+    //   q[IBY] = 0.0;
+    //   q[IBZ] = 0.0; // Champ magnétique normal -> Bx=Bz=0 et By_j+1 = By_j
+    // }
+    #endif // MHD
+    return q;
   };
 
   /**
@@ -99,7 +110,7 @@ namespace fv2d {
       return q;
     }
     else
-      return fillAbsorbing(Q, iref, jref);
+      return fillAbsorbing(Q, iref, jref, dir, params);
   }
 
 
@@ -139,7 +150,7 @@ namespace fv2d {
    * For normal fields, Bx=Bz=0 at the boundary. 
    */
   KOKKOS_INLINE_FUNCTION
-  void applyNormalMagBC(Array Q, int i, int j, State &flux_tot, IDir dir, const DeviceParams &params) {
+  void applyNormalMagBC(Array Q, int i, int j, State &flux_tot, IDir dir, const real_t c_h, const DeviceParams &params) {
     State q = getStateFromArray(Q, i, j);
     Vect v {q[IU], q[IV], q[IW]};
     Vect B {q[IBX], q[IBY], q[IBZ]};
@@ -247,7 +258,7 @@ public:
 
                             auto fill = [&](int i, int iref) {
                               switch (bc_x) {
-                                case BC_ABSORBING:  return fillAbsorbing(Q, iref, j); break;
+                                case BC_ABSORBING:  return fillAbsorbing(Q, iref, j, IX, params); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, iref, j, IX, params); break;
                                 default:   return fillPeriodic(Q, i, j, IX, params); break;
                               }
@@ -268,7 +279,7 @@ public:
 
                             auto fill = [&](int j, int jref) {
                               switch (bc_y) {
-                                case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
+                                case BC_ABSORBING:  return fillAbsorbing(Q, i, jref, IY, params); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
                                 case BC_TRILAYER_DAMPING: return fillTriLayerDamping(Q, i, j, i, jref, IY, params); break;
                                 case BC_MAG_TRILAYER: return fillTriLayerMag(Q, i, jref, IY, params); break;

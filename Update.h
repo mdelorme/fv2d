@@ -188,14 +188,14 @@ public:
           //   }
           // }
           // Apply magnetic boundaries, recomputed by forcing the fluxes.
-          if (j==params.jbeg   && dir == IY && params.boundary_y == BC_MAG_TRILAYER)
-            fluxL = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
-          if (j==params.jend-1 && dir == IY && params.boundary_y == BC_MAG_TRILAYER)
-            fluxR = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
-          // if (j==params.jbeg && params.bcmag_ymin == BCMAG_NORMAL_FIELD && dir == IY)
-          //   applyNormalMagBC(Q, i, j, fluxL, dir, params);
-          // if (j==params.jend-1 && params.bcmag_ymax == BCMAG_NORMAL_FIELD && dir == IY)
-          //   applyNormalMagBC(Q, i, j, fluxR, dir, params);
+          // if (j==params.jbeg   && dir == IY && params.boundary_y == BC_MAG_TRILAYER)
+          //   fluxL = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
+          // if (j==params.jend-1 && dir == IY && params.boundary_y == BC_MAG_TRILAYER)
+          //   fluxR = applyTriLayersBoundaries(Q, i, j, IY, poutL, poutR, ch_dedner, params);
+          if (j==params.jbeg && params.bcmag_ymin == BCMAG_NORMAL_FIELD && dir == IY)
+            applyNormalMagBC(Q, i, j, fluxL, dir, ch_dedner, params);
+          if (j==params.jend-1 && params.bcmag_ymax == BCMAG_NORMAL_FIELD && dir == IY)
+            applyNormalMagBC(Q, i, j, fluxR, dir, ch_dedner, params);
             
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);

@@ -981,9 +981,9 @@ public:
                               case ROTATED_SHOCK_TUBE: initRotatedShockTube(Q, i, j, params); break;
                               case MHD_ROTOR:       initMHDRotor(Q, i, j, params); break;
                               case FIELD_LOOP_ADVECTION: initFieldLoopAdvection(Q, i, j, params); break;
+                              case SHEAR_B:          shearB(Q, i, j, params); break;
                               // Restart functions
                               case RESTART_ISO3:     RestartIso3(Q, i, j, params); break;
-                              case SHEAR_B:          shearB(Q, i, j, params); break;
                               #endif //MHD
                               case TRI_LAYER:        initTriLayer(Q, i, j, params, random_pool); break;
                               case TRI_LAYER_SMOOTH: initTriLayerSmooth(Q, i, j, params, random_pool); break;

@@ -8,7 +8,7 @@ class PlotCLI:
 
     def __init__(self):
         self.parser = self._create_parser()
-        self.subparsers = self.parser.add_subparsers(dest='command', required=True, help="Sous-commandes disponibles.")
+        self.subparsers = self.parser.add_subparsers(dest='command', required=False, help="Sous-commandes disponibles.")
         self._add_field_subcommand()
         self._add_slice_subcommand()
         self._add_compare_subcommand()
@@ -16,6 +16,23 @@ class PlotCLI:
     def _create_parser(self):
         """Crée le parser principal avec l'option commune `--file`."""
         parser = argparse.ArgumentParser(description="Outil de traçage pour simulations.")
+        # parser.add_argument(
+        #     "--version",
+        #     action="version",
+        #     version="PlotCLI 0.1.",
+        #     help="Affiche la version du programme."
+        # )
+        parser.add_argument(
+            "-f", "--file",
+            nargs='*',
+            help="Chemin vers le(s) fichier(s) .h5 (ou motif comme 'simulation_*.h5')."
+        )
+
+        parser.add_argument(
+            "-e", "--energy",
+            action="store_true",
+            help="Affiche l'évolution des différentes contributions en énérgie."
+        )
         return parser
 
     def _add_field_subcommand(self):

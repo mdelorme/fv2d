@@ -50,26 +50,70 @@ def get_BMag(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.n
   return np.sqrt(data['bx']**2 + data['by']**2 + data['bz']**2) 
 
 
-def get_rms(f, i: int):
-  """
-  vy-rms(y) = sqrt(<vy^2> - <vy>^2), calculé à chaque y  avec <> la moyenne horizontale selon x.
-  """
-  Ny, Nx = get_shape(f)
-  v = get_prim_array(f, i, 'v').reshape((Ny, Nx))
-  v2 = v**2
-  v2_avg = np.mean(v2, axis=0, keepdims=True)
-  v_avg = np.mean(v, axis=0, keepdims=True)
-  v_rms = np.sqrt(v2_avg - v_avg**2)
-  return v / v_rms  # Reshape to match the grid dimensions (Ny, Nx)
+# def get_rms(f, i: int):
+#   """
+#   vy-rms(y) = sqrt(<vy^2> - <vy>^2), calculé à chaque y  avec <> la moyenne horizontale selon x.
+#   """
+#   Ny, Nx = get_shape(f)
+#   v = get_prim_array(f, i, 'v').reshape((Ny, Nx))
+#   v2 = v**2
+#   v2_avg = np.mean(v2, axis=0, keepdims=True)
+#   v_avg = np.mean(v, axis=0, keepdims=True)
+#   v_rms = np.sqrt(v2_avg - v_avg**2)
+#   return v / v_rms  # Reshape to match the grid dimensions (Ny, Nx)
 
 def get_T(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
   """ Compute the temperature from primitive variables."""
   return data['prs'] / data['rho']
 
 
-def get_Bperp(f, i: int):
-  """ Compute the norm of the perpendicular magnetic components."""
-  return _compute_2D_magnnorm(f, i, excludedir='x')
+def get_energies(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> dict[str, np.ndarray]:
+  """ Compute kinetic, magnetic and thermal energies from primitive variables."""
+  rho = data['rho']
+  prs = data['prs']
+  vx = data['u']
+  vy = data['v']
+  vz = data['w']
+  bx = data['bx']
+  by = data['by']
+  bz = data['bz']
+
+  kinetic_energy = 0.5 * rho * (vx**2 + vy**2 + vz**2)
+  magnetic_energy = 0.5 * (bx**2 + by**2 + bz**2)
+  thermal_energy = prs / (1.4 - 1)  # Assuming ideal gas with gamma=1.4
+
+  return {
+    'Ec': kinetic_energy,
+    'Em': magnetic_energy,
+    'e': thermal_energy,
+    'Etot': kinetic_energy + magnetic_energy + thermal_energy
+  }
+
+def get_kinetic_energy(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
+  """ Compute kinetic energy from primitive variables."""
+  rho = data['rho']
+  vx = data['u']
+  vy = data['v']
+  vz = data['w']
+  return 0.5 * rho * (vx**2 + vy**2 + vz**2)
+
+
+def get_magnetic_energy(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
+  """ Compute magnetic energy from primitive variables."""
+  bx = data['bx']
+  by = data['by']
+  bz = data['bz']
+  return 0.5 * (bx**2 + by**2 + bz**2)
+
+
+def get_internal_energy(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
+  """ Compute internal energy from primitive variables."""
+  prs = data['prs']
+  return prs / (5/3 - 1)  # Assuming ideal gas with gamma=1.4
+
+# def get_Bperp(f, i: int):
+#   """ Compute the norm of the perpendicular magnetic components."""
+#   return _compute_2D_magnnorm(f, i, excludedir='x')
 
 
 def get_divBoverB(data: list[int, dict], metadata: dict[str, Any]) -> np.ndarray:
@@ -91,5 +135,8 @@ compute_values = {
   'Bmag': get_BMag,
   'divBoverB': get_divBoverB,
   'TT-prime': get_TTPrime,
+  'Ec': get_kinetic_energy,
+  'Em': get_magnetic_energy,
+  'e': get_internal_energy,
   # 'rms': get_rms,
 }

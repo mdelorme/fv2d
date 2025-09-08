@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import concurrent.futures
+import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from core.h5 import Fv2dData, get_slice_data
@@ -72,9 +73,35 @@ def plot_field(data, snap, args):
     plt.close()
 
 
+def plot_energies(filename):
+    """Trace les énergies cinétique, magnétique et thermique en fonction du temps."""
+    data = Fv2dData(filename)
+    Em, Ec, e, t = [], [], [], []
+    for snap in tqdm(range(len(data))):
+        Em.append(np.sum((data[snap, 'Em'])))
+        Ec.append(np.sum((data[snap, 'Ec'])))
+        e.append(np.sum((data[snap, 'e'])))
+        t.append(data.get_time(snap))
+    
+    fig, ax = setup_figure(
+        f"Energie Contribution - {data.problem.title().replace('_', ' ')} - t={data.get_time(snap):.3f}",
+        figsize=(12, 8)
+    )
+    ax.plot(t, Ec, label='Kinetic Energy')
+    ax.plot(t, Em, label='Magnetic Energy')
+    ax.plot(t, e, label='Internal Energy')
+    ax.set_xscale('linear')
+    ax.set_yscale('log')
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Total Energy')
+    ax.legend()
+    plt.savefig("render/energies.png")
+    plt.close()
+
+
 def plot_slice(filename, args):
     """Trace une slice 1D pour un fichier donné."""
-    data = SimulationData([filename])
+    data = Fv2dData([filename])
     slice_data = get_slice_data(filename, args.field, args.xslice, args.yslice)
     output_dir = f"{os.path.dirname(filename)}/render/{os.path.basename(filename.strip('.h5'))}"
     os.makedirs(output_dir, exist_ok=True)
@@ -103,7 +130,7 @@ def plot_slice(filename, args):
 
 def compare_fields_in_simulation(filename, args):
     """Compare plusieurs champs d'une même simulation."""
-    data = SimulationData([filename])
+    data = Fv2dData([filename])
     field_names = args.fields if args.fields else [args.field]
     labels = args.labels if args.labels else field_names
     output_dir = f"{os.path.dirname(filename)}/render/compare_fields_{os.path.basename(filename.strip('.h5'))}"
@@ -137,7 +164,7 @@ def compare_fields_in_simulation(filename, args):
 
 def compare_fields_between_simulations(filenames, args):
     """Compare un même champ entre plusieurs simulations."""
-    datasets = [SimulationData([f]) for f in filenames]
+    datasets = [Fv2dData([f]) for f in filenames]
     labels = args.labels if args.labels else [os.path.basename(f) for f in filenames]
     field_name = args.fields[0] if args.fields else args.field
     output_dir = f"{os.path.dirname(filename)}/render/compare_{field_name}"
@@ -210,7 +237,9 @@ def main():
 
     cli = PlotCLI()
     args = cli.parse_args()
-
+    if args.energy:
+        plot_energies(args.file)
+        exit(0)
     if args.command == 'field':
         run_field_command(args)
     elif args.command == 'slice':

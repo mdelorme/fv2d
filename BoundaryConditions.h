@@ -154,37 +154,60 @@ namespace fv2d {
     State q = getStateFromArray(Q, i, j);
     Vect v {q[IU], q[IV], q[IW]};
     Vect B {q[IBX], q[IBY], q[IBZ]};
+    Vect pmag = {0.0, 0.0, 0.0};
+    pmag[dir] = getMagneticPressure(B);
+
+    // 1. Reset the magnetic part of the flux as computed by the Riemann solver
+    flux_tot[IU] -= pmag[IX] - B[dir]*B[IX];
+    flux_tot[IV] -= pmag[IY] - B[dir]*B[IY];
+    flux_tot[IW] -= pmag[IZ] - B[dir]*B[IZ];
+    flux_tot[IE] -= norm2(B) * v[dir] - B[dir] * dot(v, B);
+    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
+      flux_tot[IE] -= c_h * q[IPSI] * B[dir];
+    flux_tot[IBX] = 0.0;
+    flux_tot[IBY] = 0.0;
+    flux_tot[IBZ] = 0.0;
+    flux_tot[IPSI] = 0.0;
+
+    // 2. Compute the new magnetic flux at the boundary
+    Vect Bboundary = {0.0, 0.0, 0.0};
+    Vect Vboundary = {v[IX], v[IY], v[IZ]};
+    Bboundary[dir] = B[dir];
+    Vect pmag_boundary = {0.0, 0.0, 0.0};
+    pmag_boundary[dir] = getMagneticPressure(Bboundary);
     if (params.well_balanced_flux_at_y_bc)
-      v[IY] = 0.0; // Vitesse normale nulle, pas de matière qui entre ou sort
-    // IDir IBN = (dir == IX ? IBX : IBY); // Index of the normal component of B
-    // B[dir] = q[IBN];
+      Vboundary[IY] = 0.0; // Vitesse normale nulle, pas de matière qui entre ou sort
+    
     State flux_mhd = zero_state();
-    if (dir == IY){
-      flux_mhd[IV]  = -0.5 * B[IY]*B[IY];
-      flux_mhd[IBX] = -v[IX] * B[IY];
-      flux_mhd[IBZ] = -v[IZ] * B[IY];
-    }
+    flux_mhd[IU] = pmag_boundary[IX] - Bboundary[dir]*Bboundary[IX];
+    flux_mhd[IV] = pmag_boundary[IY] - Bboundary[dir]*Bboundary[IY];
+    flux_mhd[IW] = pmag_boundary[IZ] - Bboundary[dir]*Bboundary[IZ];
+    flux_mhd[IE] = norm2(Bboundary) * Vboundary[dir] - Bboundary[dir] * dot(Vboundary, Bboundary);
+    
     if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+      flux_mhd[IE] += c_h * q[IPSI] * Bboundary[dir];
+      IDir IBN = (dir == IX ? IX : IY);
       State qL, qR;
       if (j==params.jbeg) {
-        qL = getStateFromArray(Q, i, j);
+        qL = getStateFromArray(Q, i, j+1); // NOTE : prendre Q(i, j-1) ?
         qR = q;
       }
       else {
-        qR = getStateFromArray(Q, i, j);
+        qR = getStateFromArray(Q, i, j-1); // NOTE : prendre Q(i, j+1) ?
         qL = q;
       }
-      real_t Bm = qL[IBY]  + 0.5 * (qR[IBY] - qL[IBY]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
-      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBY] - qL[IBY]);
+      real_t Bm = qL[IBN]  + 0.5 * (qR[IBN] - qL[IBN]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
+      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBN] - qL[IBN]);
       // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
-
-      flux_mhd[IBY] = psi_m;
+      
+      flux_mhd[IBN] = psi_m;
       flux_mhd[IPSI] = c_h * c_h * Bm;
     }
+    // 3. Add it to the hydro flux (which may be modified by WB if needed)
     flux_tot = flux_tot + flux_mhd;
   }
-
-
+  
+  
   KOKKOS_INLINE_FUNCTION
   State applyTriLayersBoundaries(Array Q, int i, int j, IDir dir, const real_t poutL, const real_t poutR, const real_t c_h, const DeviceParams &params) {
     // TODO: Prendre en compte les autres types de BC si différent de absorbant
@@ -192,7 +215,7 @@ namespace fv2d {
     State q = getStateFromArray(Q, i, j);
     const Vect v {q[IU], 0.0, q[IW]};
     const Vect B {0.0, q[IBY], 0.0};
-
+    
     State flux_hydro = zero_state();
     if (params.well_balanced_flux_at_y_bc &&  (j==params.jbeg || j==params.jend-1) && dir == IY) {
       real_t g = getGravity(i, j, dir, params);
@@ -210,7 +233,7 @@ namespace fv2d {
     flux_mhd[IV]  = -0.5 * B[IY]*B[IY];
     flux_mhd[IBX] = -v[IX] * B[IY];
     flux_mhd[IBZ] = -v[IZ] * B[IY];
-
+    
     if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
       State qL, qR;
       if (j==params.jbeg) {
@@ -224,13 +247,14 @@ namespace fv2d {
       real_t Bm = qL[IBY]  + 0.5 * (qR[IBY] - qL[IBY]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
       real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBY] - qL[IBY]);
       // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
-
+      
       flux_mhd[IBY] = psi_m;
       flux_mhd[IPSI] = c_h * c_h * Bm;
     }
     return flux_hydro + flux_mhd;
   }
   # endif //MHD
+
 } // anonymous namespace
 
 

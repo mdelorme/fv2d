@@ -80,7 +80,7 @@ def get_energies(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> 
 
   kinetic_energy = 0.5 * rho * (vx**2 + vy**2 + vz**2)
   magnetic_energy = 0.5 * (bx**2 + by**2 + bz**2)
-  thermal_energy = prs / (1.4 - 1)  # Assuming ideal gas with gamma=1.4
+  thermal_energy = prs / (5/3 - 1)  # Assuming ideal gas with gamma=1.4
 
   return {
     'Ec': kinetic_energy,
@@ -109,7 +109,7 @@ def get_magnetic_energy(data: dict[str, np.ndarray], metadata: dict[str, Any]=No
 def get_internal_energy(data: dict[str, np.ndarray], metadata: dict[str, Any]=None) -> np.ndarray:
   """ Compute internal energy from primitive variables."""
   prs = data['prs']
-  return prs / (5/3 - 1)  # Assuming ideal gas with gamma=1.4
+  return prs / (5/3 - 1)  # Assuming ideal gas with gamma=5/3
 
 # def get_Bperp(f, i: int):
 #   """ Compute the norm of the perpendicular magnetic components."""

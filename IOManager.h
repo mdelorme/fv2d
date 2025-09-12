@@ -78,7 +78,7 @@ class IOManager {
   }
 
   template<std::size_t... I>
-  constexpr auto tuple_repeat(std::index_sequence<I...>, const auto&... t) {
+  constexpr auto tuple_repeat(std::index_sequence<I...>, auto&&... t) {
     return std::tuple_cat((static_cast<void>(I), std::make_tuple(t...))...);
   } 
 
@@ -288,7 +288,7 @@ public:
     }
 
     auto save_groups = [&](auto &g) {
-      for_each_tuples([&](auto &&io_var, const auto& tvar) {
+      for_each_tuples([&](auto &&io_var, auto&& tvar) {
         const std::string var_name{io_var.first};
         g.createDataSet(var_name, tvar);
       }, io_variables, tvars);
@@ -352,76 +352,75 @@ public:
       // do not truncate the file if restart_file is the same as output_file.
       this->first_iteration = false;
     }
-    
-    File file(restart_file, File::ReadOnly);
+
     real_t time;
     int iteration;
+    {
+      File file(restart_file, File::ReadOnly);
 
-    if (file.hasAttribute("time")) {
-      HighFive::Attribute attr_time = file.getAttribute("time");
-      attr_time.read(time);
-      HighFive::Attribute attr_ite = file.getAttribute("iteration");
-      attr_ite.read(iteration);
-    }
-    else {
-      if (group == "") {
-        const size_t last_ite_index = file.getNumberObjects() - 1; // first groups are : coordinates/ and connectivity/, following by all the ite_xxxx/. 
-        group = file.getObjectName(last_ite_index);
+      if (file.hasAttribute("time")) {
+        HighFive::Attribute attr_time = file.getAttribute("time");
+        attr_time.read(time);
+        HighFive::Attribute attr_ite = file.getAttribute("iteration");
+        attr_ite.read(iteration);
       }
-      HighFive::Group h5_group = file.getGroup(group);
-      HighFive::Attribute attr_time = h5_group.getAttribute("time");
-      attr_time.read(time);
-      HighFive::Attribute attr_ite = h5_group.getAttribute("iteration");
-      attr_ite.read(iteration);
-      group = group + "/";
-    }
+      else {
+        if (group == "") {
+          const size_t last_ite_index = file.getNumberObjects() - 1; // first groups are : coordinates/ and connectivity/, following by all the ite_xxxx/. 
+          group = file.getObjectName(last_ite_index);
+        }
+        HighFive::Group h5_group = file.getGroup(group);
+        HighFive::Attribute attr_time = h5_group.getAttribute("time");
+        attr_time.read(time);
+        HighFive::Attribute attr_ite = h5_group.getAttribute("iteration");
+        attr_ite.read(iteration);
+        group = group + "/";
+      }
 
-    auto Nt = getShape(file, group + std::string{std::get<0>(io_variables).first})[0];
+      auto Nt = getShape(file, group + std::string{std::get<0>(io_variables).first})[0];
 
-    if (Nt != device_params.Nx*device_params.Ny) {
-      std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = " 
-                << device_params.Nx << "x" << device_params.Ny << "=" << device_params.Nx*device_params.Ny << std::endl;
-      throw std::runtime_error("ERROR : Trying to restart from a file with a different resolution !");
-    }
+      if (Nt != device_params.Nx*device_params.Ny) {
+        std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = " 
+                  << device_params.Nx << "x" << device_params.Ny << "=" << device_params.Nx*device_params.Ny << std::endl;
+        throw std::runtime_error("ERROR : Trying to restart from a file with a different resolution !");
+      }
 
-    auto Qhost = Kokkos::create_mirror(Q);
+      auto Qhost = Kokkos::create_mirror(Q);
 
-    std::cout << "Loading restart data from hdf5" << std::endl;
+      std::cout << "Loading restart data from hdf5" << std::endl;
 
-    auto tvars = make_tables();
-    for_each_tuples([&](auto &&io_var, auto &tvar) {
-      const std::string var_name{io_var.first};
-      tvar = std::move(load<std::remove_reference_t<decltype(tvar)>>(file, group + var_name));
-    }, io_variables, tvars);
+      auto tvars = make_tables();
+      for_each_tuples([&](auto &&io_var, auto &tvar) {
+        const std::string var_name{io_var.first};
+        tvar = std::move(load<std::remove_reference_t<decltype(tvar)>>(file, group + var_name));
+      }, io_variables, tvars);
 
-    std::size_t lid = 0;
-    for (int y=0; y < device_params.Ny; ++y) {
-      for (int x=0; x < device_params.Nx; ++x) {
-        for_each_tuples([&](auto &&io_var, auto& tvar) {
-          constexpr std::size_t n_var = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
+      std::size_t lid = 0;
+      for (int y=0; y < device_params.Ny; ++y) {
+        for (int x=0; x < device_params.Nx; ++x) {
+          for_each_tuples([&](auto &&io_var, auto& tvar) {
+            constexpr std::size_t n_var = std::tuple_size_v<typename std::remove_reference_t<decltype(io_var)>::second_type>;
 
-          for (std::size_t id=0; id < n_var; id++)
-            Qhost(y+device_params.jbeg, x+device_params.ibeg, io_var.second[id]) = tvar[lid][id];
-        }, io_variables, tvars);
-        lid++;
+            for (std::size_t id=0; id < n_var; id++)
+              Qhost(y+device_params.jbeg, x+device_params.ibeg, io_var.second[id]) = tvar[lid][id];
+          }, io_variables, tvars);
+          lid++;
+        }
+      }
+
+      Kokkos::deep_copy(Q, Qhost);
+
+      BoundaryManager bc(params);
+      bc.fillBoundaries(Q);
+
+      if (time + params.device_params.epsilon > params.tend) {
+        std::cerr << "Restart time is greater than end time : " << std::endl
+                  << "  time: " << time << "\ttend: " << params.tend << std::endl << std::endl; 
+        throw std::runtime_error("ERROR : restart time is greater than the end time.");
       }
     }
-
-    Kokkos::deep_copy(Q, Qhost);
-
-    BoundaryManager bc(params);
-    bc.fillBoundaries(Q);
-
-    if (time + params.device_params.epsilon > params.tend) {
-      std::cerr << "Restart time is greater than end time : " << std::endl
-                << "  time: " << time << "\ttend: " << params.tend << std::endl << std::endl; 
-      throw std::runtime_error("ERROR : restart time is greater than the end time.");
-    }
-
-    std::cout << "Restart finished !" << std::endl;
 
     if (first_iteration) {
-      file.~File(); // free the h5 before saving
       saveSolution(Q, iteration, time);
 
       // recreate xdmf main
@@ -446,6 +445,8 @@ public:
         xdmf_main_file << str_xdmf_main_footer.data();
       }
     }
+
+    std::cout << "Restart finished !" << std::endl;
 
     return {time, iteration};
   }

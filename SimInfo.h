@@ -629,8 +629,8 @@ struct DeviceParams {
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
 
     // Spline
-    std::string spline_data_path = reader.Get("physics", "spline_data", "spline.data");
-    if (reader._values["physics"]["problem"].value == "readfile") {
+    std::string spline_data_path = reader.Get("physics", "spline_data", "");
+    if (spline_data_path != "") {
       spl_rho  = Spline(spline_data_path, Spline::OF_RHO);
       spl_prs  = Spline(spline_data_path, Spline::OF_PRS);
     }

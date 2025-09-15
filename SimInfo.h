@@ -363,6 +363,7 @@ struct DeviceParams {
   real_t dy;
   // Misc stuff
   real_t epsilon = 1.0e-6;
+  bool write_ghost_cells;
   
   void init_from_inifile(Reader &reader) {
     
@@ -382,7 +383,7 @@ struct DeviceParams {
     iend = Ng+Nx;
     jbeg = Ng;
     jend = Ng+Ny;
-    
+    write_ghost_cells = reader.GetBoolean("mesh", "write_ghost_cells", false);
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
     
@@ -597,7 +598,7 @@ Params readInifile(std::string filename) {
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
   res.range_dom = ParallelRange({res.device_params.ibeg, res.device_params.jbeg}, {res.device_params.iend, res.device_params.jend});
-  res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
+  res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend}); // TODO: Pourquoi les boundaries en x et y sont différentes ?
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
   

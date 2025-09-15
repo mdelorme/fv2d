@@ -124,6 +124,17 @@ public:
     File file(output_path + h5_filename, File::Truncate);
     FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), "w+");
 
+    int j0 = device_params.jbeg;
+    int jN = device_params.jend;
+    int i0 = device_params.ibeg;
+    int iN = device_params.iend;
+    if (device_params.write_ghost_cells){
+      j0 = 0;
+      jN += device_params.Ng; 
+      i0 = 0;
+      iN += device_params.Ng;
+    }
+
     file.createAttribute("Ntx",  device_params.Ntx);
     file.createAttribute("Nty",  device_params.Nty);
     file.createAttribute("Nx",   device_params.Nx);
@@ -136,8 +147,8 @@ public:
 
     std::vector<real_t> x, y;
     // -- vertex pos
-    for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
-      for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
+    for (int j=j0; j <= jN; ++j) {
+      for (int i=i0; i <= iN; ++i) {
         x.push_back((i-device_params.ibeg) * device_params.dx + device_params.xmin);
         y.push_back((j-device_params.jbeg) * device_params.dy + device_params.ymin);
       }
@@ -156,8 +167,8 @@ public:
     Table tw, tbx, tby, tbz, tdivB, tpsi;
     #endif
 
-    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
-      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
+    for (int j=j0; j<jN; ++j) {
+      for (int i=i0; i<iN; ++i) {
         real_t rho = Qhost(j, i, IR);
         real_t u   = Qhost(j, i, IU);
         real_t v   = Qhost(j, i, IV);
@@ -180,9 +191,13 @@ public:
           tby.push_back(by);
           tbz.push_back(bz);
           tpsi.push_back(psi);
-          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
-          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
-          tdivB.push_back(dBx_dx + dBy_dy);
+          if (!device_params.write_ghost_cells){ // Special care to compute divB in this case, TODO later
+            real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2. * device_params.dx);
+            real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2. * device_params.dy);
+            tdivB.push_back(dBx_dx + dBy_dy);
+          }
+          else
+            tdivB.push_back(0.0);
         #endif //MHD
         }
       }
@@ -237,6 +252,17 @@ public:
     File file(output_path + h5_filename, flag_h5);
     FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), flag_xdmf);
 
+    int j0 = device_params.jbeg;
+    int jN = device_params.jend;
+    int i0 = device_params.ibeg;
+    int iN = device_params.iend;
+    
+    if (device_params.write_ghost_cells){
+      j0 = 0;
+      jN += device_params.Ng; 
+      i0 = 0;
+      iN += device_params.Ng;
+    }
     if (force_file_truncation) {
       force_file_truncation = false;
       file.createAttribute("Ntx", device_params.Ntx);
@@ -251,8 +277,8 @@ public:
 
       std::vector<real_t> x, y;
       // -- vertex pos
-      for (int j=device_params.jbeg; j <= device_params.jend; ++j)
-        for (int i=device_params.ibeg; i <= device_params.iend; ++i)
+      for (int j=j0; j <= jN; ++j)
+        for (int i=i0; i <= iN; ++i)
         {
           x.push_back((i-device_params.ibeg) * device_params.dx + device_params.xmin);
           y.push_back((j-device_params.jbeg) * device_params.dy + device_params.ymin);
@@ -274,8 +300,8 @@ public:
     Table tw, tbx, tby, tbz, tdivB, tpsi;
     #endif
 
-    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
-      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
+    for (int j=j0; j<jN; ++j) {
+      for (int i=i0; i<iN; ++i) {
         real_t rho = Qhost(j, i, IR);
         real_t u   = Qhost(j, i, IU);
         real_t v   = Qhost(j, i, IV);
@@ -298,9 +324,13 @@ public:
         tby.push_back(by);
         tbz.push_back(bz);
         tpsi.push_back(psi);
-        real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2 * device_params.dx);
-        real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2 * device_params.dy);
-        tdivB.push_back(dBx_dx + dBy_dy);
+        if (!device_params.write_ghost_cells){
+          real_t dBx_dx = (Qhost(j, i+1, IBX) - Qhost(j, i-1, IBX)) / (2. * device_params.dx);
+          real_t dBy_dy = (Qhost(j+1, i, IBY) - Qhost(j-1, i, IBY)) / (2. * device_params.dy);
+          tdivB.push_back(dBx_dx + dBy_dy);
+        }
+        else
+          tdivB.push_back(0.0);
         #endif //MHD
 
       }

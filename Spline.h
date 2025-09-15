@@ -53,10 +53,10 @@ public:
     const real_t r0 = header.r0;
     const real_t dr = header.dr;
 
-
     int32_t id = (r-r0)/dr;
     id = (id <  0) ?   0 : id;
     id = (id >= N) ? N-1 : id;
+    if (r > header.rmax) Kokkos::abort("Spline.h: r > rmax");
 
     const real_t c[4] = {spline(id, 0), spline(id, 1), spline(id, 2), spline(id, 3)};
     const real_t rs = r0 + id * dr;
@@ -72,10 +72,10 @@ public:
     const real_t r0 = header.r0;
     const real_t dr = header.dr;
 
-
     int32_t id = (r-r0)/dr;
     id = (id <  0) ?   0 : id;
     id = (id >= N) ? N-1 : id;
+    if (r > header.rmax) Kokkos::abort("Spline.h: r > rmax");
 
     const real_t c[4] = {spline(id, 0), spline(id, 1), spline(id, 2), spline(id, 3)};
     const real_t rs = r0 + id * dr;
@@ -94,7 +94,7 @@ public:
   struct {
     uint32_t N;
     uint32_t offset_variable[6];
-    real_t r0, dr, r_cz;
+    real_t r0, dr, r_cz, rmax;
     real_t Cp, R, gamma;
   } header;
   Kokkos::View<real_t*[4]> spline;

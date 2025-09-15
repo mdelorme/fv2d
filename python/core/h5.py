@@ -51,7 +51,7 @@ class Fv2dData:
         self.metadata = self._get_metadata()
         self.is_multi_iteration = self._check_multi_iteration()
         self.metadata = self._get_metadata()
-        self.Ng = 2
+        self.Ng = 0
         self.Nx = self.metadata['Nx'] + 2*self.Ng
         self.Ny = self.metadata['Ny'] + 2*self.Ng
         self.x  = np.unique(self.metadata['x'])[1:]
@@ -111,8 +111,8 @@ class Fv2dData:
             xmin, xmax = x.min(), x.max()
             ymin, ymax = y.min(), y.max()
             dx, dy = x[1] - x[0], y[1] - y[0]
-            # ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
-            ext = [xmin, xmax, ymin, ymax]
+            ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
+            # ext = [xmin, xmax, ymin, ymax]
             return {
                 'Nx': Nx,
                 'Ny': Ny,

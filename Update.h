@@ -8,6 +8,7 @@
 #include "Viscosity.h"
 #include "Sources.h"
 #include "Gravity.h"
+#include "FluxContainer.h"
 
 namespace fv2d {
 
@@ -120,7 +121,7 @@ public:
           State qR  = reconstruct(Q, slopes, i+dxp, j+dyp, -1.0, dir, params);
           
           // Calling the right Riemann solver
-          auto riemann = [&](State qL, State qR, State &flux, real_t &pout) {
+          auto riemann = [&](State qL, State qR, Flux &flux, real_t &pout) {
             #ifdef MHD
             real_t Bx_m, psi_m;
             if (params.div_cleaning == DEDNER) {
@@ -150,8 +151,8 @@ public:
               default: hlld(qL, qR, flux, pout, Bx_m, params);   break;
             }
             if (params.div_cleaning == DEDNER){
-              flux[IBX] = psi_m;
-              flux[IPSI] = ch_dedner*ch_dedner*Bx_m;
+              flux.mhd[IBX] = psi_m;
+              flux.mhd[IPSI] = ch_dedner*ch_dedner*Bx_m;
             }
             #else
             switch (params.riemann_solver) {
@@ -162,14 +163,16 @@ public:
           };
 
           // Calculating flux left and right of the cell
-          State fluxL, fluxR;
+          Flux fluxL, fluxR;
           real_t poutL, poutR;
 
           riemann(qL, qCL, fluxL, poutL);
           riemann(qCR, qR, fluxR, poutR);
 
-          fluxL = swap_component(fluxL, dir);
-          fluxR = swap_component(fluxR, dir);
+          fluxL.hydro = swap_component(fluxL.hydro, dir);
+          fluxL.mhd   = swap_component(fluxL.mhd, dir);
+          fluxR.hydro = swap_component(fluxR.hydro, dir);
+          fluxR.mhd   = swap_component(fluxR.mhd, dir);
           
           // Remove mechanical flux in a well-balanced fashion
           // if (j==params.jbeg && params.well_balanced_flux_at_y_bc && dir == IY)
@@ -198,12 +201,13 @@ public:
             applyNormalMagBC(Q, i, j, fluxR, dir, ch_dedner, params);
             
           auto un_loc = getStateFromArray(Unew, i, j);
-          un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
+          State total_flux = (fluxL.hydro + fluxL.mhd) - (fluxR.hydro + fluxR.mhd);
+          un_loc += dt*total_flux/(dir == IX ? params.dx : params.dy);
 
           if (params.gravity_mode != GRAV_NONE) {
             real_t g = getGravity(i, j, dir, params);
             un_loc[IV] += dt * Q(j, i, IR) * g;
-            un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
+            un_loc[IE] += dt * 0.5 * (fluxL.hydro[IR] + fluxR.hydro[IR]) * g;
           }
           setStateInArray(Unew, i, j, un_loc);
         };

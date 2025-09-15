@@ -8,3 +8,4 @@ __pycache__/
 *.xdmf
 last.ini
 *.mp4
+*.DS_Store

@@ -51,8 +51,9 @@ class Fv2dData:
         self.metadata = self._get_metadata()
         self.is_multi_iteration = self._check_multi_iteration()
         self.metadata = self._get_metadata()
-        self.Nx = self.metadata['Nx']
-        self.Ny = self.metadata['Ny']
+        self.Ng = 2
+        self.Nx = self.metadata['Nx'] + 2*self.Ng
+        self.Ny = self.metadata['Ny'] + 2*self.Ng
         self.x  = np.unique(self.metadata['x'])[1:]
         self.y  = np.unique(self.metadata['y'])[1:]
         self.dx = self.metadata['dx']
@@ -110,7 +111,8 @@ class Fv2dData:
             xmin, xmax = x.min(), x.max()
             ymin, ymax = y.min(), y.max()
             dx, dy = x[1] - x[0], y[1] - y[0]
-            ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
+            # ext = [xmin - 0.5 * dx, xmax + 0.5 * dx, ymin - 0.5 * dy, ymax + 0.5 * dy]
+            ext = [xmin, xmax, ymin, ymax]
             return {
                 'Nx': Nx,
                 'Ny': Ny,
@@ -158,7 +160,7 @@ class Fv2dData:
                 data[var] = np.array(group[var]).reshape(self.Ny, self.Nx)
         else:
             for var in f:
-                if not var in {'x', 'y'}:
+                if var not in {'x', 'y'}:
                     data[var] = np.array(f[var]).reshape(self.Ny, self.Nx)
         # Add custom values
         if field not in {'rho', 'prs', 'u', 'v', 'w', 'bx', 'by', 'bz', 'divB', 'psi'}:

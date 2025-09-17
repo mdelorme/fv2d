@@ -115,6 +115,12 @@ enum AnalyticalGravityMode {
   AGM_HOT_BUBBLE
 };
 
+enum MagneticBoundaryType{
+  BCMAG_SAME_AS_HYDRO,
+  BCMAG_NORMAL_FIELD,
+  BCMAG_PERFECT_CONDUCTOR
+};
+
 // Add functions HasSection and HasValue to INIReader, remove this when jtilly/inih.git will be updated
 struct IniReader : INIReader {
   using INIReader::INIReader, INIReader::GetBoolean, INIReader::GetInteger, INIReader::GetFloat, INIReader::Get;
@@ -325,7 +331,9 @@ struct DeviceParams {
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
-  
+  MagneticBoundaryType magnetic_boundary_x = BCMAG_SAME_AS_HYDRO;
+  MagneticBoundaryType magnetic_boundary_y = BCMAG_SAME_AS_HYDRO;
+
   // Godunov
   ReconstructionType reconstruction = PCM; 
   RiemannSolver riemann_solver = HLL;
@@ -386,7 +394,13 @@ struct DeviceParams {
     };
     boundary_x = reader.GetMapValue(bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = reader.GetMapValue(bc_map, "run", "boundaries_y", "reflecting");
-
+    std::map<std::string, MagneticBoundaryType> magbc_map{
+      {"same_as_hydro",     BCMAG_SAME_AS_HYDRO},
+      {"normal_field",      BCMAG_NORMAL_FIELD},
+      {"perfect_conductor", BCMAG_PERFECT_CONDUCTOR}
+    };
+    magnetic_boundary_x = reader.GetMapValue(magbc_map, "run", "magnetic_boundary_x", "same_as_hydro");
+    magnetic_boundary_y = reader.GetMapValue(magbc_map, "run", "magnetic_boundary_y", "same_as_hydro");
     std::map<std::string, ReconstructionType> recons_map{
       {"pcm",    PCM},
       {"pcm_wb", PCM_WB},

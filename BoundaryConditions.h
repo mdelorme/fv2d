@@ -7,12 +7,42 @@
 
 namespace fv2d {
   namespace {
+
+  KOKKOS_INLINE_FUNCTION
+  void applyMagneticBoundaries(State &q, IDir dir, const DeviceParams &params){
+    if (dir == IX){
+      switch (params.magnetic_boundary_x){
+          case BCMAG_NORMAL_FIELD:{
+            q[IBY] = 0.0;
+            q[IBZ] = 0.0;
+            break;
+          }
+          case BCMAG_PERFECT_CONDUCTOR: q[IBX] = 0.0; break;
+          default: break; // SAME_AS_HYDRO
+        }
+      }
+    if (dir == IY){
+    switch (params.magnetic_boundary_y){
+        case BCMAG_NORMAL_FIELD:{
+          q[IBX] = 0;
+          q[IBZ] = 0;
+          break;
+        }
+        case BCMAG_PERFECT_CONDUCTOR: q[IBY] = 0.0; break;
+        default: break; // SAME_AS_HYDRO
+      }
+    }
+  }
   /**
    * @brief Absorbing conditions
    */
   KOKKOS_INLINE_FUNCTION
-  State fillAbsorbing(Array Q, int iref, int jref) {
-    return getStateFromArray(Q, iref, jref);
+  State fillAbsorbing(Array Q, int iref, int jref, IDir dir, const DeviceParams &params) {
+    State q = getStateFromArray(Q, iref, jref);
+    #ifdef MHD
+      applyMagneticBoundaries(q, dir, params);
+    #endif // MHD
+    return q;
   };
 
   /**
@@ -37,15 +67,18 @@ namespace fv2d {
     if (dir == IX){
       q[IU] *= -1.0;
       #ifdef MHD
-      q[IBX] *= -1.0;
+        q[IBX] *= -1.0;
       #endif
-    }
-    else {
-      q[IV] *= -1.0;
-      #ifdef MHD
-      q[IBY] *= -1.0;
-      #endif
-    }
+      }
+      else {
+        q[IV] *= -1.0;
+        #ifdef MHD
+          q[IBY] *= -1.0;
+        #endif
+      }
+    #ifdef MHD
+      applyMagneticBoundaries(q, dir, params);
+    #endif //MHD
     return q;
   }
 
@@ -67,9 +100,19 @@ namespace fv2d {
       else
         j -= params.Ny;
     }
-
-    return getStateFromArray(Q, i, j);
+    State q = getStateFromArray(Q, i, j);
+    #ifdef MHD
+      applyMagneticBoundaries(q, dir, params);
+    #endif
+    return q;
   }
+
+  /* Magnetic Boundaries: 
+  Can be of type : 
+    - SAME_AS_HYDRO: in this case we can just call the pre-existing hydro boundary conditions with a MHD State and do nothing special
+    - NORMAL_FIELD: in this case only the components of B are null except for the normal one (with respect to the boundary considered)
+    - PERFECT_CONDUCTOR: in this case, the component normal to the boundary is 0 and others remain untouched
+  */
 } // anonymous namespace
 
 
@@ -98,7 +141,7 @@ public:
                             auto fill = [&](int i, int iref) {
                               switch (bc_x) {
                                 default:
-                                case BC_ABSORBING:  return fillAbsorbing(Q, iref, j); break;
+                                case BC_ABSORBING:  return fillAbsorbing(Q, iref, j, IX, params); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, iref, j, IX, params); break;
                                 case BC_PERIODIC:   return fillPeriodic(Q, i, j, IX, params); break;
                               }
@@ -120,7 +163,7 @@ public:
                             auto fill = [&](int j, int jref) {
                               switch (bc_y) {
                                 default:
-                                case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
+                                case BC_ABSORBING:  return fillAbsorbing(Q, i, jref, IY, params); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
                                 case BC_PERIODIC:   return fillPeriodic(Q, i, j, IY, params); break;
                               }

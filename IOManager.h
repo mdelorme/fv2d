@@ -208,7 +208,7 @@ public:
     fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
     #ifdef MHD
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v", "w"));
-      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "magnetic_field", "bx", "by", "bz"));    
+      fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "magnetic", "bx", "by", "bz"));    
       fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "divB"));
       fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "psi"));
     #else
@@ -331,7 +331,7 @@ public:
         fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v"));
     #else
         fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v", "w"));
-        fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "maggnetic", "bx", "by", "bz"));
+        fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "magnetic", "bx", "by", "bz"));
         fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "psi"));
         fprintf(xdmf_fd, str_xdmf_scalar_field, format_xdmf_scalar_field(group, "divB"));
     #endif //MHD

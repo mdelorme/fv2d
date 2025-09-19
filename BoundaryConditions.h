@@ -153,63 +153,75 @@ namespace fv2d {
    */
   KOKKOS_INLINE_FUNCTION
   void applyNormalMagBC(Array Q, int i, int j, Flux &flux_tot, IDir dir, const real_t c_h, const DeviceParams &params) {
-    State q = getStateFromArray(Q, i, j);
-    Vect v {q[IU], q[IV], q[IW]};
-    Vect B {q[IBX], q[IBY], q[IBZ]};
-    Vect pmag = {0.0, 0.0, 0.0};
-    pmag[dir] = getMagneticPressure(B);
+    State q_in = getStateFromArray(Q, i, j); // On est donc indépendant de la direction
 
-    // 1. Reset the magnetic part of the flux as computed by the Riemann solver
-    // flux_tot[IU] -= pmag[IX] - B[dir]*B[IX];
-    // flux_tot[IV] -= pmag[IY] - B[dir]*B[IY];
-    // flux_tot[IW] -= pmag[IZ] - B[dir]*B[IZ];
-    // flux_tot[IE] -= norm2(B) * v[dir] - B[dir] * dot(v, B);
-    // flux_tot.hydro[IU] -= flux_tot.mhd[IU];
-    // flux_tot.hydro[IV] -= flux_tot.mhd[IV];
-    // flux_tot.hydro[IW] -= flux_tot.mhd[IW];
-    // flux_tot.hydro[IE] -= flux_tot.mhd[IE];
+    const Vect B_out {0.0, q_in[IBY], 0.0};
+    const real_t p_gaz_out = q_in[IP] + q_in[IBY]*q_in[IBY] + q_in[IBZ]*q_in[IBZ]; // Here it is sepcialized to direction IY, to correct
+    const real_t p_mag_out = 0.5 * norm2(B_out);
+    State q_out {};
+    q_out[IR] = q_in[IR];
+    q_out[IU] = q_in[IU];
+    q_out[IV] = q_in[IV];
+    q_out[IW] = q_in[IW];
+    q_out[IP] = q_in[IP] + p_gaz_out;
+    q_out[IBX] = q_in[IBX];
+    q_out[IBY] = 0.0;
+    q_out[IBZ] = 0.0;
+    q_out[IPSI] = q_in[IPSI]; // TODO: re-arrange this term
+    State u_out = primToCons(q_out, params);
 
-    // if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER)
-    //   flux_tot.mhd[IE] -= c_h * q[IPSI] * B[dir];
-    // flux_tot.mhd[IBX] = 0.0;
-    // flux_tot.mhd[IBY] = 0.0;
-    // flux_tot.mhd[IBZ] = 0.0;
-    // flux_tot.mhd[IPSI] = 0.0;
+    // 1. Reset the magnetic part of the flux as computed by the Riemann solver -> Not needed since separation of fluxes
+    flux_tot.hydro = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    const real_t f_rho = q_out[IR] * q_out[IU];
+    flux_tot.mhd[IR] = f_rho;
+    flux_tot.mhd[IU] = f_rho * q_out[IU] + p_gaz_out + p_mag_out; 
+    flux_tot.mhd[IV] = f_rho * q_out[IV];
+    flux_tot.mhd[IW] = f_rho * q_out[IW];
+    flux_tot.mhd[IE] = u_out[IE] * q_out[IU] - q_out[IBX]*dot({q_out[IU], q_out[IV], q_out[IW]}, B_out);
 
+    flux_tot.mhd[IBX] = 0.0;
+    flux_tot.mhd[IBY] = q_out[IU] * q_out[IBY] - q_out[IBX] * q_out[IV];
+    flux_tot.mhd[IBZ] = q_out[IU] * q_out[IBZ] - q_out[IBX] * q_out[IW];
+    flux_tot.mhd[IPSI] = 0.0;
+    flux_tot.mhd = swap_component(flux_tot.mhd, dir);
     // 2. Compute the new magnetic flux at the boundary
-    Vect Bboundary = {0.0, 0.0, 0.0};
-    Vect Vboundary = {v[IX], v[IY], v[IZ]};
-    Bboundary[dir] = B[dir];
-    Vect pmag_boundary = {0.0, 0.0, 0.0};
-    pmag_boundary[dir] = getMagneticPressure(Bboundary);
-    if (params.well_balanced_flux_at_y_bc)
-      Vboundary[IY] = 0.0; // Vitesse normale nulle, pas de matière qui entre ou sort
+    // Vect Bboundary = {0.0, 0.0, 0.0};
+    // Vect Vboundary = {v[IX], v[IY], v[IZ]};
+    // Bboundary[dir] = B[dir];
+    // Vect pmag_boundary = {0.0, 0.0, 0.0};
+    // pmag_boundary[dir] = getMagneticPressure(Bboundary);
+    // if (params.well_balanced_flux_at_y_bc)
+    //   Vboundary[IY] = 0.0; // Vitesse normale nulle, pas de matière qui entre ou sort
     
-    // State flux_mhd = zero_state();
-    flux_tot.mhd[IU] = pmag_boundary[IX] - Bboundary[dir]*Bboundary[IX];
-    flux_tot.mhd[IV] = pmag_boundary[IY] - Bboundary[dir]*Bboundary[IY];
-    flux_tot.mhd[IW] = pmag_boundary[IZ] - Bboundary[dir]*Bboundary[IZ];
-    flux_tot.mhd[IE] = norm2(Bboundary) * Vboundary[dir] - Bboundary[dir] * dot(Vboundary, Bboundary);
+    // // State flux_mhd = zero_state();
+    // flux_tot.mhd[IU] = pmag_boundary[IX] - Bboundary[dir]*Bboundary[IX];
+    // flux_tot.mhd[IV] = pmag_boundary[IY] - Bboundary[dir]*Bboundary[IY];
+    // flux_tot.mhd[IW] = pmag_boundary[IZ] - Bboundary[dir]*Bboundary[IZ];
+    // flux_tot.mhd[IE] = norm2(Bboundary) * Vboundary[dir] - Bboundary[dir] * dot(Vboundary, Bboundary);
+    // // Magnetic Components
+    // flux_tot.mhd[IBX] = B[IX]*Vboundary[dir] - B[dir]*Vboundary[IX];
+    // flux_tot.mhd[IBY] = B[IY]*Vboundary[dir] - B[dir]*Vboundary[IY];
+    // flux_tot.mhd[IBZ] = B[IZ]*Vboundary[dir] - B[dir]*Vboundary[IZ];
     
-    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
-      flux_tot.mhd[IE] += c_h * q[IPSI] * Bboundary[dir];
-      IDir IBN = (dir == IX ? IX : IY);
-      State qL, qR;
-      if (j==params.jbeg) {
-        qL = getStateFromArray(Q, i, j+1); // NOTE : prendre Q(i, j-1) ?
-        qR = q;
-      }
-      else {
-        qR = getStateFromArray(Q, i, j-1); // NOTE : prendre Q(i, j+1) ?
-        qL = q;
-      }
-      real_t Bm = qL[IBN]  + 0.5 * (qR[IBN] - qL[IBN]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
-      real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBN] - qL[IBN]);
-      // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
+    // if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER) {
+    //   flux_tot.mhd[IE] += c_h * q[IPSI] * Bboundary[dir];
+    //   IDir IBN = (dir == IX ? IX : IY);
+    //   State qL, qR;
+    //   if (j==params.jbeg) {
+    //     qL = getStateFromArray(Q, i, j+1); // NOTE : prendre Q(i, j-1) ?
+    //     qR = q;
+    //   }
+    //   else {
+    //     qR = getStateFromArray(Q, i, j-1); // NOTE : prendre Q(i, j+1) ?
+    //     qL = q;
+    //   }
+    //   real_t Bm = qL[IBN]  + 0.5 * (qR[IBN] - qL[IBN]) - 1/(2*c_h) * (qR[IPSI] - qL[IPSI]);
+    //   real_t psi_m = qL[IPSI] + 0.5 * (qR[IPSI] - qL[IPSI]) - 0.5*c_h * (qR[IBN] - qL[IBN]);
+    //   // flux_mhd[IE] += c_h * q[IPSI] * B[dir];
       
-      flux_tot.mhd[IBN] = psi_m;
-      flux_tot.mhd[IPSI] = c_h * c_h * Bm;
-    }
+    //   flux_tot.mhd[IBN] = psi_m;
+    //   flux_tot.mhd[IPSI] = c_h * c_h * Bm;
+    
     // 3. Add it to the hydro flux (which may be modified by WB if needed)
     // flux_tot = flux_tot + flux_mhd;
   }

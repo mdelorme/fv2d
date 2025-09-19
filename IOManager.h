@@ -11,28 +11,34 @@ using namespace H5Easy;
 namespace fv2d {
 
   // xdmf strings
-  namespace {
-    char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
-<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-<Xdmf Version="2.0">
-  <Domain CollectionType="Temporal">
-    <Grid Name="MainTimeSeries" GridType="Collection" CollectionType="Temporal">
-
-      <Topology Name="Main Topology" TopologyType="2DSMesh" NumberOfElements="%d %d"/>
-      <Geometry Name="Main Geometry" GeometryType="X_Y">
-        <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/x</DataItem>
-        <DataItem Dimensions="%d %d" NumberType="Float" Precision="8" Format="HDF">%s:/y</DataItem>
-      </Geometry>
-      )xml";
-    #define format_xdmf_header(params, path)                                          \
-           params.Ny + 1, params.Nx + 1,                                        \
-           params.Ny + 1, params.Nx + 1, (path + ".h5").c_str(), \
-           params.Ny + 1, params.Nx + 1, (path + ".h5").c_str()
-
-    char str_xdmf_footer[] =
-    R"xml(
-    </Grid>
-  </Domain>
+namespace {
+  char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" [
+<!ENTITY file "%s:">
+<!ENTITY fdim "%d %d">
+<!ENTITY gdim "%d %d">
+<!ENTITY GridEntity '
+<Topology TopologyType="2DSMesh" Dimensions="&gdim;"/>
+<Geometry GeometryType="X_Y">
+  <DataItem Dimensions="&gdim;" NumberType="Float" Precision="8" Format="HDF">&file;/x</DataItem>
+  <DataItem Dimensions="&gdim;" NumberType="Float" Precision="8" Format="HDF">&file;/y</DataItem>
+</Geometry>'>
+]>
+<Xdmf Version="3.0">
+<Domain>
+  <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+    )xml";
+  #define format_xdmf_header(params, filename) \
+          (filename).c_str(),                  \
+          ((params).write_ghost_cells ? (params).Nty : (params).Ny), \
+          ((params).write_ghost_cells ? (params).Ntx : (params).Nx), \
+          (((params).write_ghost_cells ? (params).Nty : (params).Ny) + 1), \
+          (((params).write_ghost_cells ? (params).Ntx : (params).Nx) + 1)
+          
+  char str_xdmf_footer[] =
+  R"xml(
+  </Grid>
+</Domain>
 </Xdmf>)xml";
 
     char str_xdmf_ite_header[] =

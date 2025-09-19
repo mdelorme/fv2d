@@ -193,7 +193,7 @@ namespace {
     Q(j, i, IV) = V0 * A;
     Q(j, i, IW) = 0.0;
     Q(j, i, IBX) = 0.0;
-    Q(j, i, IBY) = 1e-3;
+    Q(j, i, IBY) = 1e-1;
     Q(j, i, IBZ) = 0.0;
     Q(j, i, IPSI) = 0.0;
   }

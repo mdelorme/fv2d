@@ -162,6 +162,7 @@ public:
           fluxR = swap_component(fluxR, dir);
 
           // Remove mechanical flux in a well-balanced fashion
+          // WARNING: Well Balanced is incorrect for the MHD case (mixed up the components) --> corrected in branch mhd/thermal
           if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
@@ -178,7 +179,17 @@ public:
               #endif
           }
 
+          const bool is_left_boundary   = i == params.ibeg;
+          const bool is_right_boundary  = i == params.iend;
+          const bool is_bottom_boundary = j == params.jbeg;
+          const bool is_upper_boundary  = j == params.jend-1;
+
           auto un_loc = getStateFromArray(Unew, i, j);
+          if (is_bottom_boundary && dir == IY)
+            fluxL = getBoundaryFlux(qR, fluxL, i, j, dir, params);
+          if (is_upper_boundary && dir == IY)
+            fluxR = getBoundaryFlux(qL, fluxR, i, j, dir, params);
+          
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
           
           // if (params.riemann_solver == IDEALGLM) {

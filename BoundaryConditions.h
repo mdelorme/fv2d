@@ -69,33 +69,33 @@ namespace fv2d {
     //  * ones inside the domain, hence reconstruction yields u_norm = 0 at the boundary, simplifying
     //  * the calculation of the flux to only the pressure gradient term in the flux.
     //  */
-    if( reflecting )
-    {
-      v_in[dir] *= -1.0;
-      flux_out[IU] = p_in[IX];
-      flux_out[IV] = p_in[IY];
-      flux_out[IW] = p_in[IZ];
-      B_in[dir] *= -1.0;
-    }
-    /**
-     * In the absorbing case, the values in the ghosts are supposed to be interpolated from the ones 
-     * inside the domain to provide a null gradient through the boundary. Hence we can take the
-     * reconstructed value at the boundary as the riemann-problem solution.
-     */
-    else if( absorbing )
-    {
-      real_t f_rho = q_in[IR]*v_in[dir];
+    // if( reflecting )
+    // {
+    //   v_in[dir] *= -1.0;
+    //   flux_out[IU] = p_in[IX];
+    //   flux_out[IV] = p_in[IY];
+    //   flux_out[IW] = p_in[IZ];
+    //   B_in[dir] *= -1.0;
+    // }
+    // /**
+    //  * In the absorbing case, the values in the ghosts are supposed to be interpolated from the ones 
+    //  * inside the domain to provide a null gradient through the boundary. Hence we can take the
+    //  * reconstructed value at the boundary as the riemann-problem solution.
+    //  */
+    // else if( absorbing )
+    // {
+    //   real_t f_rho = q_in[IR]*v_in[dir];
       
-      flux_out[IR] = f_rho;
-      flux_out[IU] = f_rho*q_in[IU] + p_in[IX];
-      flux_out[IV] = f_rho*q_in[IV] + p_in[IY];
-      flux_out[IW] = f_rho*q_in[IW] + p_in[IZ];
-      flux_out[IE] = (q_in[IP] + u_in[IE]) * v_in[dir];
-    }
-    else
-    {
-      flux_out = flux_in;
-    }
+    //   flux_out[IR] = f_rho;
+    //   flux_out[IU] = f_rho*q_in[IU] + p_in[IX];
+    //   flux_out[IV] = f_rho*q_in[IV] + p_in[IY];
+    //   flux_out[IW] = f_rho*q_in[IW] + p_in[IZ];
+    //   flux_out[IE] = (q_in[IP] + u_in[IE]) * v_in[dir];
+    // }
+    // else
+    // {
+    //   flux_out = flux_in;
+    // }
     
     /**
      * Magnetic boundaries

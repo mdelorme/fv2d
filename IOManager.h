@@ -34,8 +34,11 @@ namespace {
     )xml";
   #define format_xdmf_header(params, filename) \
           (filename).c_str(),                  \
-          params.Ny,     params.Nx,            \
-          params.Ny + 1, params.Nx + 1
+          ((params).write_ghost_cells ? (params).Nty : (params).Ny), \
+          ((params).write_ghost_cells ? (params).Ntx : (params).Nx), \
+          (((params).write_ghost_cells ? (params).Nty : (params).Ny) + 1), \
+          (((params).write_ghost_cells ? (params).Ntx : (params).Nx) + 1)
+          
   char str_xdmf_footer[] =
   R"xml(
   </Grid>
@@ -135,6 +138,12 @@ public:
       iN += device_params.Ng;
     }
 
+    // number of cells (fdim) and number of vertices (gdim) used by XDMF
+    int fNy = jN - j0; // cells in Y
+    int fNx = iN - i0; // cells in X
+    int gNy = fNy + 1; // vertices in Y
+    int gNx = fNx + 1; // vertices in X
+
     file.createAttribute("Ntx",  device_params.Ntx);
     file.createAttribute("Nty",  device_params.Nty);
     file.createAttribute("Nx",   device_params.Nx);
@@ -219,7 +228,7 @@ public:
 
     std::string group = "";
 
-    fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, h5_filename));
+  fprintf(xdmf_fd, str_xdmf_header, h5_filename.c_str(), fNy, fNx, gNy, gNx);
     fprintf(xdmf_fd, str_xdmf_ite_header, format_xdmf_ite_header(iteration_str, t));
     #ifdef MHD
       fprintf(xdmf_fd, str_xdmf_vector_field, format_xdmf_vector_field(group, "velocity", "u", "v", "w"));
@@ -286,7 +295,13 @@ public:
       file.createDataSet("x", x);
       file.createDataSet("y", y);
 
-      fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out + ".h5"));
+      // compute fdim/gdim for XDMF header (accounting for ghost cells if enabled)
+      int fNy = jN - j0; // cells in Y
+      int fNx = iN - i0; // cells in X
+      int gNy = fNy + 1; // vertices in Y
+      int gNx = fNx + 1; // vertices in X
+
+      fprintf(xdmf_fd, str_xdmf_header, (params.filename_out + ".h5").c_str(), fNy, fNx, gNy, gNx);
       fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
     

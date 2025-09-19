@@ -17,7 +17,7 @@ namespace fv2d {
   State fillAbsorbing(Array Q, int iref, int jref, IDir dir, const DeviceParams &params) {
     State q = getStateFromArray(Q, iref, jref);
     #ifdef MHD
-    if ((jref==params.jbeg || jref==params.jend-1) && dir == IY && params.bcmag_ymax== BCMAG_NORMAL_FIELD) {
+    if ((jref==params.jbeg || jref==params.jend-1) && dir == IY && params.magnetic_boundary_y== BCMAG_NORMAL_FIELD) {
       q[IBX] = 0.0;
       q[IBZ] = 0.0; // Champ magnétique normal -> Bx=Bz=0 et By_j+1 = By_j
     }

@@ -124,9 +124,6 @@ public:
         setStateInArray(Unew, i, j, un_loc);
 
       }, Kokkos::Sum<real_t>(total_viscous_contrib));
-
-    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
-      std::cout << "Total viscous contribution to energy : " << total_viscous_contrib << std::endl;
   }
 };
 

@@ -96,8 +96,6 @@ public:
 
         total_heating += dt * q;
       }, Kokkos::Sum<real_t>(total_heating));
-    if (full_params.log_energy_contributions && ite % full_params.log_energy_frequency == 0)
-      std::cout << "Total heating contribution to energy : " << total_heating << std::endl;
   }
 };
 

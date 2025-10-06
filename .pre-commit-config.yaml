@@ -1,0 +1,180 @@
+fail_fast: true
+repos:
+- repo: local
+  hooks:
+    - id: build-logdir
+      name: build-logdir
+      description: Create the pre_commit_log directory
+      entry: mkdir -p pre_commit_logs
+      language: system
+      pass_filenames: false
+      types: [ text ]
+
+# General pre-commit hooks
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: trailing-whitespace
+    # exclude: \.svg$|LICENSE
+    log_file: pre_commit_logs/log_precommit_trailing-whitespace
+  - id: end-of-file-fixer  # add EOF "\n" if missing
+    log_file: pre_commit_logs/log_precommit_end-of-file-fixer
+    exclude: \.svg$|LICENSE
+  - id: check-merge-conflict
+    log_file: pre_commit_logs/log_precommit_check-merge-conflict
+
+  - id: check-executables-have-shebangs
+    log_file: pre_commit_logs/log_precommit_check-executables-have-shebangs
+
+  - id: check-shebang-scripts-are-executable
+    log_file: pre_commit_logs/log_precommit_check-shebang-scripts-are-executable
+
+  - id: check-added-large-files
+    args: ['--maxkb=50']
+    log_file: pre_commit_logs/log_precommit_check-added-large-files
+
+  - id: check-case-conflict
+    log_file: pre_commit_logs/log_precommit_check-case-conflict
+
+#   - id: check-symlinks
+  #- id: check-xml
+  - id: check-yaml
+    # args: [--unsafe]
+    exclude: \.clang-format
+    log_file: pre_commit_logs/log_precommit_check-yaml
+
+  # - id: detect-private-key
+    # log_file: log_precommit_detect-private-key
+
+  #- id: pretty-format-json
+
+# ==============================================================================
+# C/C++ specific pre-commit hooks
+# ==============================================================================
+
+- repo: https://github.com/Lucas-C/pre-commit-hooks
+  rev: "v1.5.5"
+  hooks:
+  - id: forbid-tabs
+    # exclude: Makefile|\.gitmodules
+    log_file: pre_commit_logs/log_precommit_forbid-tabs
+  - id: remove-tabs
+    # exclude: Makefile|\.gitmodules
+    log_file: pre_commit_logs/log_precommit_remove-tabs
+  # - id: insert-license
+  #   files: ^(src/).*\.(hpp|cpp)$
+  #   args: [--license-filepath, src/license_header.txt, --comment-style, //]
+
+
+# Clang format the codebase automatically
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v21.1.2
+  hooks:
+    - id: clang-format
+      types_or: [c++]
+      log_file: pre_commit_logs/log_precommit_clang-format
+      files: \.(cpp|h)$
+      args: [--style=file, --fallback-style=none]
+
+- repo: https://gitlab.com/daverona/pre-commit/cpp
+  rev: 0.8.0
+  hooks:
+    # - id: cpplint
+    #   args: [--counting=detailed, --exclude=test/*]           # linter (or style-error checker) for Google C++ Style Guide
+    - id: cppcheck             # static analyzer for C/C++ code
+      args: [--enable=all, --inconclusive, --std=c++20, --language=c++, --suppress=missingIncludeSystem, --suppress=missingInclude, --check-level=exhaustive]
+  # Hooks using native
+  # - id: clang-format         # formatter for C/C++ code based on a style guide
+
+  # Hooks using Docker
+  # - id: docker-clang-format  # clang-format in Docker container
+  # - id: docker-cpplint       # cpplint in Docker container
+  # - id: docker-cppcheck      # cppcheck in Docker container
+
+#- repo: https://github.com/cheshirekow/cmake-format-precommit
+#  rev: v0.6.10
+#  hooks:
+#  - id: cmake-format
+#  - id: cmake-lint
+
+# - repo: https://github.com/pocc/pre-commit-hooks
+#   rev: v1.3.5
+#   hooks:
+#     - id: clang-format
+#       args: [--style=llvm]
+#     - id: clang-tidy
+#     # - id: oclint # only availbale for ARM architetcure on Mac
+#     # - id: uncrustify # requires a lot of configurations
+#     - id: cppcheck
+#       args: [--enable=all, --inconclusive, --std=c++17, --language=c++]
+#     # - id: cpplint # does not work on my MacOS
+#     - id: include-what-you-use
+
+# ==============================================================================
+# Python specific pre-commit hooks
+# ==============================================================================
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.13.3
+  hooks:
+    - id: ruff
+      args:
+      - --quiet
+      - --fix
+      - --select
+      - F # pyflakes
+      - B # flake8-bugbear
+      - I # isort
+      - NPY # numpy-specific rules
+      - --ignore
+      - F405
+      - --ignore
+      - F403 # ignore import *
+
+# ==============================================================================
+# Configuration files
+# ==============================================================================
+- repo: https://github.com/neutrinoceros/inifix.git
+  rev: v6.1.1
+  hooks:
+  - id: inifix-validate
+  - id: inifix-format
+    args: [--skip-validation]
+
+# - repo: local
+#   hooks:
+#     - id: doxygen_header
+#       name: "Check doxygen headers"
+#       entry: python buildbot/check_doxygen_fileheader.py
+#       language: python
+#       pass_filenames: false
+
+#     - id: license_check
+#       name: "Check license headers"
+#       entry: python buildbot/check_licencing.py
+#       language: python
+#       pass_filenames: false
+
+#     - id: pragma_once_check
+#       name: "Check #pragma once"
+#       entry: python buildbot/check_pragma_once.py
+#       language: python
+#       pass_filenames: false
+
+#     - id: check_sycl_include
+#       name: "Check SYCL #include"
+#       entry: python buildbot/check_sycl_include.py
+#       language: python
+#       pass_filenames: false
+
+#     - id: check_no_ssh_in_submodules
+#       name: "No ssh in git submodules remote"
+#       entry: python buildbot/check_no_ssh_in_submodules.py
+#       language: python
+#       pass_filenames: false
+
+    # - id: update_authors
+    #   name: "Update authors"
+    #   entry: python buildbot/update_authors.py
+    #   language: python
+    #   pass_filenames: true
+

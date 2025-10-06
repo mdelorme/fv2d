@@ -5,3 +5,4 @@ render/
 *.h5
 __pycache__/
 *.pyc
+pre_commit_logs/

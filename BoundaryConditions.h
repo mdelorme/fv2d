@@ -135,6 +135,8 @@ public:
             case BC_REFLECTING:
               return fillReflecting(Q, i, j, i, jref, IY, params);
               break;
+            case BC_TRILAYER_DAMPING: return fillTriLayerDamping(Q, i, j, i, jref, IY, params); break;
+
             case BC_PERIODIC:
               return fillPeriodic(Q, i, j, IY, params);
               break;
@@ -144,6 +146,7 @@ public:
           setStateInArray(Q, i, jtop, fill(jtop, jref_top));
           setStateInArray(Q, i, jbot, fill(jbot, jref_bot));
         });
+
   }
 };
 

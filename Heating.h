@@ -89,6 +89,7 @@ public:
           case HM_C2020: q = heatC2020(Q, i, j, params); break;
           case HM_C2020_TRI: q = heatC2020_tri(Q, i, j, params); break;
           case HM_COOLING_ISO: q = cooling_layer(Q, i, j, params); break;
+          default: q = 1.0; break;
         }
 
         // Explicit update

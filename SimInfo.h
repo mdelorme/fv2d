@@ -76,6 +76,7 @@ enum ThermalConductivityMode
 };
 
 enum HeatingMode {
+  HM_NONE,
   HM_C2020,
   HM_C2020_TRI,
   HM_COOLING_ISO,
@@ -479,11 +480,12 @@ struct DeviceParams
     // Heating function 
     heating_active = reader.GetBoolean("heating", "active", false);
     std::map<std::string, HeatingMode> heating_map{
+      {"none", HM_NONE},
       {"C2020", HM_C2020},
       {"tri_layer", HM_C2020_TRI},
       {"isothermal_cooling", HM_COOLING_ISO}
     };
-    heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
+    heating_mode = reader.GetMapValue(heating_map, "heating", "mode", "none");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
 
     // H84
@@ -509,9 +511,9 @@ struct DeviceParams
     gresho_density = reader.GetFloat("gresho_vortex", "density", 1.0);
     gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach", 0.1);
     kh_sigma = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
-    kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
-    kh_y1 = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
-    kh_y2 = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
+    kh_uflow = reader.GetFloat("kelvin_helmholtz", "uflow", 1.0);
+    kh_y1 = reader.GetFloat("kelvin_helmholtz", "y1", 0.5);
+    kh_y2 = reader.GetFloat("kelvin_helmholtz", "y2", 1.5);
     // C20
     c20_H = reader.GetFloat("C20", "H", 0.2);
     c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);

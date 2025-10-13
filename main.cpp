@@ -72,7 +72,7 @@ int main(int argc, char **argv)
       if (save_needed)
       {
         std::cout << " - Saving at time " << t << std::endl;
-        ioManager.saveSolution(Q, save_ite++, t, dt);
+        ioManager.saveSolution(Q, save_ite++, t);
         next_save += params.save_freq;
 
       }
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
     std::cout << "Time at end is " << t << std::endl;
 
-    ioManager.saveSolution(Q, save_ite++, t, dt);
+    ioManager.saveSolution(Q, save_ite++, t);
   }
   Kokkos::finalize();
 

@@ -160,42 +160,17 @@ public:
 
           fluxL = swap_component(fluxL, dir);
           fluxR = swap_component(fluxR, dir);
-
-          // Remove mechanical flux in a well-balanced fashion
-          // WARNING: Well Balanced is incorrect for the MHD case (mixed up the components) --> corrected in branch mhd/thermal
-          if (params.well_balanced_flux_at_y_bc && (j==params.jbeg || j==params.jend-1) && dir == IY) {
-            real_t g = getGravity(i, j, dir, params);
-            if (j==params.jbeg)
-              #ifdef MHD
-              fluxL = State{0.0, 0.0, 0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0};
-              #else
-              fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
-              #endif
-            else
-              #ifdef MHD
-              fluxR = State{0.0, 0.0, 0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0, 0.0, 0.0, 0.0};
-              #else
-              fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
-              #endif
-          }
-
           const bool is_left_boundary   = i == params.ibeg;
           const bool is_right_boundary  = i == params.iend;
           const bool is_bottom_boundary = j == params.jbeg;
           const bool is_upper_boundary  = j == params.jend-1;
 
-          auto un_loc = getStateFromArray(Unew, i, j);
           if (is_bottom_boundary && dir == IY)
             fluxL = getBoundaryFlux(qR, fluxL, i, j, dir, params);
           if (is_upper_boundary && dir == IY)
             fluxR = getBoundaryFlux(qL, fluxR, i, j, dir, params);
           
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
-          
-          // if (params.riemann_solver == IDEALGLM) {
-          //   State MagPsiSources = IdealGLMSources(qL, qCL, qCR, qR, params);
-          //   un_loc += dt * MagPsiSources;
-          // }
 
           if (params.gravity_mode != GRAV_NONE) {
             real_t g = getGravity(i, j, dir, params);

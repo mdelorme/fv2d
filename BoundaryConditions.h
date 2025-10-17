@@ -35,15 +35,13 @@ namespace fv2d {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State getBoundaryFlux(State q_in, State &flux_in, int i, int j, IDir dir, const DeviceParams &params){
-    const State u_in = consToPrim(q_in, params);
+  State getBoundaryFlux(const State& q_in, State &flux_in, int i, int j, IDir dir, const DeviceParams &params){
+    State q_out = q_in;
     const bool is_left_boundary   = i == params.ibeg;
     const bool is_right_boundary  = i == params.iend;
     const bool is_bottom_boundary = j == params.jbeg;
     const bool is_upper_boundary  = j == params.jend-1;
     // TODO: no C array -> change to kokkos array
-    // const bool min_boundary[2] = {is_left_boundary, is_bottom_boundary};
-    // const bool max_boundary[2] = {is_right_boundary, is_upper_boundary};
     const bool is_boundary[2] = {is_left_boundary || is_right_boundary, is_bottom_boundary || is_upper_boundary};
     const BoundaryType bc_type[2] = {params.boundary_x, params.boundary_y};
     const MagneticBoundaryType bc_mag_type[2] = {params.magnetic_boundary_x, params.magnetic_boundary_y};
@@ -55,80 +53,58 @@ namespace fv2d {
     const bool mag_perfect_conductor = (is_boundary[dir] && bc_mag_type[dir] == BCMAG_PERFECT_CONDUCTOR);
     const bool mag_normal_field = (is_boundary[dir] && bc_mag_type[dir] == BCMAG_NORMAL_FIELD);
 
-
-    Vect v_in {q_in[IU], q_in[IV], q_in[IW]};
-    Vect B_in {q_in[IBX], q_in[IBY], q_in[IBZ]};
     // Vect B_out = B_in;
+    if( reflecting )
+      {
+        q_out[IU] = (dir == IX ? 0.0 : q_in[IU]);
+        q_out[IV] = (dir == IY ? 0.0 : q_in[IV]);
+        q_out[IW] = (dir == IZ ? 0.0 : q_in[IW]);
+
+        q_out[IBX] = (dir == IX ? 0.0 : q_in[IBX]);
+        q_out[IBY] = (dir == IY ? 0.0 : q_in[IBY]);
+        q_out[IBZ] = (dir == IZ ? 0.0 : q_in[IBZ]);
+      }
+    else if( absorbing )
+      {
+        // Do nothing, q_out = q_in
+      }
     
-    Vect p_in {0.0, 0.0, 0.0};
-    p_in[dir] = q_in[IP];
-    
-    State flux_out = flux_in;
-    // /**
-    //  * In the reflecting case, the values in the "ghosts" are supposed to be reflecting the
-    //  * ones inside the domain, hence reconstruction yields u_norm = 0 at the boundary, simplifying
-    //  * the calculation of the flux to only the pressure gradient term in the flux.
-    //  */
-    // if( reflecting )
-    // {
-    //   v_in[dir] *= -1.0;
-    //   flux_out[IU] = p_in[IX];
-    //   flux_out[IV] = p_in[IY];
-    //   flux_out[IW] = p_in[IZ];
-    //   B_in[dir] *= -1.0;
-    // }
-    // /**
-    //  * In the absorbing case, the values in the ghosts are supposed to be interpolated from the ones 
-    //  * inside the domain to provide a null gradient through the boundary. Hence we can take the
-    //  * reconstructed value at the boundary as the riemann-problem solution.
-    //  */
-    // else if( absorbing )
-    // {
-    //   real_t f_rho = q_in[IR]*v_in[dir];
-      
-    //   flux_out[IR] = f_rho;
-    //   flux_out[IU] = f_rho*q_in[IU] + p_in[IX];
-    //   flux_out[IV] = f_rho*q_in[IV] + p_in[IY];
-    //   flux_out[IW] = f_rho*q_in[IW] + p_in[IZ];
-    //   flux_out[IE] = (q_in[IP] + u_in[IE]) * v_in[dir];
-    // }
-    // else
-    // {
-    //   flux_out = flux_in;
-    // }
-    
-    /**
-     * Magnetic boundaries
-     * 
-     * Perfect conductor : Bz = 0
-     */
-    Vect B_out {};
-    if ( mag_perfect_conductor )
-    { 
-      B_out[dir] = 0.0;
-    }
-    // /**
-    //  * Normal field : Bx=By=0
-    //  */
-    else if ( mag_normal_field )
-    {
-      B_out[dir] = B_in[dir];
-    }
-    else
-    {
-      B_out = B_in;
+    if (mag_perfect_conductor){
+      q_out[IBX] = (dir == IX ? 0.0 : q_in[IBX]);
+      q_out[IBY] = (dir == IY ? 0.0 : q_in[IBY]);
+      q_out[IBZ] = (dir == IZ ? 0.0 : q_in[IBZ]);
     }
 
-    Vect pmag {0.0, 0.0, 0.0};
-    pmag[dir] = 0.5 * dot(B_out, B_out); // 1/2 B^2
-    flux_out[IU] -= B_out[IX] * B_out[dir] - pmag[IX];
-    flux_out[IV] -= B_out[IY] * B_out[dir] - pmag[IY];
-    flux_out[IW] -= B_out[IZ] * B_out[dir] - pmag[IZ];
-    flux_out[IE] -= B_out[dir] * dot(v_in, B_out) - v_in[dir] * pmag[dir];
+    else if (mag_normal_field){
+      q_out[IBX] = (dir == IX ? q_in[IBX] : 0.0);
+      q_out[IBY] = (dir == IY ? q_in[IBY] : 0.0);
+      q_out[IBZ] = (dir == IZ ? q_in[IBZ] : 0.0);
+    }
 
-    flux_out[IBX] = B_out[IX] * v_in[dir] - B_out[dir] * q_in[IU];
-    flux_out[IBY] = B_out[IY] * v_in[dir] - B_out[dir] * q_in[IV];
-    flux_out[IBZ] = B_out[IZ] * v_in[dir] - B_out[dir] * q_in[IW];
+    const State u_out = primToCons(q_out, params);
+
+    const real_t vx = q_out[IU], vy = q_out[IV], vz = q_out[IW];
+    const Vect v_out {vx, vy, vz}; 
+    const real_t v_normal = v_out[dir];
+
+    const real_t Bx = q_out[IBX], By = q_out[IBY], Bz = q_out[IBZ];
+    const Vect B_out {Bx, By, Bz};
+    const real_t B_normal = B_out[dir];
+
+    const real_t p_gas = q_out[IP];
+    const real_t p_mag = 0.5 * (Bx*Bx + By*By + Bz*Bz);
+
+    State flux_out;
+    flux_out[IR] = u_out[IR] * v_normal;
+    flux_out[IU] = u_out[IU] * v_normal - Bx * B_normal + (dir == IX ? p_gas + p_mag : 0.0);
+    flux_out[IV] = u_out[IV] * v_normal - By * B_normal + (dir == IY ? p_gas + p_mag : 0.0);
+    flux_out[IW] = u_out[IW] * v_normal - Bz * B_normal + (dir == IZ ? p_gas + p_mag : 0.0);
+
+    flux_out[IE] = (u_out[IE] + p_gas + p_mag) * v_normal - B_normal * dot(B_out, v_out);
+
+    flux_out[IBX] = Bx * v_normal - B_normal * vx;
+    flux_out[IBY] = By * v_normal - B_normal * vy;
+    flux_out[IBZ] = Bz * v_normal - B_normal * vz;
 
     return flux_out;
   }

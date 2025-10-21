@@ -170,6 +170,7 @@ public:
           if (is_upper_boundary && dir == IY)
             fluxR = getBoundaryFlux(qL, fluxR, i, j, dir, params);
           
+          auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
           if (params.gravity_mode != GRAV_NONE) {

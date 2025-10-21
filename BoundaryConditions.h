@@ -13,45 +13,39 @@ namespace fv2d {
     if (dir == IX){
       switch (params.magnetic_boundary_x){
           case BCMAG_NORMAL_FIELD:{
-            q[IBY] = 0.0;
-            q[IBZ] = 0.0;
+            q[IBY] *= -1.0;
+            q[IBZ] *= -1.0;
             break;
           }
-          case BCMAG_PERFECT_CONDUCTOR: q[IBX] = 0.0; break;
+          case BCMAG_PERFECT_CONDUCTOR: q[IBX] *= -1.0; break;
           default: break; // SAME_AS_HYDRO
         }
       }
     if (dir == IY){
     switch (params.magnetic_boundary_y){
         case BCMAG_NORMAL_FIELD:{
-          q[IBX] = 0;
-          q[IBZ] = 0;
+          q[IBX] *= -1.0;
+          q[IBZ] *= -1.0;
           break;
         }
-        case BCMAG_PERFECT_CONDUCTOR: q[IBY] = 0.0; break;
+        case BCMAG_PERFECT_CONDUCTOR: q[IBY] *= -1.0; break;
         default: break; // SAME_AS_HYDRO
       }
     }
   }
 
   KOKKOS_INLINE_FUNCTION
-  State getBoundaryFlux(const State& q_in, State &flux_in, int i, int j, IDir dir, const DeviceParams &params){
+  State getBoundaryFlux(const State& q_in, int i, int j, IDir dir, const DeviceParams &params){
     State q_out = q_in;
-    const bool is_left_boundary   = i == params.ibeg;
-    const bool is_right_boundary  = i == params.iend;
-    const bool is_bottom_boundary = j == params.jbeg;
-    const bool is_upper_boundary  = j == params.jend-1;
-    // TODO: no C array -> change to kokkos array
-    const bool is_boundary[2] = {is_left_boundary || is_right_boundary, is_bottom_boundary || is_upper_boundary};
     const BoundaryType bc_type[2] = {params.boundary_x, params.boundary_y};
     const MagneticBoundaryType bc_mag_type[2] = {params.magnetic_boundary_x, params.magnetic_boundary_y};
     // TODO: Réadapter ces conditions pour fv2d
-    const bool reflecting = (is_boundary[dir] && bc_type[dir] == BC_REFLECTING);
-    const bool absorbing  = (is_boundary[dir] && bc_type[dir] == BC_ABSORBING);
-    const bool periodic   = (is_boundary[dir] && bc_type[dir] == BC_PERIODIC);
+    const bool reflecting = (bc_type[dir] == BC_REFLECTING);
+    const bool absorbing  = (bc_type[dir] == BC_ABSORBING);
+    const bool periodic   = (bc_type[dir] == BC_PERIODIC);
 
-    const bool mag_perfect_conductor = (is_boundary[dir] && bc_mag_type[dir] == BCMAG_PERFECT_CONDUCTOR);
-    const bool mag_normal_field = (is_boundary[dir] && bc_mag_type[dir] == BCMAG_NORMAL_FIELD);
+    const bool mag_perfect_conductor = (bc_mag_type[dir] == BCMAG_PERFECT_CONDUCTOR);
+    const bool mag_normal_field = (bc_mag_type[dir] == BCMAG_NORMAL_FIELD);
 
     // Vect B_out = B_in;
     if( reflecting )

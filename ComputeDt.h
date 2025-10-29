@@ -20,15 +20,17 @@ public:
     real_t inv_dt_hyp = 0.0;
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
+    const real_t gdx = params.gy * params.dy;
 
     Kokkos::parallel_reduce("Computing DT",
                             full_params.range_dom,
                             KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
-                              // Hydro time-step
+                              real_t inv_dt_hyp_loc;
+                              // Traditional Hydro time-step
                               State q = getStateFromArray(Q, i, j);
                               real_t cs = speedOfSound(q, params);
 
-                              real_t inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dy;
+                              inv_dt_hyp_loc = (cs + fabs(q[IU]))/params.dx + (cs + fabs(q[IV]))/params.dx;
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active)

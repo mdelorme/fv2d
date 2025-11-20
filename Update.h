@@ -144,15 +144,16 @@ State reconstruct(Array Q, Array slopes, WenoStruct weno_struct, CWenoStruct cwe
     case PLM_WB: // Piecewise linear + Well-balancing 
     {
       // Piecewise linear reconstruction
+      State slope = getStateFromArray(slopes, i, j);
       res = q + slope * sign * 0.5;
 
       if (dir == IY) {
+        real_t g = getGravity(i, j, dir, params);
+        
         // Getting neighbour states
         State neigh_m, neigh_p;
-        neigh_m = getStateFromArray(Q, i + (dir == IX ? -1 : 0), j + (dir == IY ? -1 : 0));
-        neigh_p = getStateFromArray(Q, i + (dir == IX ?  1 : 0), j + (dir == IY ?  1 : 0));
-        
-        const real_t g = getGravity(i, j, dir, params);
+        neigh_m = getStateFromArray(Q, i, j-1);
+        neigh_p = getStateFromArray(Q, i, j+1);
 
         // Calculating p1_{i-1}
         const real_t p0_im = q[IP] + 0.5 * (q[IR] + neigh_m[IR]) * g * params.dy;
@@ -201,7 +202,7 @@ public:
     : full_params(full_params), bc_manager(full_params),
       tc_functor(full_params), visc_functor(full_params) {
       auto device_params = full_params.device_params;
-      if (device_params.reconstruction == PLM) {
+      if (device_params.reconstruction == PLM || device_params.reconstruction == PLM_WB) {
         slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
         slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
       }
@@ -537,8 +538,9 @@ public:
     bc_manager.fillBoundaries(Q, t);
 
     // Hyperbolic udpate
-    if (full_params.device_params.reconstruction == PLM)
+    if (full_params.device_params.reconstruction == PLM || full_params.device_params.reconstruction == PLM_WB){
       computeSlopes(Q);
+    }
     else if (full_params.device_params.reconstruction == WENO5) {
       compute_weno_beta(Q);
       compute_weno_w(Q);

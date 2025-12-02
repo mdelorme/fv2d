@@ -101,11 +101,11 @@ public:
           // Lambda to update the cell along a direction
           auto updateAlongDir = [&](int i, int j, IDir dir)
           {
-            auto &slopes = (dir == IX ? slopesX : slopesY);
-            int dxm      = (dir == IX ? -1 : 0);
-            int dxp      = (dir == IX ? 1 : 0);
-            int dym      = (dir == IY ? -1 : 0);
-            int dyp      = (dir == IY ? 1 : 0);
+            const auto &slopes = (dir == IX ? slopesX : slopesY);
+            int dxm            = (dir == IX ? -1 : 0);
+            int dxp            = (dir == IX ? 1 : 0);
+            int dym            = (dir == IY ? -1 : 0);
+            int dyp            = (dir == IY ? 1 : 0);
 
             State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
             State qCR = reconstruct(Q, slopes, i, j, 1.0, dir, params);

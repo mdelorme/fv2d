@@ -264,6 +264,7 @@ public:
 
   void init(Array Q)
   {
+    // cppcheck-suppress shadowVariable
     auto init_type = this->init_type;
     auto params    = full_params.device_params;
 

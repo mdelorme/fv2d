@@ -34,9 +34,7 @@ public:
         "Viscosity",
         full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
-          Pos pos  = getPos(params, i, j);
-          real_t x = pos[IX];
-          real_t y = pos[IY];
+          Pos pos = getPos(params, i, j);
 
           State stencil[3][3];
 

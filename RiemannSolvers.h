@@ -47,7 +47,7 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const DeviceParams &pa
     State uR = primToCons(qR, params);
     pout = 0.5 * (qL[IP] + qR[IP]);
     flux = (SR*FL - SL*FR + SL*SR*(uR-uL)) / (SR-SL);
-  } 
+  }
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -125,9 +125,9 @@ void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &p
 
 /**
  * @brief Flux Splitting Lagrange Projection Solver
- * 
- * FSLP solver as defined in Bourgeois et al. 2024 : "Recasting an operator splitting solver into a 
- * standard finite volume flux-based algorithm. The case of a Lagrange-projection-type method for gas 
+ *
+ * FSLP solver as defined in Bourgeois et al. 2024 : "Recasting an operator splitting solver into a
+ * standard finite volume flux-based algorithm. The case of a Lagrange-projection-type method for gas
  * dynamics", Journal of Computational Physics, vol 496.
  */
 KOKKOS_INLINE_FUNCTION
@@ -156,7 +156,7 @@ void fslp(State &qL, State &qR, State &flux, real_t &pout, real_t gdx, const Dev
 
   // 4. Upwinding
   const State& qstar = (ustar > 0 ? qL : qR);                                         // eq (32)
-  const real_t Ekstar = 0.5 * qstar[IR] * (qstar[IU]*qstar[IU]+qstar[IV]*qstar[IV]); 
+  const real_t Ekstar = 0.5 * qstar[IR] * (qstar[IU]*qstar[IU]+qstar[IV]*qstar[IV]);
   const real_t Estar = Ekstar + qstar[IP]/(params.gamma0-1.0);
 
   // 5. Calculating flux : eq (31)

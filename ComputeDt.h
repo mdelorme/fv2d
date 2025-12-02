@@ -35,7 +35,7 @@ public:
                               if (params.thermal_conductivity_active)
                                 inv_dt_par_tc_loc = fmax(2.0*computeKappa(i, j, params) / (params.dx*params.dx),
                                                          2.0*computeKappa(i, j, params) / (params.dy*params.dy));
-                              
+
                               real_t inv_dt_par_visc_loc = params.epsilon;
                               if (params.viscosity_active)
                                 inv_dt_par_visc_loc = fmax(2.0*computeMu(i, j, params) / (params.dx*params.dx),
@@ -44,17 +44,17 @@ public:
                               inv_dt_hyp      = fmax(inv_dt_hyp, inv_dt_hyp_loc);
                               inv_dt_par_tc   = fmax(inv_dt_par_tc, inv_dt_par_tc_loc);
                               inv_dt_par_visc = fmax(inv_dt_par_visc, inv_dt_par_visc_loc);
-                            }, Kokkos::Max<real_t>(inv_dt_hyp), 
-                               Kokkos::Max<real_t>(inv_dt_par_tc), 
+                            }, Kokkos::Max<real_t>(inv_dt_hyp),
+                               Kokkos::Max<real_t>(inv_dt_par_tc),
                                Kokkos::Max<real_t>(inv_dt_par_visc));
-  
+
     if (diag) {
       std::cout << "Computing dts at (t=" << t << ") : dt_hyp=" << 1.0/inv_dt_hyp;
       if(params.thermal_conductivity_active)
         std::cout << "; dt_TC="   << 1.0/inv_dt_par_tc;
       if(params.viscosity_active)
         std::cout << "; dt_visc=" << 1.0/inv_dt_par_visc;
-      std::cout << std::endl; 
+      std::cout << std::endl;
     }
 
     return full_params.device_params.CFL / std::max({inv_dt_hyp, inv_dt_par_tc, inv_dt_par_visc});

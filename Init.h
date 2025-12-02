@@ -86,7 +86,7 @@ namespace {
     real_t y = pos[IY];
 
     real_t rho = pow(y, params.m1);
-    real_t prs = pow(y, params.m1+1.0); 
+    real_t prs = pow(y, params.m1+1.0);
 
     auto generator = random_pool.get_state();
     real_t pert = params.h84_pert * (generator.drand(-0.5, 0.5));
@@ -138,7 +138,7 @@ namespace {
 
     real_t r = sqrt(x0*x0+y0*y0);
 
-    if (r < 0.2) 
+    if (r < 0.2)
       Q(j, i, IR) = 1.0;
     else
       Q(j, i, IR) = 0.1;
@@ -178,7 +178,7 @@ namespace {
 
   /**
    * @brief Kelvin-Helmholtz instability setup
-   * 
+   *
    * Taken from Lecoanet et al, "A validated non-linear Kelvin–Helmholtz benchmark for numerical hydrodynamics"
    * 2016, MNRAS
    */
@@ -196,7 +196,7 @@ namespace {
     const real_t rho = 1.0 + params.kh_rho_fac*0.5*(q1-q2);
     const real_t u   = params.kh_uflow * (q1-q2-1.0);
     const real_t v   = params.kh_amp * Kokkos::sin(2.0*M_PI*x)*(Kokkos::exp(-dy1/s2) + Kokkos::exp(-dy2/s2));
-    
+
     Q(j, i, IR) = rho;
     Q(j, i, IU) = u;
     Q(j, i, IV) = v;
@@ -205,7 +205,7 @@ namespace {
 
   /**
    * @brief Gresho-Vortex setup for Low-mach flows
-   * 
+   *
    * Based on Miczek et al. 2015 "New numerical solver for flows at various Mach numbers"
    */
   KOKKOS_INLINE_FUNCTION
@@ -240,7 +240,7 @@ namespace {
     const real_t ynr = yr / r;
     Q(j, i, IU) = -ynr * u_phi;
     Q(j, i, IV) =  xnr * u_phi;
-    
+
   }
 }
 
@@ -294,8 +294,8 @@ public:
     RandomPool random_pool(full_params.seed);
 
     // Filling active domain ...
-    Kokkos::parallel_for( "Initialization", 
-                          full_params.range_dom, 
+    Kokkos::parallel_for( "Initialization",
+                          full_params.range_dom,
                           KOKKOS_LAMBDA(const int i, const int j) {
                             switch(init_type) {
                               case SOD_X:            initSodX(Q, i, j, params); break;
@@ -309,7 +309,7 @@ public:
                               case GRESHO_VORTEX:   initGreshoVortex(Q, i, j, params); break;
                             }
                           });
-  
+
     // ... and boundaries
     BoundaryManager bc(full_params);
     bc.fillBoundaries(Q);

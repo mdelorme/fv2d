@@ -1,10 +1,11 @@
 #include <array>
 #include <iostream>
 
+#include "SimInfo.h"
+
 #include "ComputeDt.h"
 #include "IOManager.h"
 #include "Init.h"
-#include "SimInfo.h"
 #include "Update.h"
 
 using namespace fv2d;

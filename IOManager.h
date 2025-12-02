@@ -1,10 +1,12 @@
 #pragma once
 
 #include <filesystem>
+#include <fstream>
 #include <highfive/H5Easy.hpp>
 #include <iomanip>
 #include <ostream>
 
+#include "BoundaryConditions.h"
 #include "SimInfo.h"
 
 using namespace H5Easy;

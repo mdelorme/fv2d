@@ -18,7 +18,7 @@ void hll(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &pa
   const real_t SL = fmin(sminL, sminR);
   const real_t SR = fmax(smaxL, smaxR);
 
-  auto computeFlux = [&](State &q, const DeviceParams &params)
+  auto computeFlux = [&](const State &q, const DeviceParams &params)
   {
     const real_t Ek = 0.5 * q[IR] * (q[IU] * q[IU] + q[IV] * q[IV]);
     const real_t E  = (q[IP] / (params.gamma0 - 1.0) + Ek);
@@ -51,7 +51,7 @@ void hll(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &pa
 }
 
 KOKKOS_INLINE_FUNCTION
-void hllc(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params)
+void hllc(const State &qL, const State &qR, State &flux, real_t &pout, const DeviceParams &params)
 {
   const real_t rL = qL[IR];
   const real_t uL = qL[IU];

@@ -82,7 +82,7 @@ repos:
     # - id: cpplint
     #   args: [--counting=detailed, --exclude=test/*]           # linter (or style-error checker) for Google C++ Style Guide
     - id: cppcheck             # static analyzer for C/C++ code
-      args: [--enable=all, --inconclusive, --std=c++20, --language=c++, --suppress=missingIncludeSystem, --suppress=missingInclude, --check-level=exhaustive]
+      args: [--enable=all, --inconclusive, --std=c++20, --language=c++, --suppress=missingIncludeSystem, --suppress=missingInclude, --check-level=exhaustive, --inline-suppr]
   # Hooks using native
   # - id: clang-format         # formatter for C/C++ code based on a style guide
 

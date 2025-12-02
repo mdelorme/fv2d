@@ -586,7 +586,7 @@ void consToPrim(Array U, Array Q, const Params &full_params)
       });
 }
 
-void primToCons(Array &Q, Array &U, const Params &full_params)
+void primToCons(const Array &Q, const Array &U, const Params &full_params)
 {
   auto params = full_params.device_params;
   Kokkos::parallel_for(
@@ -599,7 +599,7 @@ void primToCons(Array &Q, Array &U, const Params &full_params)
       });
 }
 
-void checkNegatives(Array &Q, const Params &full_params)
+void checkNegatives(const Array &Q, const Params &full_params)
 {
   uint64_t negative_density  = 0;
   uint64_t negative_pressure = 0;
@@ -634,10 +634,13 @@ void checkNegatives(Array &Q, const Params &full_params)
       negative_pressure,
       nan_count);
 
+  // cppcheck-suppress knownConditionTrueFalse
   if (negative_density)
     std::cout << "--> negative density: " << negative_density << std::endl;
+  // cppcheck-suppress knownConditionTrueFalse
   if (negative_pressure)
     std::cout << "--> negative pressure: " << negative_pressure << std::endl;
+  // cppcheck-suppress knownConditionTrueFalse
   if (nan_count)
     std::cout << "--> NaN detected." << std::endl;
 }

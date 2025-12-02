@@ -58,7 +58,9 @@ public:
 
   void computeSlopes(const Array &Q) const
   {
+    // cppcheck-suppress shadowVariable
     auto slopesX = this->slopesX;
+    // cppcheck-suppress shadowVariable
     auto slopesY = this->slopesY;
 
     Kokkos::parallel_for(
@@ -90,8 +92,10 @@ public:
 
   void computeFluxesAndUpdate(Array Q, Array Unew, real_t dt) const
   {
-    auto params  = full_params.device_params;
+    auto params = full_params.device_params;
+    // cppcheck-suppress shadowVariable
     auto slopesX = this->slopesX;
+    // cppcheck-suppress shadowVariable
     auto slopesY = this->slopesY;
 
     Kokkos::parallel_for(

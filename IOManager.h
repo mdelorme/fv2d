@@ -292,8 +292,9 @@ public:
     const auto delim_multi = restart_file.find(".h5:/");
     if (delim_multi != std::string::npos)
     {
-      group        = restart_file.substr(delim_multi + 5);
-      restart_file = restart_file.substr(0, delim_multi + 3);
+      group = restart_file.substr(delim_multi + 5);
+      // keep only the prefix up to the .h5 (more efficient than substr assignment)
+      restart_file.resize(delim_multi + 3);
     }
 
     if (!params.multiple_outputs &&

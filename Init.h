@@ -307,7 +307,7 @@ public:
   };
   ~InitFunctor() = default;
 
-  void init(Array &Q)
+  void init(Array Q)
   {
     auto init_type = this->init_type;
     auto params    = full_params.device_params;

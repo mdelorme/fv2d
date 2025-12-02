@@ -354,7 +354,7 @@ public:
 
     std::cout << "Loading restart data from hdf5" << std::endl;
 
-    auto load_and_copy = [&](std::string var_name, IVar var_id)
+    auto load_and_copy = [&](const std::string &var_name, IVar var_id)
     {
       auto table = load<Table>(file, group + var_name);
       // Parallel for here ?

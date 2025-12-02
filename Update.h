@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include "SimInfo.h"
 #include "RiemannSolvers.h"
@@ -14,7 +14,7 @@ namespace {
   State reconstruct(Array Q, Array slopes, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
     State q     = getStateFromArray(Q, i, j);
     State slope = getStateFromArray(slopes, i, j);
-    
+
     State res;
     switch (params.reconstruction) {
       case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
@@ -59,8 +59,8 @@ public:
         for (int ivar=0; ivar < Nfields; ++ivar) {
           real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
           real_t dR = Q(j, i+1, ivar) - Q(j, i, ivar);
-          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar); 
-          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar); 
+          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar);
+          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar);
 
           auto minmod = [](real_t dL, real_t dR) -> real_t {
             if (dL*dR < 0.0)
@@ -84,7 +84,7 @@ public:
     auto slopesY = this->slopesY;
 
     Kokkos::parallel_for(
-      "Update", 
+      "Update",
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         // Lambda to update the cell along a direction
@@ -126,13 +126,13 @@ public:
             real_t g = getGravity(i, j, dir, params);
             if (j==params.jbeg)
               fluxL = State{0.0, 0.0, poutR - Q(j, i, IR)*g*params.dy, 0.0};
-            else 
+            else
               fluxR = State{0.0, 0.0, poutL + Q(j, i, IR)*g*params.dy, 0.0};
           }
 
           auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
-        
+
           if (params.gravity_mode != GRAV_NONE) {
             real_t g = getGravity(i, j, dir, params);
             un_loc[IV] += dt * Q(j, i, IR) * g;
@@ -170,12 +170,12 @@ public:
       auto params = full_params.device_params;
       Array U0    = Array("U0", params.Nty, params.Ntx, Nfields);
       Array Ustar = Array("Ustar", params.Nty, params.Ntx, Nfields);
-      
+
       // Step 1
       Kokkos::deep_copy(U0, Unew);
       Kokkos::deep_copy(Ustar, Unew);
       euler_step(Q, Ustar, dt);
-      
+
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
@@ -183,7 +183,7 @@ public:
 
       // SSP-RK2
       Kokkos::parallel_for(
-        "RK2 Correct", 
+        "RK2 Correct",
         full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           for (int ivar=0; ivar < Nfields; ++ivar)

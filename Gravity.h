@@ -6,7 +6,7 @@ namespace fv2d {
 
 /**
  * @brief Computes the analytical gravity at a certain position for a certain direction
- * 
+ *
  * @param i, j indices of the current cell
  * @param dir direction of the gravity to return
  * @param params the parameters of the run
@@ -17,8 +17,8 @@ float getAnalyticalGravity(int i, int j, IDir dir, const DeviceParams &params) {
   real_t g;
 
   switch(params.analytical_gravity_mode) {
-    case AGM_HOT_BUBBLE: 
-    default: g = params.hot_bubble_g0 * Kokkos::sin(pos[IY] * M_PI * 2.0 / params.ymax); 
+    case AGM_HOT_BUBBLE:
+    default: g = params.hot_bubble_g0 * Kokkos::sin(pos[IY] * M_PI * 2.0 / params.ymax);
   }
 
   return g;
@@ -26,7 +26,7 @@ float getAnalyticalGravity(int i, int j, IDir dir, const DeviceParams &params) {
 
 /**
  * @brief Method to compute the gravitational acceleration along a direction
- * 
+ *
  * @param i, j indices of the current cell
  * @param dir direction of the gravity to return
  * @param params the parameters of the run

@@ -1,22 +1,24 @@
 #pragma once
 
-#include <highfive/H5Easy.hpp>
-#include <ostream>
-#include <iomanip>
 #include <filesystem>
+#include <highfive/H5Easy.hpp>
+#include <iomanip>
+#include <ostream>
 
 #include "SimInfo.h"
 
 using namespace H5Easy;
 
-namespace fv2d {
+namespace fv2d
+{
 
-constexpr int ite_nzeros = 4;
+constexpr int ite_nzeros              = 4;
 constexpr std::string_view ite_prefix = "ite_";
 
-  // xdmf strings
-namespace {
-  char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
+// xdmf strings
+namespace
+{
+char str_xdmf_header[] = R"xml(<?xml version="1.0" ?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" [
 <!ENTITY file "%s:">
 <!ENTITY fdim "%d %d">
@@ -32,70 +34,66 @@ namespace {
 <Domain>
   <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
     )xml";
-  #define format_xdmf_header(params, filename) \
-          (filename).c_str(),                  \
-          params.Ny,     params.Nx,            \
-          params.Ny + 1, params.Nx + 1
-  char str_xdmf_footer[] =
-  R"xml(
+#define format_xdmf_header(params, filename) (filename).c_str(), params.Ny, params.Nx, params.Ny + 1, params.Nx + 1
+char str_xdmf_footer[] =
+    R"xml(
   </Grid>
 </Domain>
 </Xdmf>)xml";
 
-  char str_xdmf_ite_header[] =
-  R"xml(
+char str_xdmf_ite_header[] =
+    R"xml(
     <Grid Name="%s" GridType="Uniform">
       <Time Value="%lf" />
       &GridEntity;)xml";
-  #define format_xdmf_ite_header(name, time) \
-          (name).c_str(), time
-  char str_xdmf_scalar_field[] =
-  R"xml(
+#define format_xdmf_ite_header(name, time) (name).c_str(), time
+char str_xdmf_scalar_field[] =
+    R"xml(
       <Attribute Name="%s" AttributeType="Scalar" Center="Cell">
         <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
       </Attribute>)xml";
-  #define format_xdmf_scalar_field(group, field) \
-          field, (group).c_str(), field
-  char str_xdmf_vector_field[] =
-  R"xml(
+#define format_xdmf_scalar_field(group, field) field, (group).c_str(), field
+char str_xdmf_vector_field[] =
+    R"xml(
       <Attribute Name="%s" AttributeType="Vector" Center="Cell">
         <DataItem Dimensions="&fdim; 2" ItemType="Function" Function="JOIN($0, $1)">
           <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
           <DataItem Dimensions="&fdim;" NumberType="Float" Precision="8" Format="HDF">&file;/%s%s</DataItem>
         </DataItem>
       </Attribute>)xml";
-  #define format_xdmf_vector_field(group, name, field_x, field_y) \
-          name, (group).c_str(), field_x, (group).c_str(), field_y
-  char str_xdmf_ite_footer[] =
-  R"xml(
+#define format_xdmf_vector_field(group, name, field_x, field_y) name, (group).c_str(), field_x, (group).c_str(), field_y
+char str_xdmf_ite_footer[] =
+    R"xml(
     </Grid>
     )xml";
-  } // anonymous namespace
+} // anonymous namespace
 
-class IOManager {
+class IOManager
+{
 public:
   Params params;
   DeviceParams &device_params;
   bool force_file_truncation = false;
 
-  IOManager(Params &params)
-    : params(params), device_params(params.device_params)
+  IOManager(Params &params) : params(params), device_params(params.device_params)
+  {
+    if (!std::filesystem::exists(params.output_path))
     {
-      if (!std::filesystem::exists(params.output_path)) {
-        std::cout << "Output path does not exist, creating directory `" << params.output_path << "`." << std::endl;
-        std::filesystem::create_directory(params.output_path);
-      }
+      std::cout << "Output path does not exist, creating directory `" << params.output_path << "`." << std::endl;
+      std::filesystem::create_directory(params.output_path);
+    }
 
-      std::ofstream out_ini_local("last.ini");
-      params.reader.outputValues(out_ini_local);
+    std::ofstream out_ini_local("last.ini");
+    params.reader.outputValues(out_ini_local);
 
-      std::ofstream out_ini(params.output_path + "/" + params.filename_out + ".ini");
-      params.reader.outputValues(out_ini);
-    };
+    std::ofstream out_ini(params.output_path + "/" + params.filename_out + ".ini");
+    params.reader.outputValues(out_ini);
+  };
 
   ~IOManager() = default;
 
-  void saveSolution(const Array &Q, int iteration, real_t t) {
+  void saveSolution(const Array &Q, int iteration, real_t t)
+  {
     if (params.multiple_outputs)
       saveSolutionMultiple(Q, iteration, t);
     else
@@ -108,17 +106,17 @@ public:
 
     oss << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << iteration;
     std::string iteration_str = oss.str();
-    std::string h5_filename  = oss.str() + ".h5";
-    std::string xmf_filename = oss.str() + ".xmf";
-    std::string output_path = params.output_path + "/";
+    std::string h5_filename   = oss.str() + ".h5";
+    std::string xmf_filename  = oss.str() + ".xmf";
+    std::string output_path   = params.output_path + "/";
 
     File file(output_path + h5_filename, File::Truncate);
-    FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), "w+");
+    FILE *xdmf_fd = fopen((output_path + xmf_filename).c_str(), "w+");
 
-    file.createAttribute("Ntx",  device_params.Ntx);
-    file.createAttribute("Nty",  device_params.Nty);
-    file.createAttribute("Nx",   device_params.Nx);
-    file.createAttribute("Ny",   device_params.Ny);
+    file.createAttribute("Ntx", device_params.Ntx);
+    file.createAttribute("Nty", device_params.Nty);
+    file.createAttribute("Nx", device_params.Nx);
+    file.createAttribute("Ny", device_params.Ny);
     file.createAttribute("ibeg", device_params.ibeg);
     file.createAttribute("iend", device_params.iend);
     file.createAttribute("jbeg", device_params.jbeg);
@@ -127,10 +125,12 @@ public:
 
     std::vector<real_t> x, y;
     // -- vertex pos
-    for (int j=device_params.jbeg; j <= device_params.jend; ++j) {
-      for (int i=device_params.ibeg; i <= device_params.iend; ++i) {
-        x.push_back((i-device_params.ibeg) * device_params.dx + device_params.xmin);
-        y.push_back((j-device_params.jbeg) * device_params.dy + device_params.ymin);
+    for (int j = device_params.jbeg; j <= device_params.jend; ++j)
+    {
+      for (int i = device_params.ibeg; i <= device_params.iend; ++i)
+      {
+        x.push_back((i - device_params.ibeg) * device_params.dx + device_params.xmin);
+        y.push_back((j - device_params.jbeg) * device_params.dy + device_params.ymin);
       }
     }
 
@@ -143,9 +143,11 @@ public:
     Kokkos::deep_copy(Qhost, Q);
 
     Table trho, tu, tv, tprs;
-    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
+    for (int j = device_params.jbeg; j < device_params.jend; ++j)
+    {
 
-      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
+      for (int i = device_params.ibeg; i < device_params.iend; ++i)
+      {
         real_t rho = Qhost(j, i, IR);
         real_t u   = Qhost(j, i, IU);
         real_t v   = Qhost(j, i, IV);
@@ -177,23 +179,25 @@ public:
     fclose(xdmf_fd);
   }
 
-  void saveSolutionUnique(const Array &Q, int iteration, real_t t) {
+  void saveSolutionUnique(const Array &Q, int iteration, real_t t)
+  {
     std::ostringstream oss;
 
     oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
     std::string iteration_str = oss.str();
-    std::string h5_filename  = params.filename_out + ".h5";
-    std::string xmf_filename = params.filename_out + ".xmf";
-    std::string output_path = params.output_path + "/";
+    std::string h5_filename   = params.filename_out + ".h5";
+    std::string xmf_filename  = params.filename_out + ".xmf";
+    std::string output_path   = params.output_path + "/";
 
     force_file_truncation = (force_file_truncation || iteration == 0);
 
-    auto flag_h5 = (force_file_truncation ? File::Truncate : File::ReadWrite);
+    auto flag_h5   = (force_file_truncation ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (force_file_truncation ? "w+" : "r+");
     File file(output_path + h5_filename, flag_h5);
-    FILE* xdmf_fd = fopen((output_path + xmf_filename).c_str(), flag_xdmf);
+    FILE *xdmf_fd = fopen((output_path + xmf_filename).c_str(), flag_xdmf);
 
-    if (force_file_truncation) {
+    if (force_file_truncation)
+    {
       force_file_truncation = false;
       file.createAttribute("Ntx", device_params.Ntx);
       file.createAttribute("Nty", device_params.Nty);
@@ -207,11 +211,11 @@ public:
 
       std::vector<real_t> x, y;
       // -- vertex pos
-      for (int j=device_params.jbeg; j <= device_params.jend; ++j)
-        for (int i=device_params.ibeg; i <= device_params.iend; ++i)
+      for (int j = device_params.jbeg; j <= device_params.jend; ++j)
+        for (int i = device_params.ibeg; i <= device_params.iend; ++i)
         {
-          x.push_back((i-device_params.ibeg) * device_params.dx + device_params.xmin);
-          y.push_back((j-device_params.jbeg) * device_params.dy + device_params.ymin);
+          x.push_back((i - device_params.ibeg) * device_params.dx + device_params.xmin);
+          y.push_back((j - device_params.jbeg) * device_params.dy + device_params.ymin);
         }
       file.createDataSet("x", x);
       file.createDataSet("y", y);
@@ -226,8 +230,10 @@ public:
     Kokkos::deep_copy(Qhost, Q);
 
     Table trho, tu, tv, tprs;
-    for (int j=device_params.jbeg; j<device_params.jend; ++j) {
-      for (int i=device_params.ibeg; i<device_params.iend; ++i) {
+    for (int j = device_params.jbeg; j < device_params.jend; ++j)
+    {
+      for (int i = device_params.ibeg; i < device_params.iend; ++i)
+      {
         real_t rho = Qhost(j, i, IR);
         real_t u   = Qhost(j, i, IU);
         real_t v   = Qhost(j, i, IV);
@@ -260,27 +266,35 @@ public:
     fclose(xdmf_fd);
   }
 
-  RestartInfo loadSnapshot(Array &Q) {
+  RestartInfo loadSnapshot(Array &Q)
+  {
     // example of unique_output restart_file: 'run.h5:/ite_0005'
     // or just 'run.h5' for the last iteration
 
     std::string restart_file = params.restart_file;
-    std::string group = "";
+    std::string group        = "";
 
     const auto delim_multi = restart_file.find(".h5:/");
-    if (delim_multi != std::string::npos) {
-      group = restart_file.substr(delim_multi + 5);
+    if (delim_multi != std::string::npos)
+    {
+      group        = restart_file.substr(delim_multi + 5);
       restart_file = restart_file.substr(0, delim_multi + 3);
     }
 
-    if ( !params.multiple_outputs && std::filesystem::equivalent(restart_file, params.output_path + "/" + params.filename_out + ".h5") ) {
-      if (delim_multi != std::string::npos) {
+    if (!params.multiple_outputs &&
+        std::filesystem::equivalent(restart_file, params.output_path + "/" + params.filename_out + ".h5"))
+    {
+      if (delim_multi != std::string::npos)
+      {
         std::cerr << "Invalid restart file : if your restart file and output file are "
-                     "the same, you can only start from the last iteration." << std::endl << std::endl;
+                     "the same, you can only start from the last iteration."
+                  << std::endl
+                  << std::endl;
         throw std::runtime_error("ERROR : Invalid restart_file.");
       }
     }
-    else {
+    else
+    {
       this->force_file_truncation = true;
     }
 
@@ -288,18 +302,21 @@ public:
     real_t time;
     int iteration;
 
-    if (file.hasAttribute("time")) {
+    if (file.hasAttribute("time"))
+    {
       HighFive::Attribute attr_time = file.getAttribute("time");
       attr_time.read(time);
       HighFive::Attribute attr_ite = file.getAttribute("iteration");
       attr_ite.read(iteration);
     }
-    else {
-      if (group == "") {
+    else
+    {
+      if (group == "")
+      {
         const size_t last_ite_index = file.getNumberObjects() - 3;
-        group = file.getObjectName(last_ite_index);
+        group                       = file.getObjectName(last_ite_index);
       }
-      HighFive::Group h5_group = file.getGroup(group);
+      HighFive::Group h5_group      = file.getGroup(group);
       HighFive::Attribute attr_time = h5_group.getAttribute("time");
       attr_time.read(time);
       HighFive::Attribute attr_ite = h5_group.getAttribute("iteration");
@@ -309,30 +326,35 @@ public:
 
     auto Nt = getShape(file, group + "rho")[0];
 
-    if (Nt != device_params.Nx*device_params.Ny) {
-      std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = "
-                << device_params.Nx << "x" << device_params.Ny << "=" << device_params.Nx*device_params.Ny << std::endl;
+    if (Nt != device_params.Nx * device_params.Ny)
+    {
+      std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt
+                << "; Run resolution = " << device_params.Nx << "x" << device_params.Ny << "="
+                << device_params.Nx * device_params.Ny << std::endl;
       throw std::runtime_error("ERROR : Trying to restart from a file with a different resolution !");
     }
 
-    auto Qhost = Kokkos::create_mirror(Q);
+    auto Qhost  = Kokkos::create_mirror(Q);
     using Table = std::vector<real_t>;
 
     std::cout << "Loading restart data from hdf5" << std::endl;
 
-    auto load_and_copy = [&](std::string var_name, IVar var_id) {
+    auto load_and_copy = [&](std::string var_name, IVar var_id)
+    {
       auto table = load<Table>(file, group + var_name);
       // Parallel for here ?
       int lid = 0;
-      for (int y=0; y < device_params.Ny; ++y) {
-        for (int x=0; x < device_params.Nx; ++x) {
-          Qhost(y+device_params.jbeg, x+device_params.ibeg, var_id) = table[lid++];
+      for (int y = 0; y < device_params.Ny; ++y)
+      {
+        for (int x = 0; x < device_params.Nx; ++x)
+        {
+          Qhost(y + device_params.jbeg, x + device_params.ibeg, var_id) = table[lid++];
         }
       }
     };
     load_and_copy("rho", IR);
-    load_and_copy("u",   IU);
-    load_and_copy("v",   IV);
+    load_and_copy("u", IU);
+    load_and_copy("v", IV);
     load_and_copy("prs", IP);
 
     Kokkos::deep_copy(Q, Qhost);
@@ -340,15 +362,18 @@ public:
     BoundaryManager bc(params);
     bc.fillBoundaries(Q);
 
-    if (time + params.device_params.epsilon > params.tend) {
+    if (time + params.device_params.epsilon > params.tend)
+    {
       std::cerr << "Restart time is greater than end time : " << std::endl
-                << "  time: " << time << "\ttend: " << params.tend << std::endl << std::endl;
+                << "  time: " << time << "\ttend: " << params.tend << std::endl
+                << std::endl;
       throw std::runtime_error("ERROR : restart time is greater than the end time.");
     }
 
     std::cout << "Restart finished !" << std::endl;
 
-    if (force_file_truncation) {
+    if (force_file_truncation)
+    {
       file.~File(); // free the h5 before saving
       saveSolution(Q, iteration, time);
     }
@@ -356,4 +381,4 @@ public:
     return {time, iteration};
   }
 };
-}
+} // namespace fv2d

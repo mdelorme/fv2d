@@ -11,13 +11,13 @@ Check the [change log](CHANGELOG.md) for the latest updates.
 
 ## Cloning the repo
 
-To clone FV2D, you need to clone the repository and the submodules. To do so from scratch: 
+To clone FV2D, you need to clone the repository and the submodules. To do so from scratch:
 
 ```bash
 git clone --recurse-submodules git@github.com:mdelorme/fv2d.git
 ```
 
-If you have already cloned the repo but forgot to add the `--recurse-submodules`, you can still get the submodules by typing at the root of fv2d the following commands: 
+If you have already cloned the repo but forgot to add the `--recurse-submodules`, you can still get the submodules by typing at the root of fv2d the following commands:
 
 ```bash
 git submodule init
@@ -26,7 +26,7 @@ git submodule update
 
 ## Building
 
-Building relies on CMake. As FV2D is built with Kokkos included as a submodule, all Kokkos option have to be passed here. For more information on how to indicate which architecture/compiler you wish to use with Kokkos, please refer to the [Kokkos documentation](https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/Compiling.html). Here are a few examples of build commands for FV2D depending on the architecture : 
+Building relies on CMake. As FV2D is built with Kokkos included as a submodule, all Kokkos option have to be passed here. For more information on how to indicate which architecture/compiler you wish to use with Kokkos, please refer to the [Kokkos documentation](https://kokkos.org/kokkos-core-wiki/ProgrammingGuide/Compiling.html). Here are a few examples of build commands for FV2D depending on the architecture :
 
 ### Configuring on CPU with Clang
 
@@ -44,7 +44,7 @@ cd build_nvgpu
 CC=clang CXX=clang++ cmake -DKokkos_ENABLE_CUDA=ON -DCMAKE_BUILD_TYPE=Release ..
 ```
 
-**Note**: using `nvcc` and not `clang` for compiling with CUDA might lead to problems because of an incompatibility between nvcc and HighFive the hdf5 wrapper used in this project. 
+**Note**: using `nvcc` and not `clang` for compiling with CUDA might lead to problems because of an incompatibility between nvcc and HighFive the hdf5 wrapper used in this project.
 
 ### Configuring on an AMD GPU with HIP
 
@@ -65,13 +65,13 @@ At the end of the compilation, an executable `fv2d` should be created in the bui
 
 ## Usage
 
-To use `fv2d` simply run the `fv2d` executable and provide a `.ini` file on the command line. For instance, if you are in a build folder located right below the root of `fv2d`, you can run a test by typing : 
+To use `fv2d` simply run the `fv2d` executable and provide a `.ini` file on the command line. For instance, if you are in a build folder located right below the root of `fv2d`, you can run a test by typing :
 
 ```bash
 ./fv2d ../settings/blast.ini
 ```
 
-The code will start outputting information : 
+The code will start outputting information :
 
 ```
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -92,15 +92,15 @@ Computing dts at (t=0.00106851) : dt_hyp=0.000459815; dt_TC=1e+06; dt_visc=1e+06
 
 Each reporting line indicate the current time `t` and the timesteps associated with each physical process. `dt_hyp` is the hyperbolic time step associated with the hydro update, `dt_TC` the time step associated with thermal conduction, and finally `dt_visc` the viscous time step.
 
-Once the execution is finished, the code displays a "goodbye" message : 
+Once the execution is finished, the code displays a "goodbye" message :
 
 ```
-    █     ▀██  ▀██         ▀██                              ▄█▄ 
-   ███     ██   ██       ▄▄ ██    ▄▄▄   ▄▄ ▄▄▄     ▄▄▄▄     ███ 
-  █  ██    ██   ██     ▄▀  ▀██  ▄█  ▀█▄  ██  ██  ▄█▄▄▄██    ▀█▀ 
- ▄▀▀▀▀█▄   ██   ██     █▄   ██  ██   ██  ██  ██  ██          █  
-▄█▄  ▄██▄ ▄██▄ ▄██▄    ▀█▄▄▀██▄  ▀█▄▄█▀ ▄██▄ ██▄  ▀█▄▄▄▀     ▄  
-                                                            ▀█▀ 
+    █     ▀██  ▀██         ▀██                              ▄█▄
+   ███     ██   ██       ▄▄ ██    ▄▄▄   ▄▄ ▄▄▄     ▄▄▄▄     ███
+  █  ██    ██   ██     ▄▀  ▀██  ▄█  ▀█▄  ██  ██  ▄█▄▄▄██    ▀█▀
+ ▄▀▀▀▀█▄   ██   ██     █▄   ██  ██   ██  ██  ██  ██          █
+▄█▄  ▄██▄ ▄██▄ ▄██▄    ▀█▄▄▀██▄  ▀█▄▄█▀ ▄██▄ ██▄  ▀█▄▄▄▀     ▄
+                                                            ▀█▀
 ```
 
 After that, a `run.h5` file has been generated and contains all the outputs
@@ -115,7 +115,7 @@ On top of each iteration, the root of the hef5 file stores the coordinates of th
 
 Each iteration stores the primitive values associated with the run, so `rho`, `prs`, `u` and `v`.
 
-For instance, to plot the status of the blast at the last step : 
+For instance, to plot the status of the blast at the last step :
 
 ```python
 import h5py

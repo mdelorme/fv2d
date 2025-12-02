@@ -15,7 +15,7 @@ class ViscosityFunctor {
 public:
   Params full_params;
 
-  ViscosityFunctor(const Params &full_params) 
+  ViscosityFunctor(const Params &full_params)
     : full_params(full_params) {};
   ~ViscosityFunctor() = default;
 
@@ -56,7 +56,7 @@ public:
 
           for (int side=1; side < 3; ++side) {
             real_t sign = (side == 1 ? -1.0 : 1.0);
-            
+
             if (dir == IX) {
               State qi = 0.5 * (stencil[1][side] + stencil[1][side-1]);
 
@@ -83,7 +83,7 @@ public:
                                               +  stencil[side-1][2][IU] - stencil[side-1][0][IU]);
               real_t dvdx = 0.25 * one_over_dx * (stencil[side][2][IV]   - stencil[side][0][IV]
                                               +  stencil[side-1][2][IV] - stencil[side-1][0][IV]);
-                                              
+
               const real_t tau_yy = four_thirds * dvdy - two_thirds * dudx;
               const real_t tau_xy = dvdx + dudy;
 
@@ -91,7 +91,7 @@ public:
               flux[IU] += sign * mu * tau_xy;
               flux[IV] += sign * mu * tau_yy;
               flux[IE] += sign * mu * (tau_xy*qi[IU] + tau_yy*qi[IV]);
-            } 
+            }
           }
 
           return flux;

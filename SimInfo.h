@@ -104,10 +104,10 @@ struct IniReader : INIReader {
   }
 };
 
-// Reader 
+// Reader
 struct Reader {
   Reader() = default;
-  Reader(const std::string &filename) 
+  Reader(const std::string &filename)
   : reader(filename) {};
   ~Reader() = default;
 
@@ -121,7 +121,7 @@ struct Reader {
 
   template<typename T>
   void registerValue(std::string section, std::string name, const T& value, bool is_default_value) {
-    
+
     std::transform(section.begin(), section.end(), section.begin(), ::tolower);
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
@@ -157,17 +157,17 @@ struct Reader {
     }
   }
   bool GetBoolean(std::string section, std::string name, bool default_value){
-    bool res = this->reader.GetBoolean(section, name, default_value); 
+    bool res = this->reader.GetBoolean(section, name, default_value);
     registerValue(section, name, res, res == default_value);
     return res;
   }
-  
+
   int GetInteger(std::string section, std::string name, int default_value){
     int res = this->reader.GetInteger(section, name, default_value);
     registerValue(section, name, res, res == default_value);
     return res;
   }
-  
+
   real_t GetFloat(std::string section, std::string name, real_t default_value){
     real_t res = this->reader.GetFloat(section, name, default_value);
     registerValue(section, name, res, res == default_value);
@@ -198,7 +198,7 @@ struct Reader {
     std::string problem = this->_values["physics"]["problem"].value;
     o << "; Parameters used for the problem: " << problem << std::endl;
     o << std::left;
-    
+
     for( auto p_section : this->_values )
     {
       const std::string& section_name = p_section.first;
@@ -210,20 +210,20 @@ struct Reader {
 
       // skip section if there is only default values
       /*
-      for( auto p_var : map_section ) 
+      for( auto p_var : map_section )
         if ( p_var.second.from_file ) // or p_var.second.is_default_value
           break;
       */
-    
+
       o << "\n[" << section_name << "]" << std::endl;
-      
+
       for( auto p_var : map_section )
       {
         const std::string& var_name = p_var.first;
         const value_container& val = p_var.second;
 
-        o << std::setw(std::max(var_name.length(),name_width)) << var_name 
-          << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value 
+        o << std::setw(std::max(var_name.length(),name_width)) << var_name
+          << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value
           << (val.from_file ? "" : " ; default ")
           << std::endl;
       }
@@ -233,41 +233,41 @@ struct Reader {
 };
 
 // All parameters that should be copied on the device
-struct DeviceParams { 
+struct DeviceParams {
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
-  
+
   // Gravity
   GravityMode gravity_mode;
   real_t gx, gy;
   AnalyticalGravityMode analytical_gravity_mode;
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
-  
+
   // Thermal conductivity
   bool thermal_conductivity_active;
   ThermalConductivityMode thermal_conductivity_mode;
   real_t kappa;
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
-  
+
   // Viscosity
   bool viscosity_active;
   ViscosityMode viscosity_mode;
   real_t mu;
-  
+
   // Polytropes and such
   real_t m1;
   real_t theta1;
   real_t m2;
   real_t theta2;
-  
+
   // H84
   real_t h84_pert;
-  
+
   // C91
   real_t c91_pert;
-  
+
   // B02
   real_t b02_ymid;
   real_t b02_kappa1;
@@ -285,19 +285,19 @@ struct DeviceParams {
   real_t kh_uflow;
   real_t kh_amp;
   real_t kh_P0;
-  
+
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
-  
+
   // Godunov
-  ReconstructionType reconstruction = PCM; 
+  ReconstructionType reconstruction = PCM;
   RiemannSolver riemann_solver = HLL;
   real_t CFL = 0.1;
-  
+
   // Mesh
   int Nx;      // Number of domain cells
-  int Ny;      
+  int Ny;
   int Ng;      // Number of ghosts
   int Ntx;     // Total number of cells
   int Nty;
@@ -314,10 +314,10 @@ struct DeviceParams {
 
   // Misc stuff
   real_t epsilon = 1.0e-6;
-  
+
   void init_from_inifile(Reader &reader) {
-    
-    
+
+
     // Mesh
     Nx = reader.GetInteger("mesh", "Nx", 32);
     Ny = reader.GetInteger("mesh", "Ny", 32);
@@ -326,17 +326,17 @@ struct DeviceParams {
     xmax = reader.GetFloat("mesh", "xmax", 1.0);
     ymin = reader.GetFloat("mesh", "ymin", 0.0);
     ymax = reader.GetFloat("mesh", "ymax", 1.0);
-    
+
     Ntx  = Nx + 2*Ng;
     Nty  = Ny + 2*Ng;
     ibeg = Ng;
     iend = Ng+Nx;
     jbeg = Ng;
     jend = Ng+Ny;
-    
+
     dx = (xmax-xmin) / Nx;
     dy = (ymax-ymin) / Ny;
-    
+
     CFL = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{
       {"reflecting",         BC_REFLECTING},
@@ -457,10 +457,10 @@ struct Params {
   // All the physics
   DeviceParams device_params;
 
-  // Misc 
+  // Misc
   int seed;
   int log_frequency;
-  real_t epsilon_reset_negative; // fixed value if negative value is encountered 
+  real_t epsilon_reset_negative; // fixed value if negative value is encountered
 };
 
 
@@ -482,7 +482,7 @@ void checkValidityIni(Params &params) {
       std::cerr << "WARNING: section [" << s << "] is unknown." << std::endl;
       continue;
     }
-    
+
     for (auto [k,v] : ini_keyvalues) {
       if(k.starts_with(s + "=")) {
         auto value = k.substr(s.length()+1);
@@ -498,12 +498,12 @@ Params readInifile(std::string filename) {
   Params res;
   res.reader = Reader(filename);
   auto &reader = res.reader;
-  
+
   // Run
   res.tend = reader.GetFloat("run", "tend", 1.0);
   res.multiple_outputs = reader.GetBoolean("run", "multiple_outputs", false);
   res.restart_file = reader.Get("run", "restart_file", "");
-  
+
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
   res.output_path = reader.Get("run", "output_path", "./");
@@ -523,18 +523,18 @@ Params readInifile(std::string filename) {
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);
-  
+
   // Parallel ranges
   res.range_tot = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Nty});
   res.range_dom = ParallelRange({res.device_params.ibeg, res.device_params.jbeg}, {res.device_params.iend, res.device_params.jend});
   res.range_xbound = ParallelRange({0, res.device_params.jbeg}, {res.device_params.Ng, res.device_params.jend});
   res.range_ybound = ParallelRange({0, 0}, {res.device_params.Ntx, res.device_params.Ng});
   res.range_slopes = ParallelRange({res.device_params.ibeg-1, res.device_params.jbeg-1}, {res.device_params.iend+1, res.device_params.jend+1});
-  
+
   checkValidityIni(res);
 
   return res;
-} 
+}
 }
 
 
@@ -544,7 +544,7 @@ Params readInifile(std::string filename) {
 namespace fv2d {
 void consToPrim(Array U, Array Q, const Params &full_params) {
   auto params = full_params.device_params;
-  Kokkos::parallel_for( "Conservative to Primitive", 
+  Kokkos::parallel_for( "Conservative to Primitive",
                         full_params.range_tot,
                         KOKKOS_LAMBDA(const int i, const int j) {
                           State Uloc = getStateFromArray(U, i, j);
@@ -555,7 +555,7 @@ void consToPrim(Array U, Array Q, const Params &full_params) {
 
 void primToCons(Array &Q, Array &U, const Params &full_params) {
   auto params = full_params.device_params;
-  Kokkos::parallel_for( "Primitive to Conservative", 
+  Kokkos::parallel_for( "Primitive to Conservative",
                         full_params.range_tot,
                         KOKKOS_LAMBDA(const int i, const int j) {
                           State Qloc = getStateFromArray(Q, i, j);
@@ -572,7 +572,7 @@ void checkNegatives(Array &Q, const Params &full_params) {
   const real_t epsilon = full_params.epsilon_reset_negative;
 
   Kokkos::parallel_reduce(
-    "Check negative density/pressure", 
+    "Check negative density/pressure",
     full_params.range_dom,
     KOKKOS_LAMBDA(const int i, const int j, uint64_t& lnegative_density, uint64_t& lnegative_pressure, uint64_t& lnan_count) {
       if (Q(j, i, IR) < 0) {
@@ -590,7 +590,7 @@ void checkNegatives(Array &Q, const Params &full_params) {
 
     }, negative_density, negative_pressure, nan_count);
 
-    if (negative_density) 
+    if (negative_density)
       std::cout << "--> negative density: " << negative_density << std::endl;
     if (negative_pressure)
       std::cout << "--> negative pressure: " << negative_pressure << std::endl;

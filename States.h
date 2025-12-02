@@ -8,7 +8,7 @@ State getStateFromArray(Array arr, int i, int j) {
           arr(j, i, IU),
           arr(j, i, IV),
           arr(j, i, IP)};
-} 
+}
 
 KOKKOS_INLINE_FUNCTION
 void setStateInArray(Array arr, int i, int j, State st) {
@@ -38,7 +38,7 @@ State consToPrim(State &u, const DeviceParams &params) {
 
   real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV]);
   res[IP] = (u[IE] - Ek) * (params.gamma0-1.0);
-  return res; 
+  return res;
 }
 
 KOKKOS_INLINE_FUNCTION

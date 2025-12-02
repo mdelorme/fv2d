@@ -47,7 +47,7 @@ void hll(State &qL, State &qR, State& flux, real_t &pout, const DeviceParams &pa
     State uR = primToCons(qR, params);
     pout = 0.5 * (qL[IP] + qR[IP]);
     flux = (SR*FL - SL*FR + SL*SR*(uR-uL)) / (SR-SL);
-  } 
+  }
 }
 
 KOKKOS_INLINE_FUNCTION

@@ -79,13 +79,13 @@ public:
   bool force_file_truncation = false;
 
   IOManager(Params &params)
-    : params(params), device_params(params.device_params) 
+    : params(params), device_params(params.device_params)
     {
       if (!std::filesystem::exists(params.output_path)) {
         std::cout << "Output path does not exist, creating directory `" << params.output_path << "`." << std::endl;
         std::filesystem::create_directory(params.output_path);
       }
-      
+
       std::ofstream out_ini_local("last.ini");
       params.reader.outputValues(out_ini_local);
 
@@ -105,7 +105,7 @@ public:
   void saveSolutionMultiple(const Array &Q, int iteration, real_t t)
   {
     std::ostringstream oss;
-    
+
     oss << params.filename_out << "_" << std::setw(ite_nzeros) << std::setfill('0') << iteration;
     std::string iteration_str = oss.str();
     std::string h5_filename  = oss.str() + ".h5";
@@ -179,7 +179,7 @@ public:
 
   void saveSolutionUnique(const Array &Q, int iteration, real_t t) {
     std::ostringstream oss;
-    
+
     oss << ite_prefix << std::setw(ite_nzeros) << std::setfill('0') << iteration;
     std::string iteration_str = oss.str();
     std::string h5_filename  = params.filename_out + ".h5";
@@ -187,7 +187,7 @@ public:
     std::string output_path = params.output_path + "/";
 
     force_file_truncation = (force_file_truncation || iteration == 0);
-      
+
     auto flag_h5 = (force_file_truncation ? File::Truncate : File::ReadWrite);
     auto flag_xdmf = (force_file_truncation ? "w+" : "r+");
     File file(output_path + h5_filename, flag_h5);
@@ -219,7 +219,7 @@ public:
       fprintf(xdmf_fd, str_xdmf_header, format_xdmf_header(device_params, params.filename_out + ".h5"));
       fprintf(xdmf_fd, "%s", str_xdmf_footer);
     }
-    
+
     using Table = std::vector<real_t>;
 
     auto Qhost = Kokkos::create_mirror(Q);
@@ -283,7 +283,7 @@ public:
     else {
       this->force_file_truncation = true;
     }
-    
+
     File file(restart_file, File::ReadOnly);
     real_t time;
     int iteration;
@@ -310,7 +310,7 @@ public:
     auto Nt = getShape(file, group + "rho")[0];
 
     if (Nt != device_params.Nx*device_params.Ny) {
-      std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = " 
+      std::cerr << "Attempting to restart with a different resolution ! Ncells (restart) = " << Nt << "; Run resolution = "
                 << device_params.Nx << "x" << device_params.Ny << "=" << device_params.Nx*device_params.Ny << std::endl;
       throw std::runtime_error("ERROR : Trying to restart from a file with a different resolution !");
     }
@@ -342,7 +342,7 @@ public:
 
     if (time + params.device_params.epsilon > params.tend) {
       std::cerr << "Restart time is greater than end time : " << std::endl
-                << "  time: " << time << "\ttend: " << params.tend << std::endl << std::endl; 
+                << "  time: " << time << "\ttend: " << params.tend << std::endl << std::endl;
       throw std::runtime_error("ERROR : restart time is greater than the end time.");
     }
 

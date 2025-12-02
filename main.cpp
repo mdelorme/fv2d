@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     real_t t = 0.0;
     int ite = 0;
     real_t next_save = 0.0;
-    
+
     // Initializing primitive variables
     InitFunctor init(params);
     UpdateFunctor update(params);

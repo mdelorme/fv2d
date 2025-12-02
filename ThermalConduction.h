@@ -26,7 +26,7 @@ class ThermalConductionFunctor {
 public:
   Params full_params;
 
-  ThermalConductionFunctor(const Params &full_params) 
+  ThermalConductionFunctor(const Params &full_params)
     : full_params(full_params) {};
   ~ThermalConductionFunctor() = default;
 
@@ -36,7 +36,7 @@ public:
     const real_t dy = params.dy;
 
     Kokkos::parallel_for(
-      "Thermal conduction", 
+      "Thermal conduction",
       full_params.range_dom,
       KOKKOS_LAMBDA(const int i, const int j) {
         Pos pos = getPos(params, i, j);
@@ -61,7 +61,7 @@ public:
         real_t FU = kappaU * (TC - TU) / dy;
         real_t FD = kappaD * (TD - TC) / dy;
 
-        /** 
+        /**
          * Boundaries treatment
          * IMPORTANT NOTE :
          * To be accurate, in the case of fixed temperature, since the temperature is taken at the interface
@@ -79,7 +79,7 @@ public:
         if (j==params.jend-1 && params.bctc_ymax != BCTC_NONE) {
           switch (params.bctc_ymax) {
             case BCTC_FIXED_TEMPERATURE: FR = kappaR * 2.0 * (params.bctc_ymax_value-TC) / dy; break;
-            case BCTC_FIXED_GRADIENT:    FR = kappaR * params.bctc_ymax_value; break;       
+            case BCTC_FIXED_GRADIENT:    FR = kappaR * params.bctc_ymax_value; break;
             default: break;
           }
         }

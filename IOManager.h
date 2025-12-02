@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <highfive/H5Easy.hpp>
 #include <iomanip>
 #include <ostream>
+#include <stdexcept>
 
 #include "BoundaryConditions.h"
 #include "SimInfo.h"
@@ -114,6 +116,11 @@ public:
 
     File file(output_path + h5_filename, File::Truncate);
     FILE *xdmf_fd = fopen((output_path + xmf_filename).c_str(), "w+");
+    if (xdmf_fd == nullptr)
+    {
+      std::string msg = std::string("Failed to open XDMF file for writing: ") + (output_path + xmf_filename);
+      throw std::runtime_error(msg);
+    }
 
     file.createAttribute("Ntx", device_params.Ntx);
     file.createAttribute("Nty", device_params.Nty);
@@ -197,6 +204,12 @@ public:
     auto flag_xdmf = (force_file_truncation ? "w+" : "r+");
     File file(output_path + h5_filename, flag_h5);
     FILE *xdmf_fd = fopen((output_path + xmf_filename).c_str(), flag_xdmf);
+    if (xdmf_fd == nullptr)
+    {
+      std::string msg =
+          std::string("Failed to open XDMF file '") + (output_path + xmf_filename) + "' with mode '" + flag_xdmf + "'.";
+      throw std::runtime_error(msg);
+    }
 
     if (force_file_truncation)
     {

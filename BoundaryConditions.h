@@ -33,7 +33,7 @@ namespace fv2d {
     }
 
     State q = getStateFromArray(Q, isym, jsym);
-  
+
     if (dir == IX)
       q[IU] *= -1.0;
     else
@@ -44,7 +44,7 @@ namespace fv2d {
 
   /**
    * @brief Periodic boundary conditions
-   * 
+   *
    */
   KOKKOS_INLINE_FUNCTION
   State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
@@ -70,7 +70,7 @@ class BoundaryManager {
 public:
   Params full_params;
 
-  BoundaryManager(const Params &full_params) 
+  BoundaryManager(const Params &full_params)
     : full_params(full_params) {};
   ~BoundaryManager() = default;
 

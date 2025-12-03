@@ -15,5 +15,6 @@ IndentWidth: '2'
 Language: Cpp
 NamespaceIndentation : None
 UseTab: Never
+SortIncludes: false
 
 ...

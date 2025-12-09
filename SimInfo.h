@@ -520,7 +520,9 @@ Params readInifile(std::string filename) {
   
   res.save_freq = reader.GetFloat("run", "save_freq", 1.0e-1);
   res.filename_out = reader.Get("run", "output_filename", "run");
-  res.output_path = reader.Get("run", "output_path", "./");
+  res.output_path = reader.Get("run", "output_path", ".");
+  if (res.output_path.size() > 0 && res.output_path.back() != '/') 
+    res.output_path.push_back('/');
 
   std::map<std::string, TimeStepping> ts_map{
     {"euler", TS_EULER},

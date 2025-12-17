@@ -287,8 +287,10 @@ public:
     fclose(xdmf_fd);
   }
 
-  RestartInfo loadSnapshot(Array &Q, real_t t) {
-    File file(params.restart_file, File::ReadOnly);
+RestartInfo loadSnapshot(Array &Q, const real_t t)
+  {
+    // example of unique_output restart_file: 'run.h5:/ite_0005'
+    // or just 'run.h5' for the last iteration
 
     std::string restart_file = params.restart_file;
     std::string group        = "";
@@ -380,13 +382,16 @@ public:
     Kokkos::deep_copy(Q, Qhost);
 
     BoundaryManager bc(params);
-    bc.fillBoundaries(Q, t);
-    
-    HighFive::Attribute attr_time = file.getAttribute("time");
-    real_t time; attr_time.read(time);
-    HighFive::Attribute attr_ite = file.getAttribute("iteration");
-    int iteration; attr_ite.read(iteration);
-    
+    bc.fillBoundaries(Q, time);
+
+    if (time + params.device_params.epsilon > params.tend)
+    {
+      std::cerr << "Restart time is greater than end time : " << std::endl
+                << "  time: " << time << "\ttend: " << params.tend << std::endl
+                << std::endl;
+      throw std::runtime_error("ERROR : restart time is greater than the end time.");
+    }
+
     std::cout << "Restart finished !" << std::endl;
 
     if (force_file_truncation)

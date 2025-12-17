@@ -471,9 +471,6 @@ struct DeviceParams
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
 
-    // Hot bubble
-    hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);
-
     // Kelvin-Helmholtz
     kh_a       = reader.GetFloat("kelvin_helmholtz", "a", 0.05);
     kh_amp     = reader.GetFloat("kelvin_helmholtz", "amp", 0.01);

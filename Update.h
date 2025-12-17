@@ -12,8 +12,6 @@ namespace fv2d
 
 using WENOArray = Kokkos::View<real_t****>;
 
-namespace {
-
 struct WenoStruct {
   WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightXL, WeightXR, WeightYL, WeightYR;
 };
@@ -22,6 +20,7 @@ struct CWenoStruct {
   WENOArray PxL, PxR, PyL, PyR, BetaX, BetaY, WeightX, WeightY; 
 };
 
+namespace {
 /**
  * @brief Reconstructs interfqce stqte using WENO3 method
  * 
@@ -126,11 +125,15 @@ State reconstruct_weno5(Array Q, IDir dir, real_t sign, WenoStruct weno_struct, 
 KOKKOS_INLINE_FUNCTION
 State reconstruct(Array Q, Array slopes, WenoStruct weno_struct, CWenoStruct cweno_struct, int i, int j, real_t sign, IDir dir, const DeviceParams &params) {
   State q     = getStateFromArray(Q, i, j);
-  State slope = getStateFromArray(slopes, i, j);
   
   State res;
   switch (params.reconstruction) {
-    case PLM: res = q + slope * sign * 0.5; break; // Piecewise Linear
+    case PLM: 
+    {
+      State slope = getStateFromArray(slopes, i, j);
+      res = q + slope * sign * 0.5; // Piecewise Linear
+      break;
+    }
     case WENO5: res = reconstruct_weno5(Q, dir, sign, weno_struct, i, j, params); break;
     case CWENO4: res = reconstruct_cweno4(Q, dir, sign, cweno_struct, i, j, params); break;
     case PCM_WB: // Piecewise constant + Well-balancing

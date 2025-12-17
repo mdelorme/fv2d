@@ -9,7 +9,7 @@ import sys
 from fv2d_utils import latexify
 
 if os.path.exists('render'):
-  shutil.rmtree('render')  
+  shutil.rmtree('render')
 os.mkdir('render')
 cwd = os.getcwd()
 

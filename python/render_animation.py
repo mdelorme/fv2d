@@ -71,7 +71,7 @@ def plot_field(field, cax, i):
     # Remove minor ticks
     cax.tick_params(which='minor', bottom=False, left=False)
 
-  
+
 print(f'Rendering animation for file: {cwd}/{filename}')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplots(3, 3, figsize=(12, 12)) if is_mhd else plt.subplots(2, 2, figsize=(10, 10))

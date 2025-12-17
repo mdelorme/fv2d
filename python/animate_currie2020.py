@@ -18,7 +18,7 @@ if '--field' in sys.argv:
 
 no_rewrite = '--no-rewrite' in sys.argv
 
-start_ite = 0 
+start_ite = 0
 if no_rewrite:
   for f in os.listdir('.'):
     if f.startswith('img') and f.endswith('.png'):
@@ -73,14 +73,14 @@ def plot_field(field, cax, i, clim=None, cmap='viridis'):
   cax.set_title(field)
   divider = make_axes_locatable(cax)
   cax = divider.append_axes('right', size='5%', pad=0.05)
-  
+
   fig.colorbar(im, cax=cax, orientation='vertical')
 
-  
+
 print('Rendering animation')
 ext[2] -= 0.2
-ext[3] -= 0.2 
-  
+ext[3] -= 0.2
+
 for i in tqdm(range(start_ite, Nf)):
   fig, ax = plt.subplot_mosaic(mosaic, figsize=(10, 10))
   #plot_field('T-<T>', ax['A'], i, (-2.0, 2.0), 'seismic')

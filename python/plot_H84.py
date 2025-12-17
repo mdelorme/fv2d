@@ -8,7 +8,7 @@ from tqdm import tqdm
 def plot_velocity(f, key):
   get_array = lambda x : np.array(f[key+x])
   u = get_array('u')
-  v = get_array('v')  
+  v = get_array('v')
 
   x = np.array(f['x'])
   y = np.array(f['y'])

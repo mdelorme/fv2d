@@ -117,7 +117,7 @@ g={gval}
 well_balanced_flux_at_y_bc=true
 
 [tri_layer]
-perturbation=1.0e-3 
+perturbation=1.0e-3
 kappa1={kappa1/0.07}
 kappa2={kappa2/0.07}
 y1={y1}

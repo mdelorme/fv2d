@@ -222,7 +222,7 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
 }
 
   /* @brief Tri-Layer setup for a Currie2020 type of run
-   * 
+   *
    */
   KOKKOS_INLINE_FUNCTION
   void initTriLayer(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {

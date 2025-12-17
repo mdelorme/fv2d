@@ -298,7 +298,7 @@ struct DeviceParams
   real_t kappa;
   BCTC_Mode bctc_ymin, bctc_ymax;
   real_t bctc_ymin_value, bctc_ymax_value;
-  
+
   // Heating
   bool heating_active;
   HeatingMode heating_mode;
@@ -359,7 +359,7 @@ struct DeviceParams
   real_t iso3_pert;
   real_t iso3_k1, iso3_k2;
   real_t iso3_T0, iso3_rho0;
-  
+
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
   BoundaryType boundary_y = BC_REFLECTING;
@@ -477,7 +477,7 @@ struct DeviceParams
     viscosity_mode = reader.GetMapValue(viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu             = reader.GetFloat("viscosity", "mu", 0.0);
 
-    // Heating function 
+    // Heating function
     heating_active = reader.GetBoolean("heating", "active", false);
     std::map<std::string, HeatingMode> heating_map{
       {"none", HM_NONE},
@@ -569,20 +569,20 @@ struct Params
   // All the physics
   DeviceParams device_params;
 
-  // Misc 
+  // Misc
   int seed;
   int log_frequency;
-  real_t epsilon_reset_negative; // fixed value if negative value is encountered 
+  real_t epsilon_reset_negative; // fixed value if negative value is encountered
   bool log_energy_contributions;
   int log_energy_frequency;
-  
+
   struct value_container {
     std::string value;
     bool from_file = false;
     bool used = false;
   };
   std::map<std::string, std::map<std::string, value_container>> _values;
-  
+
   template<typename T>
   void registerValue(std::string section, std::string name, const T& default_value) {
     // TODO: revoir la logique car affiche unused et default à chaque paramètre.
@@ -608,13 +608,13 @@ struct Params
     registerValue(section, name, res);
     return res;
   }
-  
+
   int GetInteger(std::string section, std::string name, int default_value){
     int res = this->reader.GetInteger(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
-  
+
   real_t GetFloat(std::string section, std::string name, real_t default_value){
     real_t res = this->reader.GetFloat(section, name, default_value);
     registerValue(section, name, res);

@@ -18,7 +18,7 @@ if '--field' in sys.argv:
 
 no_rewrite = '--no-rewrite' in sys.argv
 
-start_ite = 0 
+start_ite = 0
 if no_rewrite:
   for f in os.listdir('.'):
     if f.startswith('img') and f.endswith('.png'):
@@ -60,7 +60,7 @@ def get_array(field, ite):
   elif field == 'T':
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
-    return prs/rho 
+    return prs/rho
   elif field == 'HSE':
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
@@ -80,7 +80,7 @@ def plot_field(field, cax, i, clim=None, cmap='viridis'):
   cax = divider.append_axes('right', size='5%', pad=0.05)
   fig.colorbar(im, cax=cax, orientation='vertical')
 
-  
+
 print('Rendering animation')
 for i in tqdm(range(start_ite, Nf)):
   fig, ax = plt.subplot_mosaic(mosaic, figsize=(10, 10))

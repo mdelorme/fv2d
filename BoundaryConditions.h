@@ -63,9 +63,44 @@ State fillPeriodic(Array Q, int i, int j, IDir dir, const DeviceParams &params)
   {
     if (j < params.jbeg)
       j += params.Ny;
+
     else
       j -= params.Ny;
   }
+
+  return getStateFromArray(Q, i, j);
+}
+
+/**
+ * @brief Experimental stuff for tri-layer
+ */
+KOKKOS_INLINE_FUNCTION
+State fillTriLayerDamping(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params)
+{
+  if (dir == IY && j < 0)
+  {
+    Pos pos           = getPos(params, i, j);
+    const real_t T0   = params.iso3_T0;
+    const real_t rho0 = params.iso3_rho0 * exp(-params.iso3_dy0 * params.g / T0);
+    const real_t p0   = rho0 * T0;
+    const real_t d    = pos[IY];
+
+    // Top layer (iso-thermal)
+    real_t rho, p;
+    p   = p0 * exp(params.g * d / T0);
+    rho = p / T0;
+
+    State q;
+
+    q     = getStateFromArray(Q, i, jref);
+    q[IR] = rho;
+    // q[IU] = 0.0;
+    // q[IV] = 0.0;
+    q[IP] = p;
+    return q;
+  }
+  else
+    j -= params.Ny;
 
   return getStateFromArray(Q, i, j);
 }
@@ -135,8 +170,9 @@ public:
             case BC_REFLECTING:
               return fillReflecting(Q, i, j, i, jref, IY, params);
               break;
-            case BC_TRILAYER_DAMPING: return fillTriLayerDamping(Q, i, j, i, jref, IY, params); break;
-
+            case BC_TRILAYER_DAMPING:
+              return fillTriLayerDamping(Q, i, j, i, jref, IY, params);
+              break;
             case BC_PERIODIC:
               return fillPeriodic(Q, i, j, IY, params);
               break;
@@ -146,7 +182,6 @@ public:
           setStateInArray(Q, i, jtop, fill(jtop, jref_top));
           setStateInArray(Q, i, jbot, fill(jbot, jref_bot));
         });
-
   }
 };
 

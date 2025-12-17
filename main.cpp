@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 
     // Misc vars for iteration
     real_t t         = 0.0;
-    int ite          = 0;
+    int save_ite     = 0;
     real_t next_save = 0.0;
 
     // Initializing primitive variables
@@ -48,8 +48,8 @@ int main(int argc, char **argv)
     {
       auto restart_info = ioManager.loadSnapshot(Q);
       t                 = restart_info.time;
-      ite               = restart_info.iteration;
-      std::cout << "Restart at iteration " << ite << " and time " << t << std::endl;
+      save_ite          = restart_info.iteration;
+      std::cout << "Restart at iteration " << save_ite << " and time " << t << std::endl;
       next_save = t + params.save_freq;
       save_ite++;
     }
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
     {
       bool save_needed = (t + device_params.epsilon > next_save);
 
-      real_t dt = computeDt.computeDt(Q, (ite == 0 ? params.save_freq : next_save - t), t, next_log == 0);
+      real_t dt = computeDt.computeDt(Q, (save_ite == 0 ? params.save_freq : next_save - t), t, next_log == 0);
       if (next_log == 0)
         next_log = params.log_frequency;
       else
@@ -74,15 +74,14 @@ int main(int argc, char **argv)
         std::cout << " - Saving at time " << t << std::endl;
         ioManager.saveSolution(Q, save_ite++, t);
         next_save += params.save_freq;
-
       }
 
-      update.update(Q, U, dt, ite);
+      update.update(Q, U, dt);
       consToPrim(U, Q, params);
       checkNegatives(Q, params);
 
       t += dt;
-      ite++;
+      save_ite++;
     }
 
     std::cout << "Time at end is " << t << std::endl;

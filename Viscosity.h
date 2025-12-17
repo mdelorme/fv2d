@@ -14,7 +14,6 @@ real_t computeMu(int i, int j, const DeviceParams &params)
     return params.mu;
     break;
   }
-  return res;
 }
 
 class ViscosityFunctor

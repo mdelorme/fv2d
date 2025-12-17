@@ -49,13 +49,17 @@ public:
 
   Array slopesX, slopesY;
 
-  UpdateFunctor(const Params &full_params)
-    : full_params(full_params), bc_manager(full_params),
-      tc_functor(full_params), visc_functor(full_params), heat_functor(full_params) {
-      auto device_params = full_params.device_params;
-      slopesX = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
-      slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
-    };
+  UpdateFunctor(const Params &full_params) :
+    full_params(full_params),
+    bc_manager(full_params),
+    tc_functor(full_params),
+    visc_functor(full_params),
+    heat_functor(full_params)
+  {
+    auto device_params = full_params.device_params;
+    slopesX            = Array("SlopesX", device_params.Nty, device_params.Ntx, Nfields);
+    slopesY            = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
+  };
   ~UpdateFunctor() = default;
 
   void computeSlopes(const Array &Q) const
@@ -66,14 +70,15 @@ public:
     auto slopesY = this->slopesY;
 
     Kokkos::parallel_for(
-      "Slopes",
-      full_params.range_slopes,
-      KOKKOS_LAMBDA(const int i, const int j) {
-        for (int ivar=0; ivar < Nfields; ++ivar) {
-          real_t dL = Q(j, i, ivar)   - Q(j, i-1, ivar);
-          real_t dR = Q(j, i+1, ivar) - Q(j, i, ivar);
-          real_t dU = Q(j, i, ivar)   - Q(j-1, i, ivar);
-          real_t dD = Q(j+1, i, ivar) - Q(j, i, ivar);
+        "Slopes",
+        full_params.range_slopes,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          for (int ivar = 0; ivar < Nfields; ++ivar)
+          {
+            real_t dL = Q(j, i, ivar) - Q(j, i - 1, ivar);
+            real_t dR = Q(j, i + 1, ivar) - Q(j, i, ivar);
+            real_t dU = Q(j, i, ivar) - Q(j - 1, i, ivar);
+            real_t dD = Q(j + 1, i, ivar) - Q(j, i, ivar);
 
             auto minmod = [](real_t dL, real_t dR) -> real_t
             {
@@ -182,15 +187,15 @@ public:
     // Hypperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
-    computeFluxesAndUpdate(Q, Unew, dt, ite);
+    computeFluxesAndUpdate(Q, Unew, dt);
 
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)
-      tc_functor.applyThermalConduction(Q, Unew, dt, ite);
+      tc_functor.applyThermalConduction(Q, Unew, dt);
     if (full_params.device_params.viscosity_active)
-      visc_functor.applyViscosity(Q, Unew, dt, ite);
+      visc_functor.applyViscosity(Q, Unew, dt);
     if (full_params.device_params.heating_active)
-      heat_functor.applyHeating(Q, Unew, dt, ite);
+      heat_functor.applyHeating(Q, Unew, dt);
   }
 
   void update(Array Q, Array Unew, real_t dt)
@@ -211,7 +216,7 @@ public:
       // Step 2
       Kokkos::deep_copy(Unew, Ustar);
       consToPrim(Ustar, Q, full_params);
-      euler_step(Q, Unew, dt, ite);
+      euler_step(Q, Unew, dt);
 
       // SSP-RK2
       Kokkos::parallel_for(

@@ -75,7 +75,8 @@ enum ThermalConductivityMode
   TCM_ISO3
 };
 
-enum HeatingMode {
+enum HeatingMode
+{
   HM_NONE,
   HM_C2020,
   HM_C2020_TRI,
@@ -449,23 +450,24 @@ struct DeviceParams
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
-      {"constant", TCM_CONSTANT},
-      {"B02",      TCM_B02},
-      {"tri_layer", TCM_C2020_TRI},
-      {"iso-three", TCM_ISO3},
+        {"constant", TCM_CONSTANT},
+        {"B02", TCM_B02},
+        {"tri_layer", TCM_C2020_TRI},
+        {"iso-three", TCM_ISO3},
     };
-    thermal_conductivity_mode = reader.GetMapValue(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
+    thermal_conductivity_mode =
+        reader.GetMapValue(thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);
 
     std::map<std::string, BCTC_Mode> bctc_map{
-      {"none",              BCTC_NONE},
-      {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
-      {"fixed_gradient",    BCTC_FIXED_GRADIENT},
-      {"no_flux",           BCTC_NO_FLUX},
-      {"no_conduction",     BCTC_NO_CONDUCTION},
+        {"none", BCTC_NONE},
+        {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
+        {"fixed_gradient", BCTC_FIXED_GRADIENT},
+        {"no_flux", BCTC_NO_FLUX},
+        {"no_conduction", BCTC_NO_CONDUCTION},
     };
-    bctc_ymin = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymin", "none");
-    bctc_ymax = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymax", "none");
+    bctc_ymin       = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymin", "none");
+    bctc_ymax       = reader.GetMapValue(bctc_map, "thermal_conduction", "bc_ymax", "none");
     bctc_ymin_value = reader.GetFloat("thermal_conduction", "bc_ymin_value", 1.0);
     bctc_ymax_value = reader.GetFloat("thermal_conduction", "bc_ymax_value", 1.0);
 
@@ -479,13 +481,11 @@ struct DeviceParams
 
     // Heating function
     heating_active = reader.GetBoolean("heating", "active", false);
-    std::map<std::string, HeatingMode> heating_map{
-      {"none", HM_NONE},
-      {"C2020", HM_C2020},
-      {"tri_layer", HM_C2020_TRI},
-      {"isothermal_cooling", HM_COOLING_ISO}
-    };
-    heating_mode = reader.GetMapValue(heating_map, "heating", "mode", "none");
+    std::map<std::string, HeatingMode> heating_map{{"none", HM_NONE},
+                                                   {"C2020", HM_C2020},
+                                                   {"tri_layer", HM_C2020_TRI},
+                                                   {"isothermal_cooling", HM_COOLING_ISO}};
+    heating_mode      = reader.GetMapValue(heating_map, "heating", "mode", "none");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
 
     // H84
@@ -510,12 +510,12 @@ struct DeviceParams
     // Gresho vortex
     gresho_density = reader.GetFloat("gresho_vortex", "density", 1.0);
     gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach", 0.1);
-    kh_sigma = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
-    kh_uflow = reader.GetFloat("kelvin_helmholtz", "uflow", 1.0);
-    kh_y1 = reader.GetFloat("kelvin_helmholtz", "y1", 0.5);
-    kh_y2 = reader.GetFloat("kelvin_helmholtz", "y2", 1.5);
+    kh_sigma       = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
+    kh_uflow       = reader.GetFloat("kelvin_helmholtz", "uflow", 1.0);
+    kh_y1          = reader.GetFloat("kelvin_helmholtz", "y1", 0.5);
+    kh_y2          = reader.GetFloat("kelvin_helmholtz", "y2", 1.5);
     // C20
-    c20_H = reader.GetFloat("C20", "H", 0.2);
+    c20_H           = reader.GetFloat("C20", "H", 0.2);
     c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
 
     // Tri-layer
@@ -576,75 +576,85 @@ struct Params
   bool log_energy_contributions;
   int log_energy_frequency;
 
-  struct value_container {
+  struct value_container
+  {
     std::string value;
     bool from_file = false;
-    bool used = false;
+    bool used      = false;
   };
   std::map<std::string, std::map<std::string, value_container>> _values;
 
-  template<typename T>
-  void registerValue(std::string section, std::string name, const T& default_value) {
+  template <typename T>
+  void registerValue(std::string section, std::string name, const T &default_value)
+  {
     // TODO: revoir la logique car affiche unused et default à chaque paramètre.
     // Les valeurs sont par contre correctes.
-    auto hasValue = [&](const std::string& section, const std::string& name) {
-      return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0);
-    };
+    auto hasValue = [&](const std::string &section, const std::string &name)
+    { return (this->_values.count(section) != 0) && (this->_values.at(section).count(name) != 0); };
 
     bool is_present_in_file = hasValue(section, name);
-    if (is_present_in_file) {
-      this->_values[section][name].used = true;
+    if (is_present_in_file)
+    {
+      this->_values[section][name].used      = true;
       this->_values[section][name].from_file = true;
     }
-    if constexpr (std::is_same_v<T, std::string>){
+    if constexpr (std::is_same_v<T, std::string>)
+    {
       this->_values[section][name].value = default_value;
     }
-    else {
+    else
+    {
       this->_values[section][name].value = std::to_string(default_value);
     }
   }
-  bool GetBoolean(std::string section, std::string name, bool default_value){
+  bool GetBoolean(std::string section, std::string name, bool default_value)
+  {
     bool res = this->reader.GetBoolean(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
 
-  int GetInteger(std::string section, std::string name, int default_value){
+  int GetInteger(std::string section, std::string name, int default_value)
+  {
     int res = this->reader.GetInteger(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
 
-  real_t GetFloat(std::string section, std::string name, real_t default_value){
+  real_t GetFloat(std::string section, std::string name, real_t default_value)
+  {
     real_t res = this->reader.GetFloat(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
-  std::string Get(std::string section, std::string name, std::string default_value){
+  std::string Get(std::string section, std::string name, std::string default_value)
+  {
     std::string res = this->reader.Get(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
 
-  void outputValues(std::ostream& o){
-    constexpr std::string::size_type name_width = 20;
+  void outputValues(std::ostream &o)
+  {
+    constexpr std::string::size_type name_width  = 20;
     constexpr std::string::size_type value_width = 20;
-    auto initial_format = o.flags();
-    std::string problem = this->Get("physics", "problem", "unknown");
+    auto initial_format                          = o.flags();
+    std::string problem                          = this->Get("physics", "problem", "unknown");
     o << "Parameters used for the problem: " << problem << std::endl;
     o << std::left;
-    for( auto p_section : this->_values )
+    for (auto p_section : this->_values)
     {
-      const std::string& section_name = p_section.first;
-      const std::map<std::string, value_container>& map_section = p_section.second;
+      const std::string &section_name                           = p_section.first;
+      const std::map<std::string, value_container> &map_section = p_section.second;
 
       o << "\n[" << section_name << "]" << std::endl;
-      for( auto p_var : map_section )
+      for (auto p_var : map_section)
       {
-        const std::string& var_name = p_var.first;
-        const value_container& val = p_var.second;
+        const std::string &var_name = p_var.first;
+        const value_container &val  = p_var.second;
 
-        o << std::setw(std::max(var_name.length(),name_width)) << var_name << " = " << std::setw(std::max(val.value.length(), value_width)) << val.value << std::endl;
+        o << std::setw(std::max(var_name.length(), name_width)) << var_name << " = "
+          << std::setw(std::max(val.value.length(), value_width)) << val.value << std::endl;
       }
     }
     o.flags(initial_format);
@@ -703,14 +713,14 @@ Params readInifile(std::string filename)
 
   std::map<std::string, TimeStepping> ts_map{{"euler", TS_EULER}, {"RK2", TS_RK2}};
   res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");
-  res.problem = reader.Get("physics", "problem", "blast");
+  res.problem       = reader.Get("physics", "problem", "blast");
 
   // Misc
-  res.seed                   = reader.GetInteger("misc", "seed", 12345);
-  res.log_frequency          = reader.GetInteger("misc", "log_frequency", 10);
-  res.epsilon_reset_negative = reader.GetFloat("misc", "epsilon_reset_negative", 1.0e-8);
+  res.seed                     = reader.GetInteger("misc", "seed", 12345);
+  res.log_frequency            = reader.GetInteger("misc", "log_frequency", 10);
+  res.epsilon_reset_negative   = reader.GetFloat("misc", "epsilon_reset_negative", 1.0e-8);
   res.log_energy_contributions = reader.GetBoolean("misc", "log_energy_contributions", false);
-  res.log_energy_frequency = reader.GetFloat("misc", "log_energy_frequency", 10);
+  res.log_energy_frequency     = reader.GetFloat("misc", "log_energy_frequency", 10);
 
   // All device parameters
   res.device_params.init_from_inifile(res.reader);

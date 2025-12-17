@@ -135,7 +135,7 @@ void hllc(const State &qL, const State &qR, State &flux, real_t &pout, const Dev
  * dynamics", Journal of Computational Physics, vol 496.
  */
 KOKKOS_INLINE_FUNCTION
-void fslp(State &qL, State &qR, State &flux, real_t &pout, real_t gdx, const DeviceParams &params)
+void fslp(const State &qL, const State &qR, State &flux, real_t &pout, real_t gdx, const DeviceParams &params)
 {
   // 1. Basic quantities
   const real_t rhoL = qL[IR];

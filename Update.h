@@ -117,7 +117,7 @@ public:
             State qR  = reconstruct(Q, slopes, i + dxp, j + dyp, -1.0, dir, params);
 
             const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
-            
+
             // Calling the right Riemann solver
             auto riemann = [&](State qL, State qR, State &flux, real_t &pout)
             {

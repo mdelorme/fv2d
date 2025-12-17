@@ -1,0 +1,20 @@
+BasedOnStyle: LLVM
+---
+AlignConsecutiveAssignments: 'true'
+AllowAllArgumentsOnNextLine: 'false'
+AllowAllParametersOfDeclarationOnNextLine: 'false'
+AlwaysBreakTemplateDeclarations: 'Yes'
+BinPackArguments: 'false'
+BreakBeforeBraces: Allman
+BreakConstructorInitializers: AfterColon
+ColumnLimit: 120
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerIndentWidth: 2
+Cpp11BracedListStyle: 'true'
+IndentWidth: '2'
+Language: Cpp
+NamespaceIndentation : None
+UseTab: Never
+SortIncludes: false
+
+...

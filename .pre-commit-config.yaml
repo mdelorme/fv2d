@@ -1,0 +1,85 @@
+# Pre-commit configuration file for fv2d
+# Based on configuration files from :
+# - idefix : https://github.com/idefix-code/idefix/blob/master/.pre-commit-config.yaml
+# - shamrock : https://github.com/Shamrock-code/Shamrock/blob/main/.pre-commit-config.yaml
+
+
+fail_fast: true
+repos:
+- repo: local
+  hooks:
+    - id: build-logdir
+      name: build-logdir
+      description: Create the pre_commit_log directory
+      entry: mkdir -p pre_commit_logs
+      language: system
+      pass_filenames: false
+      types: [ text ]
+
+# General pre-commit hooks
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: trailing-whitespace
+    log_file: pre_commit_logs/log_precommit_trailing-whitespace
+  - id: end-of-file-fixer  # add EOF "\n" if missing
+    log_file: pre_commit_logs/log_precommit_end-of-file-fixer
+    exclude: \.svg$|LICENSE
+  - id: check-merge-conflict
+    log_file: pre_commit_logs/log_precommit_check-merge-conflict
+
+  - id: check-executables-have-shebangs
+    log_file: pre_commit_logs/log_precommit_check-executables-have-shebangs
+
+  - id: check-shebang-scripts-are-executable
+    log_file: pre_commit_logs/log_precommit_check-shebang-scripts-are-executable
+
+  - id: check-added-large-files
+    args: ['--maxkb=50']
+    log_file: pre_commit_logs/log_precommit_check-added-large-files
+
+  - id: check-case-conflict
+    log_file: pre_commit_logs/log_precommit_check-case-conflict
+
+  - id: check-yaml
+    exclude: \.clang-format
+    log_file: pre_commit_logs/log_precommit_check-yaml
+
+# ==============================================================================
+# C/C++ specific pre-commit hooks
+# ==============================================================================
+
+- repo: https://github.com/Lucas-C/pre-commit-hooks
+  rev: "v1.5.5"
+  hooks:
+  - id: forbid-tabs
+    log_file: pre_commit_logs/log_precommit_forbid-tabs
+  - id: remove-tabs
+    log_file: pre_commit_logs/log_precommit_remove-tabs
+  # - id: insert-license
+  #   files: ^(src/).*\.(hpp|cpp)$
+  #   args: [--license-filepath, src/license_header.txt, --comment-style, //]
+
+# Clang format the codebase automatically
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v21.1.2
+  hooks:
+    - id: clang-format
+      types_or: [c++]
+      log_file: pre_commit_logs/log_precommit_clang-format
+      files: \.(cpp|h)$
+      args: [--style=file, --fallback-style=none]
+
+- repo: https://gitlab.com/daverona/pre-commit/cpp
+  rev: 0.8.0
+  hooks:
+    # - id: cpplint
+    #   args: [--counting=detailed, --exclude=test/*]           # linter (or style-error checker) for Google C++ Style Guide
+    - id: cppcheck             # static analyzer for C/C++ code
+      args: [--enable=all, --inconclusive, --std=c++20, --language=c++, --suppress=missingIncludeSystem, --suppress=missingInclude, --suppress=noExplicitConstructor, --check-level=exhaustive, --inline-suppr]
+
+#- repo: https://github.com/cheshirekow/cmake-format-precommit
+#  rev: v0.6.10
+#  hooks:
+#  - id: cmake-format
+#  - id: cmake-lint

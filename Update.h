@@ -117,15 +117,13 @@ public:
         full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
           // Lambda to update the cell along a direction
-          const real_t ch_derigs = params.GLM_scale * GLM_ch1 / dt;
-          const real_t ch_dedner = 0.5 * params.CFL * fmin(params.dx, params.dy) / dt;
-          auto updateAlongDir    = [&](int i, int j, IDir dir)
+          auto updateAlongDir = [&](int i, int j, IDir dir)
           {
-            auto &slopes = (dir == IX ? slopesX : slopesY);
-            int dxm      = (dir == IX ? -1 : 0);
-            int dxp      = (dir == IX ? 1 : 0);
-            int dym      = (dir == IY ? -1 : 0);
-            int dyp      = (dir == IY ? 1 : 0);
+            const auto &slopes = (dir == IX ? slopesX : slopesY);
+            int dxm            = (dir == IX ? -1 : 0);
+            int dxp            = (dir == IX ? 1 : 0);
+            int dym            = (dir == IY ? -1 : 0);
+            int dyp            = (dir == IY ? 1 : 0);
 
             State qCL = reconstruct(Q, slopes, i, j, -1.0, dir, params);
             State qCR = reconstruct(Q, slopes, i, j, 1.0, dir, params);
@@ -137,6 +135,7 @@ public:
             {
 #ifdef MHD
               real_t Bx_m, psi_m;
+              const real_t ch_dedner = 0.5 * params.CFL * fmin(params.dx, params.dy) / dt;
               if (params.div_cleaning == DEDNER)
               {
                 Bx_m  = qL[IBX] + 0.5 * (qR[IBX] - qL[IBX]) - 1 / (2 * ch_dedner) * (qR[IPSI] - qL[IPSI]);
@@ -165,6 +164,7 @@ public:
               }
               case IDEALGLM:
               {
+                const real_t ch_derigs = params.GLM_scale * GLM_ch1 / dt;
                 IdealGLM(qL, qR, flux, pout, ch_derigs, params);
                 break;
               }
@@ -202,10 +202,10 @@ public:
             riemann(qL, qCL, fluxL, poutL);
             riemann(qCR, qR, fluxR, poutR);
 
-            fluxL                         = swap_component(fluxL, dir);
-            fluxR                         = swap_component(fluxR, dir);
-            const bool is_left_boundary   = i == params.ibeg;
-            const bool is_right_boundary  = i == params.iend;
+            fluxL = swap_component(fluxL, dir);
+            fluxR = swap_component(fluxR, dir);
+            // const bool is_left_boundary   = i == params.ibeg;
+            // const bool is_right_boundary  = i == params.iend;
             const bool is_bottom_boundary = j == params.jbeg;
             const bool is_upper_boundary  = j == params.jend - 1;
 

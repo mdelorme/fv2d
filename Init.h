@@ -557,9 +557,9 @@ void initArtificialNonZeroDivB(Array Q, int i, int j, const DeviceParams &params
 
   if (x <= -0.8)
     Q(j, i, IBX) = 0.0;
-  else if (-0.8 < x && x <= -0.6)
+  else if (x <= -0.6)
     Q(j, i, IBX) = -2.0 * (x + 0.8);
-  else if (-0.6 < x && x <= 0.6)
+  else if (x <= 0.6)
     Q(j, i, IBX) = Kokkos::exp(-0.5 * (x / 0.11) * (x / 0.11));
   else
     Q(j, i, IBX) = 0.5;
@@ -981,14 +981,14 @@ public:
         "Compute inital GLM Wave Speed",
         full_params.range_dom,
         KOKKOS_LAMBDA(int i, int j, real_t &lambda_x, real_t &lambda_y) {
-          State q            = getStateFromArray(Q, i, j);
-          real_t bx          = q[IBX];
-          real_t by          = q[IBY];
-          real_t cs          = speedOfSound(q, params);
-          real_t va          = Kokkos::sqrt((bx * bx + by * by) / (4 * M_PI * q[IR]));
-          real_t v_fast      = Kokkos::sqrt(0.5 * (va * va + cs * cs +
-                                              Kokkos::sqrt((va * va + cs * cs) * (va * va + cs * cs) -
-                                                           4.0 * va * va * cs * cs * (bx * bx / (bx * bx + by * by)))));
+          State q = getStateFromArray(Q, i, j);
+          // real_t bx          = q[IBX];
+          // real_t by          = q[IBY];
+          // real_t cs          = speedOfSound(q, params);
+          // real_t va          = Kokkos::sqrt((bx * bx + by * by) / (4 * M_PI * q[IR]));
+          // real_t v_fast      = Kokkos::sqrt(0.5 * (va * va + cs * cs +
+          // Kokkos::sqrt((va * va + cs * cs) * (va * va + cs * cs) -
+          //  4.0 * va * va * cs * cs * (bx * bx / (bx * bx + by * by)))));
           real_t lambdaloc_x = Kokkos::abs(q[IU] + fastMagnetoAcousticSpeed(q, params, IX));
           real_t lambdaloc_y = Kokkos::abs(q[IV] + fastMagnetoAcousticSpeed(q, params, IY));
           lambda_x           = Kokkos::max(lambda_x, lambdaloc_x);

@@ -80,7 +80,7 @@ public:
   }
 };
 
-State IdealGLMSources(State &qL, State &qCL, State &qCR, State &qR, const DeviceParams &params)
+State IdealGLMSources(const State &qL, const State &qCL, const State &qCR, const State &qR, const DeviceParams &params)
 {
   const real_t dx = params.dx;
 

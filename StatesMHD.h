@@ -27,7 +27,7 @@ void setStateInArray(Array arr, int i, int j, State st)
 }
 
 KOKKOS_INLINE_FUNCTION
-State primToCons(State &q, const DeviceParams &params)
+State primToCons(const State &q, const DeviceParams &params)
 {
   State res;
   res[IR] = q[IR];
@@ -47,7 +47,7 @@ State primToCons(State &q, const DeviceParams &params)
 }
 
 KOKKOS_INLINE_FUNCTION
-State consToPrim(State &u, const DeviceParams &params)
+State consToPrim(const State &u, const DeviceParams &params)
 {
   State res;
   res[IR] = u[IR];
@@ -71,7 +71,7 @@ KOKKOS_INLINE_FUNCTION
 real_t speedOfSound(const State &q, const DeviceParams &params) { return Kokkos::sqrt(q[IP] * params.gamma0 / q[IR]); }
 
 KOKKOS_INLINE_FUNCTION
-real_t fastMagnetoAcousticSpeed(State &q, const DeviceParams &params, IDir idir)
+real_t fastMagnetoAcousticSpeed(const State &q, const DeviceParams &params, IDir idir)
 {
   const real_t a2       = params.gamma0 * q[IP] / q[IR];
   const real_t sqrt_rho = Kokkos::sqrt(q[IR]);
@@ -218,7 +218,7 @@ State getConsJumpState(const State &qL, const State &qR, const DeviceParams &par
 }
 
 KOKKOS_INLINE_FUNCTION
-State primToEntropy(State &q, const DeviceParams &params)
+State primToEntropy(const State &q, const DeviceParams &params)
 {
   State res{};
   const real_t beta = 0.5 * q[IR] / q[IP];
@@ -236,14 +236,14 @@ State primToEntropy(State &q, const DeviceParams &params)
 }
 
 KOKKOS_INLINE_FUNCTION
-State getEntropyJumpState(State &qL, State &qR, const DeviceParams &params)
+State getEntropyJumpState(const State &qL, const State &qR, const DeviceParams &params)
 {
   State res{};
-  real_t v2L    = qL[IU] * qL[IU] + qL[IV] * qL[IV] + qL[IW] * qL[IW];
-  real_t v2R    = qR[IU] * qR[IU] + qR[IV] * qR[IV] + qR[IW] * qR[IW];
-  real_t betaL  = 0.5 * qL[IR] / qL[IP];
-  real_t betaR  = 0.5 * qR[IR] / qR[IP];
-  real_t betaLn = logMean(betaL, betaR);
+  real_t v2L   = qL[IU] * qL[IU] + qL[IV] * qL[IV] + qL[IW] * qL[IW];
+  real_t v2R   = qR[IU] * qR[IU] + qR[IV] * qR[IV] + qR[IW] * qR[IW];
+  real_t betaL = 0.5 * qL[IR] / qL[IP];
+  real_t betaR = 0.5 * qR[IR] / qR[IP];
+  // real_t betaLn = logMean(betaL, betaR);
   res[IR] = params.gamma0 * (Kokkos::log(qR[IR] / qL[IR]) - Kokkos::log(qR[IP] / qL[IP])) / (params.gamma0 - 1.0) -
             (betaR * v2R - betaL * v2L);
   res[IU]   = 2.0 * (betaR * qR[IU] - betaL * qL[IU]);

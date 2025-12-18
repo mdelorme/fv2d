@@ -11,7 +11,7 @@ import argparse
 from fv2d_utils import latexify, get_quantity, find_tri_layer_Bfield
 
 if os.path.exists('render'):
-  shutil.rmtree('render')  
+  shutil.rmtree('render')
 os.mkdir('render')
 cwd = os.getcwd()
 
@@ -29,7 +29,7 @@ parser.register('type', 'checkpath', lambda parser, filenames: checkfile(parser,
 parser.add_argument("-f", "--file",
                     # nargs='+',
                     # type='checkpath',
-                    required=True, 
+                    required=True,
                     help="Path of the `.h5` file to plot."
                     )
 

@@ -39,7 +39,7 @@ def _compute_2D_magnnorm(f, i: int, excludedir: str):
     b2 = np.array(f[f'ite_{i:04d}/by'])
   else:
     raise ValueError(f"Direction to exclude must be in ('x', 'y', 'z'), not {excludedir}")
-  
+
   return np.sqrt(b1**2 + b2**2)
 
 def get_BMag(f, i: int):
@@ -49,9 +49,9 @@ def get_BMag(f, i: int):
     Args:
       - f : h5py.File
       - i : iteration level of the simulation
-    
+
     Returns :
-      - Bmag : np.ndarray 
+      - Bmag : np.ndarray
   """
   return _compute_2D_magnnorm(f, i, excludedir='z')
 

@@ -35,7 +35,7 @@ namespace fv2d {
   }
 
   KOKKOS_INLINE_FUNCTION
-  State getBoundaryFlux(const State& q_in, State &flux_in, int i, int j, IDir dir, const DeviceParams &params){
+  State getBoundaryFlux(const State& q_in, State &flux_in, int i, int j, IDir dir, const real_t c_h, const DeviceParams &params){
     State q_out = q_in;
     const bool is_left_boundary   = i == params.ibeg;
     const bool is_right_boundary  = i == params.iend;
@@ -106,6 +106,14 @@ namespace fv2d {
     flux_out[IBY] = By * v_normal - B_normal * vy;
     flux_out[IBZ] = Bz * v_normal - B_normal * vz;
 
+    if (params.riemann_solver == IDEALGLM || params.div_cleaning == DEDNER){
+      real_t Bxm  = B_normal;
+      real_t psi_m = q_in[IPSI];
+      flux_out[IBX] = (dir == IX ? psi_m : 0.0);
+      flux_out[IBY] = (dir == IY ? psi_m : 0.0);
+      flux_out[IBZ] = (dir == IZ ? psi_m : 0.0);
+      flux_out[IPSI] = c_h*c_h*Bxm;
+    }
     return flux_out;
   }
   /**

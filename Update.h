@@ -165,11 +165,12 @@ public:
           const bool is_bottom_boundary = j == params.jbeg;
           const bool is_upper_boundary  = j == params.jend-1;
 
-          if (is_bottom_boundary && dir == IY)
-            fluxL = getBoundaryFlux(qR, fluxL, i, j, dir, params);
-          if (is_upper_boundary && dir == IY)
-            fluxR = getBoundaryFlux(qL, fluxR, i, j, dir, params);
+          // if (is_bottom_boundary && dir == IY)
+          //   fluxL = getBoundaryFlux(qR, fluxL, i, j, dir, ch_dedner, params);
+          // if (is_upper_boundary && dir == IY)
+          //   fluxR = getBoundaryFlux(qL, fluxR, i, j, dir, ch_dedner, params);
           
+          auto un_loc = getStateFromArray(Unew, i, j);
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
 
           if (params.gravity_mode != GRAV_NONE) {

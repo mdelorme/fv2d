@@ -9,3 +9,4 @@ __pycache__/
 last.ini
 *.mp4
 *.DS_Store
+pre_commit_logs/

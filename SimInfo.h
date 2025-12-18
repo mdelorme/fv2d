@@ -510,10 +510,7 @@ struct DeviceParams
     // Gresho vortex
     gresho_density = reader.GetFloat("gresho_vortex", "density", 1.0);
     gresho_Mach    = reader.GetFloat("gresho_vortex", "Mach", 0.1);
-    kh_sigma       = reader.GetFloat("kelvin_helmholtz", "sigma", 0.2);
-    kh_uflow       = reader.GetFloat("kelvin_helmholtz", "uflow", 1.0);
-    kh_y1          = reader.GetFloat("kelvin_helmholtz", "y1", 0.5);
-    kh_y2          = reader.GetFloat("kelvin_helmholtz", "y2", 1.5);
+
     // C20
     c20_H           = reader.GetFloat("C20", "H", 0.2);
     c20_heating_fac = reader.GetFloat("C20", "heating_fac", 2.0);
@@ -607,27 +604,27 @@ struct Params
       this->_values[section][name].value = std::to_string(default_value);
     }
   }
-  bool GetBoolean(std::string section, std::string name, bool default_value)
+  bool GetBoolean(const std::string &section, const std::string &name, bool default_value)
   {
     bool res = this->reader.GetBoolean(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
 
-  int GetInteger(std::string section, std::string name, int default_value)
+  int GetInteger(const std::string &section, const std::string &name, int default_value)
   {
     int res = this->reader.GetInteger(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
 
-  real_t GetFloat(std::string section, std::string name, real_t default_value)
+  real_t GetFloat(const std::string &section, const std::string &name, real_t default_value)
   {
     real_t res = this->reader.GetFloat(section, name, default_value);
     registerValue(section, name, res);
     return res;
   }
-  std::string Get(std::string section, std::string name, std::string default_value)
+  std::string Get(const std::string &section, const std::string &name, const std::string &default_value)
   {
     std::string res = this->reader.Get(section, name, default_value);
     registerValue(section, name, res);
@@ -639,8 +636,8 @@ struct Params
     constexpr std::string::size_type name_width  = 20;
     constexpr std::string::size_type value_width = 20;
     auto initial_format                          = o.flags();
-    std::string problem                          = this->Get("physics", "problem", "unknown");
-    o << "Parameters used for the problem: " << problem << std::endl;
+    std::string pb                               = this->Get("physics", "problem", "unknown");
+    o << "Parameters used for the problem: " << pb << std::endl;
     o << std::left;
     for (auto p_section : this->_values)
     {

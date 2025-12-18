@@ -76,9 +76,7 @@ public:
         "Thermal conduction",
         full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
-          Pos pos  = getPos(params, i, j);
-          real_t x = pos[IX];
-          real_t y = pos[IY];
+          Pos pos = getPos(params, i, j);
 
           real_t kappaL = 0.5 * (computeKappa(i, j, params) + computeKappa(i - 1, j, params));
           real_t kappaR = 0.5 * (computeKappa(i, j, params) + computeKappa(i + 1, j, params));

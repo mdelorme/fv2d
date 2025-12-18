@@ -1,6 +1,6 @@
 # fv2d numerical tests
 
-You can find in this directory all the tests used for `fv2d`'s validation. 
+You can find in this directory all the tests used for `fv2d`'s validation.
 Parameters used for each tests are given here, but for more details please visit [fvNd-unit-test](https://github.com/lukbrb/fvNd-unit-test).
 This companion repository aims to explain the importance of each test, and the results obtained with all `fvNd` codes; for $N \in [1, 2, 3]$.
 
@@ -55,4 +55,3 @@ Note, $r$ designates the distance from the center of the box.
 For the rotated shocktube :
 
 $${R}(\theta)= \begin{pmatrix} \sin\theta & \cos\theta \\\ \cos\theta & -\sin\theta \end{pmatrix}$$
-

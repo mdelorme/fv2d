@@ -71,7 +71,7 @@ def plot_field(field, cax, i, filename, solver):
     with h5py.File(filename, 'r') as f:
         path = f'ite_{i:04d}/{field}'
         Nx = f.attrs['Nx']
-        Ny = f.attrs['Ny'] 
+        Ny = f.attrs['Ny']
         arr = np.array(f[path]).reshape((Ny, Nx))
         x_slice = x[:Nx]
         legend = latexify[field]

@@ -47,7 +47,7 @@ def get_array(field, ite):
   elif field == 'T':
     rho = get_array('rho', ite)
     prs = get_array('prs', ite)
-    return T  
+    return T
   else:
     path = f'ite_{ite}/{field}'
     return np.array(f[path]).reshape((Ny, Nx))
@@ -56,7 +56,7 @@ def plot_field(field, cax, i):
   arr = get_array(field, i)
   cax.imshow(arr, extent=ext)
   cax.set_title(field)
-  
+
 print('Rendering animation')
 for i in tqdm(range(Nf)):
   fig, ax = plt.subplot_mosaic(mosaic, figsize=(13, 10))

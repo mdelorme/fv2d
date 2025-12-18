@@ -10,6 +10,7 @@ namespace fv2d
 namespace
 {
 
+#ifdef MHD
 KOKKOS_INLINE_FUNCTION
 void applyMagneticBoundaries(State &q, IDir dir, const DeviceParams &params)
 {
@@ -128,6 +129,8 @@ State getBoundaryFlux(const State &q_in, int i, int j, IDir dir, const real_t c_
   }
   return flux_out;
 }
+#endif // MHD
+
 /**
  * @brief Absorbing conditions
  */

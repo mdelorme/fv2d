@@ -663,7 +663,7 @@ State getMatrixDissipation(const State &qL, const State &qR, real_t ch, const De
   // ! Compute additional averages
   real_t rhoAvg = 0.5 * (rho_L + rho_R);
   real_t pLN    = 0.5 * rhoLN * sbetaLN;
-  u2Avg         = u_L * u_R + v_L * v_R + w_L * w_R; //! Redefinition of u2Avg -> \bar{\norm{u}^2}
+  real_t u2Avg  = u_L * u_R + v_L * v_R + w_L * w_R; //! Redefinition of u2Avg -> \bar{\norm{u}^2}
   // real_t srhoLN = 1./rhoLN;
   real_t aA    = Kokkos::sqrt(params.gamma0 * pAvg / rhoLN);
   real_t aLN   = Kokkos::sqrt(params.gamma0 * pLN / rhoLN);

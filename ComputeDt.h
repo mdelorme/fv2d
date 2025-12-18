@@ -26,11 +26,11 @@ public:
         "Computing DT",
         full_params.range_dom,
         KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
-          real_t inv_dt_hyp_loc;
           // Traditional Hydro time-step
-          State q        = getStateFromArray(Q, i, j);
-          real_t cs      = speedOfSound(q, params);
-          inv_dt_hyp_loc = (cs + fabs(q[IU])) / params.dx + (cs + fabs(q[IV])) / params.dy;
+          State q               = getStateFromArray(Q, i, j);
+          real_t cs             = speedOfSound(q, params);
+          real_t inv_dt_hyp_loc = (cs + fabs(q[IU])) / params.dx + (cs + fabs(q[IV])) / params.dy;
+#ifdef MHD
           if (mhd_run) // In this case, we compute the MHD time-step below.
           {
             const real_t B2    = q[IBX] * q[IBX] + q[IBY] * q[IBY] + q[IBZ] * q[IBZ];
@@ -44,7 +44,7 @@ public:
             // const real_t c_jz = sqrt(0.5*(c02+ca2)+0.5*sqrt((c02+ca2)*(c02+ca2)-4.*c02*cap2z));
             inv_dt_hyp_loc = (cf_x + Kokkos::abs(q[IU])) / params.dx + (cf_y + Kokkos::abs(q[IV])) / params.dy;
           }
-
+#endif // MHD
           real_t inv_dt_par_tc_loc = params.epsilon;
           if (params.thermal_conductivity_active)
             inv_dt_par_tc_loc = fmax(2.0 * computeKappa(i, j, params) / (params.dx * params.dx),

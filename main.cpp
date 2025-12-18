@@ -56,7 +56,9 @@ int main(int argc, char **argv)
     }
     else
       init.init(Q);
+#ifdef MHD
     GLM_ch1 = init.initGLMch(Q, params);
+#endif // MHD
     primToCons(Q, U, params);
 
     int next_log = 0;

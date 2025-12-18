@@ -25,6 +25,7 @@ public:
         "Apply sources",
         full_params.range_dom,
         KOKKOS_LAMBDA(const int i, const int j) {
+#ifdef MHD
           if (mhd_run && params.div_cleaning == DEDNER)
           {
             // Dedner's div-cleaning source term
@@ -76,10 +77,12 @@ public:
               Unew(j, i, ivar) -= (SourceMag[ivar] + SourcePsi[ivar] + SourceParabolic[ivar]) * dt;
             }
           }
+#endif // MHD
         });
   }
 };
 
+#ifdef MHD
 State IdealGLMSources(const State &qL, const State &qCL, const State &qCR, const State &qR, const DeviceParams &params)
 {
   const real_t dx = params.dx;
@@ -117,4 +120,5 @@ State IdealGLMSources(const State &qL, const State &qCL, const State &qCR, const
   State SourcePsi = dPsidxL * SourcePsiL + dPsidxR * SourcePsiR;
   return SourceMag + SourcePsi;
 }
+#endif // MHD
 } // namespace fv2d

@@ -149,9 +149,6 @@ public:
 
               switch (params.riemann_solver)
               {
-              case HLL:
-                hll(qL, qR, flux, pout, params);
-                break;
               case HLLD:
               {
                 hlld(qL, qR, flux, pout, Bx_m, params);
@@ -180,19 +177,21 @@ public:
 #else
               switch (params.riemann_solver)
               {
-                const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
               case HLL:
                 hll(qL, qR, flux, pout, params);
                 break;
 
               case FSLP:
+              {
+                const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
                 fslp(qL, qR, flux, pout, gdx, params);
                 break;
+              }
               default:
                 hllc(qL, qR, flux, pout, params);
                 break;
               }
-#endif
+#endif // MHD
             };
 
             // Calculating flux left and right of the cell

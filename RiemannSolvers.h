@@ -140,13 +140,11 @@ void fslp(const State &qL, const State &qR, State &flux, real_t &pout, real_t gd
   // 1. Basic quantities
   const real_t rhoL = qL[IR];
   const real_t uL   = qL[IU];
-  const real_t vL   = qL[IV];
   const real_t pL   = qL[IP];
   const real_t csL  = sqrt(params.gamma0 * pL / rhoL);
 
   const real_t rhoR = qR[IR];
   const real_t uR   = qR[IU];
-  const real_t vR   = qR[IV];
   const real_t pR   = qR[IP];
   const real_t csR  = sqrt(params.gamma0 * pR / rhoR);
 
@@ -169,6 +167,7 @@ void fslp(const State &qL, const State &qR, State &flux, real_t &pout, real_t gd
   flux[IU] = ustar * qstar[IR] * qstar[IU] + Pi;
   flux[IV] = ustar * qstar[IR] * qstar[IV];
   flux[IE] = ustar * (Estar + Pi);
+  pout     = Pi;
 }
 
 } // namespace fv2d

@@ -62,6 +62,7 @@ enum RiemannSolver {
   HLL,
   HLLC,
   HLLD,
+  FSLP,
   FIVEWAVES,
   IDEALGLM
 };
@@ -285,6 +286,10 @@ struct DeviceParams {
   real_t smallr = 1.0e-10;
   real_t smallp = 1.0e-10;
   // Thermal conduction
+
+  // Riemann solvers Specific Parameters
+  // FSLP
+  real_t fslp_K;
   
   // Thermal conductivity
   bool thermal_conductivity_active;
@@ -327,6 +332,9 @@ struct DeviceParams {
   real_t kh_uflow;
   real_t kh_amp;
   real_t kh_P0;
+
+  // Gresho vortex
+  real_t gresho_density, gresho_Mach;
   
   // Boundaries
   BoundaryType boundary_x = BC_REFLECTING;
@@ -412,6 +420,7 @@ struct DeviceParams {
     std::map<std::string, RiemannSolver> riemann_map{
       {"hll", HLL},
       {"hllc", HLLC},
+      {"fslp", FSLP},
       {"hlld", HLLD},
       {"fivewaves", FIVEWAVES},
       {"idealGLM", IDEALGLM}
@@ -439,6 +448,7 @@ struct DeviceParams {
     cr      = reader.GetFloat("physics", "cr", 0.18);
     GLM_scale = reader.GetFloat("physics", "GLM_scale", 1.0);
     
+    fslp_K  = reader.GetFloat("physics", "fslp_K", 1.1);
 
     // Gravity
     std::map<std::string, GravityMode> gravity_map{
@@ -500,6 +510,10 @@ struct DeviceParams {
     kh_uflow = reader.GetFloat("kelvin_helmholts", "uflow", 1.0);
     kh_y1 = reader.GetFloat("kelvin_helmholts", "y1", 0.5);
     kh_y2 = reader.GetFloat("kelvin_helmholts", "y2", 1.5);
+  
+    // Gresho vortex
+    gresho_density  = reader.GetFloat("gresho_vortex", "density",  1.0);
+    gresho_Mach     = reader.GetFloat("gresho_vortex", "Mach",     0.1);
   }
 };
 
@@ -585,7 +599,6 @@ Params readInifile(std::string filename) {
   };
   res.time_stepping = reader.GetMapValue(ts_map, "solvers", "time_stepping", "euler");
   res.problem = reader.Get("physics", "problem", "blast");
-
 
   // Misc
   res.seed = reader.GetInteger("misc", "seed", 12345);

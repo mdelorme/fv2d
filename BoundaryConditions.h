@@ -58,7 +58,6 @@ State getBoundaryFlux(const State &q_in, int i, int j, IDir dir, const DevicePar
   // TODO: Réadapter ces conditions pour fv2d
   const bool reflecting = (bc_type[dir] == BC_REFLECTING);
   const bool absorbing  = (bc_type[dir] == BC_ABSORBING);
-  const bool periodic   = (bc_type[dir] == BC_PERIODIC);
 
   const bool mag_perfect_conductor = (bc_mag_type[dir] == BCMAG_PERFECT_CONDUCTOR);
   const bool mag_normal_field      = (bc_mag_type[dir] == BCMAG_NORMAL_FIELD);

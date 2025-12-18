@@ -501,7 +501,7 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
 }
 
 KOKKOS_INLINE_FUNCTION
-void FluxDerigs(State &qL, State &qR, State &flux, real_t ch, const DeviceParams &params)
+void FluxDerigs(const State &qL, const State &qR, State &flux, real_t ch, const DeviceParams &params)
 {
   const State qAvg   = 0.5 * (qL + qR);
   const real_t rhoLn = logMean(qL[IR], qR[IR]);
@@ -545,7 +545,7 @@ void FluxDerigs(State &qL, State &qR, State &flux, real_t ch, const DeviceParams
 }
 
 KOKKOS_INLINE_FUNCTION
-void FluxChandrashekar(State &qL, State &qR, State &flux, real_t ch, const DeviceParams &params)
+void FluxChandrashekar(const State &qL, const State &qR, State &flux, real_t ch, const DeviceParams &params)
 {
   const State qAvg   = 0.5 * (qL + qR);
   const real_t rhoLn = logMean(qL[IR], qR[IR]);
@@ -586,7 +586,7 @@ void FluxChandrashekar(State &qL, State &qR, State &flux, real_t ch, const Devic
 }
 
 KOKKOS_INLINE_FUNCTION
-void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params)
+void FluxKEPEC(const State &qL, const State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params)
 {
   // Note : In fv2d, the vector q holds the primitive variables: q = (rho, u, v, w, p, Bx, By, Bz, Psi)
   FluxDerigs(qL, qR, flux, ch, params);
@@ -595,7 +595,7 @@ void FluxKEPEC(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const
 }
 
 KOKKOS_INLINE_FUNCTION
-State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &params)
+State getMatrixDissipation(const State &qL, const State &qR, real_t ch, const DeviceParams &params)
 {
   real_t u2_L, u2_R, p_L, p_R, beta_L, beta_R, rho_L, rho_R;
   real_t u_L, v_L, w_L, u_R, v_R, w_R;
@@ -618,8 +618,8 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   Bz_R  = qR[IBZ];
   psi_L = qL[IPSI];
   psi_R = qR[IPSI];
-  u2_L  = u_L * u_L + v_L * v_L + w_L * w_L;
-  u2_R  = u_R * u_R + v_R * v_R + w_R * w_R;
+  // u2_L  = u_L * u_L + v_L * v_L + w_L * w_L;
+  // u2_R  = u_R * u_R + v_R * v_R + w_R * w_R;
   // real_t B2_R = Bx_R*Bx_R + By_R*By_R + Bz_R*Bz_R;
   // real_t B2_L = Bx_L*Bx_L + By_L*By_L + Bz_L*Bz_L;
   p_L    = qL[IP];
@@ -631,7 +631,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
   real_t rhoLN   = logMean(rho_L, rho_R);
   real_t sbetaLN = 1. / logMean(beta_L, beta_R);
   // uAvg       = 0.5 * (u_L +  u_R);
-  real_t u2Avg = 0.5 * (u2_L + u2_R);
+  // real_t u2Avg = 0.5 * (u2_L + u2_R);
   // BAvg       = 0.5 * (B_L +  B_R);
   // real_t B2Avg      = 0.5 * (B2_L + B2_R);
   // real_t u1_B2Avg   = 0.5 * (u_L*B2_L + u_R*B2_R);
@@ -916,7 +916,7 @@ State getMatrixDissipation(State &qL, State &qR, real_t ch, const DeviceParams &
 }
 
 KOKKOS_INLINE_FUNCTION
-State getScalarDissipation(State &qL, State &qR, const DeviceParams &params)
+State getScalarDissipation(const State &qL, const State &qR, const DeviceParams &params)
 {
   State Lmax{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   State q                     = 0.5 * (qL + qR);
@@ -929,7 +929,7 @@ State getScalarDissipation(State &qL, State &qR, const DeviceParams &params)
 
 // Ideal GLM MHD Riemann Solver from Derigs et al. 2018  - 10.1016/j.jcp.2018.03.002
 KOKKOS_INLINE_FUNCTION
-void IdealGLM(State &qL, State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params)
+void IdealGLM(const State &qL, const State &qR, State &flux, real_t &pout, real_t ch, const DeviceParams &params)
 {
   // 1. Compute KEPEC Flux
   FluxKEPEC(qL, qR, flux, pout, ch, params);

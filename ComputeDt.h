@@ -32,7 +32,18 @@ public:
           real_t cs      = speedOfSound(q, params);
           inv_dt_hyp_loc = (cs + fabs(q[IU])) / params.dx + (cs + fabs(q[IV])) / params.dy;
           if (mhd_run) // In this case, we compute the MHD time-step below.
-            inv_dt_hyp_loc = 0.0;
+          {
+            const real_t B2    = q[IBX] * q[IBX] + q[IBY] * q[IBY] + q[IBZ] * q[IBZ];
+            const real_t cs2   = cs * cs;
+            const real_t ca2   = B2 / q[IR];
+            const real_t cap2x = q[IBX] * q[IBX] / q[IR];
+            const real_t cap2y = q[IBY] * q[IBY] / q[IR];
+
+            const real_t cf_x = sqrt(0.5 * (cs2 + ca2) + 0.5 * sqrt((cs2 + ca2) * (cs2 + ca2) - 4.0 * cs2 * cap2x));
+            const real_t cf_y = sqrt(0.5 * (cs2 + ca2) + 0.5 * sqrt((cs2 + ca2) * (cs2 + ca2) - 4.0 * cs2 * cap2y));
+            // const real_t c_jz = sqrt(0.5*(c02+ca2)+0.5*sqrt((c02+ca2)*(c02+ca2)-4.*c02*cap2z));
+            inv_dt_hyp_loc = (cf_x + Kokkos::abs(q[IU])) / params.dx + (cf_y + Kokkos::abs(q[IV])) / params.dy;
+          }
 
           real_t inv_dt_par_tc_loc = params.epsilon;
           if (params.thermal_conductivity_active)
@@ -43,44 +54,6 @@ public:
           if (params.viscosity_active)
             inv_dt_par_visc_loc = fmax(2.0 * computeMu(i, j, params) / (params.dx * params.dx),
                                        2.0 * computeMu(i, j, params) / (params.dy * params.dy));
-#ifdef MHD
-          // if (params.riemann_solver == FIVEWAVES) {
-          const real_t B2 = q[IBX] * q[IBX] + q[IBY] * q[IBY] + q[IBZ] * q[IBZ];
-          // const real_t cs = speedOfSound(q, params);
-          const real_t cs2   = cs * cs;
-          const real_t ca2   = B2 / q[IR];
-          const real_t cap2x = q[IBX] * q[IBX] / q[IR];
-          const real_t cap2y = q[IBY] * q[IBY] / q[IR];
-          // const real_t cap2z = q[IBZ]*q[IBZ]/q[IR];
-
-          const real_t cf_x = sqrt(0.5 * (cs2 + ca2) + 0.5 * sqrt((cs2 + ca2) * (cs2 + ca2) - 4.0 * cs2 * cap2x));
-          const real_t cf_y = sqrt(0.5 * (cs2 + ca2) + 0.5 * sqrt((cs2 + ca2) * (cs2 + ca2) - 4.0 * cs2 * cap2y));
-          // const real_t c_jz = sqrt(0.5*(c02+ca2)+0.5*sqrt((c02+ca2)*(c02+ca2)-4.*c02*cap2z));
-          inv_dt_hyp_loc = (cf_x + Kokkos::abs(q[IU])) / params.dx + (cf_y + Kokkos::abs(q[IV])) / params.dy;
-// }
-// else {
-// const real_t Bx = q[IBX];
-// const real_t By = q[IBY];
-// const real_t Bz = q[IBZ];
-// const real_t gr = cs*cs*q[IR];
-// const real_t Bt2 [] = {By*By+Bz*Bz,
-//                        Bx*Bx+Bz*Bz,
-//                        Bx*Bx+By*By};
-// const real_t B2 = Bx*Bx + By*By + Bz*Bz;
-// const real_t cf1 = gr-B2;
-// const real_t V [] = {q[IU], q[IV], q[IW]};
-// const real_t dl [] = {params.dx, params.dy};
-
-// const int ndim = 2;
-// for (int i=0; i < ndim; ++i) {
-//   const real_t cf2 = gr + B2 + sqrt(cf1*cf1 + 4.0*gr*Bt2[i]);
-//   const real_t cf = sqrt(0.5 * cf2 / q[IR]);
-
-//   const real_t lambdaMax = fmax(Kokkos::abs(V[i] - cf), Kokkos::abs(V[i] + cf));
-//   inv_dt_hyp_loc = fmax(inv_dt_hyp_loc, lambdaMax/dl[i]);
-//   }
-// }
-#endif
 
           inv_dt_hyp      = fmax(inv_dt_hyp, inv_dt_hyp_loc);
           inv_dt_par_tc   = fmax(inv_dt_par_tc, inv_dt_par_tc_loc);

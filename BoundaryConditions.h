@@ -222,6 +222,32 @@ nothing special
 considered)
   - PERFECT_CONDUCTOR: in this case, the component normal to the boundary is 0 and others remain untouched
 */
+/*
+ * Vertical boundary condtions for the Cattaneo (1991) setup
+ */
+KOKKOS_INLINE_FUNCTION
+State fillC91(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params)
+{
+  const int jpiv = (j < jref ? params.jbeg : params.jend);
+  const int jsym = 2 * jpiv - j - 1;
+
+  const bool is_upper_bc = (j < jref);
+  // const bool is_upper_bc = (j < params.jend);
+  // const int offset = (is_lower_bc ? j - params.jbeg : j - params.jend);
+
+  State q_dc = getStateFromArray(Q, i, jsym);
+  State q_gc = q_dc;
+
+  if (is_upper_bc)
+  {
+    q_gc[IV] = -q_dc[IV];
+  }
+  else
+  {
+    q_gc[IV] = (q_dc[IV] < 0.0 ? q_gc[IV] : 0.0);
+  }
+  return q_gc;
+}
 } // anonymous namespace
 
 class BoundaryManager
@@ -291,6 +317,8 @@ public:
             case BC_PERIODIC:
               return fillPeriodic(Q, i, j, IY, params);
               break;
+            case BC_C91:
+              return fillC91(Q, i, j, i, jref, IY, params);
             }
           };
 

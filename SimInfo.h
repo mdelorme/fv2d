@@ -84,7 +84,8 @@ enum BoundaryType
 {
   BC_ABSORBING,
   BC_REFLECTING,
-  BC_PERIODIC
+  BC_PERIODIC,
+  BC_C91
 };
 
 enum TimeStepping
@@ -430,7 +431,8 @@ struct DeviceParams
     CFL               = reader.GetFloat("solvers", "CFL", 0.8);
     std::map<std::string, BoundaryType> bc_map{{"reflecting", BC_REFLECTING},
                                                {"absorbing", BC_ABSORBING},
-                                               {"periodic", BC_PERIODIC}};
+                                               {"periodic", BC_PERIODIC},
+                                               {"c91", BC_C91}};
     boundary_x = reader.GetMapValue(bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = reader.GetMapValue(bc_map, "run", "boundaries_y", "reflecting");
     std::map<std::string, MagneticBoundaryType> magbc_map{{"same_as_hydro", BCMAG_SAME_AS_HYDRO},

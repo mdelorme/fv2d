@@ -1,4 +1,6 @@
 # FV2D
+
+![Turbulence image from a Kelvin-HElmholtz instability run](figs/kh.png)
 2D finite volume code with Kokkos for experimentation/prototyping purposes
 
 Check the [change log](CHANGELOG.md) for the latest updates.

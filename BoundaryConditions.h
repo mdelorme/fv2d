@@ -228,23 +228,83 @@ considered)
 KOKKOS_INLINE_FUNCTION
 State fillC91(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceParams &params)
 {
-  const int jpiv = (j < jref ? params.jbeg : params.jend);
-  const int jsym = 2 * jpiv - j - 1;
+  const real_t dy = params.dy;
+  const int jpiv  = (j < jref ? params.jbeg : params.jend);
+  const int jsym  = 2 * jpiv - j - 1;
 
   const bool is_upper_bc = (j < jref);
   // const bool is_upper_bc = (j < params.jend);
   // const int offset = (is_lower_bc ? j - params.jbeg : j - params.jend);
+  Pos pos  = getPos(params, i, j);
+  real_t y = pos[IY];
+
+  // real_t T   = (1.0 + params.theta1 * y);
+  // real_t rho = pow(T, params.m1);
+  // real_t prs = pow(T, params.m1 + 1.0);
 
   State q_dc = getStateFromArray(Q, i, jsym);
   State q_gc = q_dc;
 
+  // q_gc[IR] = rho;
+  // q_gc[IP] = prs;
+  // q_gc[IU] = 0.0;
+  // q_gc[IV] = 0.0;
+
   if (is_upper_bc)
   {
+    // Note: 2025-12-21 : Attention, je calcule que les valeurs de la première cellule GC pour l'instant
+    // We designate with _p the cells in the domain, and _m outisde the domain.
+    // The number refers to the cell's lace with respect to the inteface.
+    real_t rho_p1, rho_p2, p_p1, p_p2, p_m1, rho_m1;
+    rho_p1 = Q(params.Ng, i, IR);
+    rho_p2 = Q(params.Ng + 1, i, IR);
+    rho_m1 = 2.0 * rho_p1 - rho_p2;
+    p_p1   = Q(params.Ng, i, IP);
+
+    if (j == 1)
+    {
+    } // Values are first computed for the first GC
+
+    if (j == 0) // Extrapolate values from the first GC
+    {
+      rho_p2 = rho_p1;
+      rho_p1 = rho_m1;
+      rho_m1 = 2.0 * rho_p1 - rho_p2;
+      p_p1   = Q(1, i, IP);
+    }
+    p_m1 = p_p1 - params.gy * dy * (5.0 * rho_m1 + 8.0 * rho_p1 - rho_p2) / 12.0; // Zingale (2002), eq. (50).
+
     q_gc[IV] = -q_dc[IV];
+    q_gc[IR] = rho_m1;
+    q_gc[IP] = p_m1;
   }
   else
   {
-    q_gc[IV] = (q_dc[IV] < 0.0 ? q_gc[IV] : 0.0);
+    // printf("params.Nty=%d, j=%d, params.jend=%d\n", params.Nty, j, params.jend);
+    // params.Nty=132, j=131, params.jend=130 ->  Donc jend = j_GC1, jend + 1 = j_GC2
+    real_t rho_m1, rho_m2, p_m1, p_p1, rho_p1;
+    const int j_dc = params.jend - 1; // Last domin cell
+    rho_m1         = Q(j_dc, i, IR);
+    rho_m2         = Q(j_dc - 1, i, IR);
+    rho_p1         = 2.0 * rho_m1 - rho_m2;
+    p_m1           = Q(j_dc, i, IP);
+
+    if (j == params.jend)
+    {
+    } // First ghost cell, nothing more to do
+
+    if (j == params.jend + 1)
+    {
+      rho_m2 = rho_m1;
+      rho_m1 = rho_p1;
+      rho_p1 = 2.0 * rho_m1 - rho_m2;
+      p_m1   = Q(j_dc + 1, i, IP);
+    }
+    p_p1 = p_m1 + params.gy * dy * (5.0 * rho_p1 + 8.0 * rho_m1 - rho_m2) / 12.0; // Zingale (2002), eq. (41).
+
+    q_gc[IV] = -q_dc[IV];
+    q_gc[IR] = rho_p1;
+    q_gc[IP] = p_p1;
   }
   return q_gc;
 }

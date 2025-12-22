@@ -150,9 +150,17 @@ public:
             {
               real_t g = getGravity(i, j, dir, params);
               if (j == params.jbeg)
-                fluxL = State{0.0, 0.0, poutR - Q(j, i, IR) * g * params.dy, 0.0};
+              {
+                const real_t rho_gc = 2.0 * Q(j, i, IR) - Q(j + 1, i, IR);
+                const real_t p_eq = poutR - g * params.dy * (5.0 * rho_gc + 8.0 * Q(j, i, IR) - Q(j + 1, i, IR)) / 12.0;
+                fluxL             = State{0.0, 0.0, p_eq, 0.0};
+              }
               else
-                fluxR = State{0.0, 0.0, poutL + Q(j, i, IR) * g * params.dy, 0.0};
+              {
+                const real_t rho_gc = 2.0 * Q(j, i, IR) - Q(j - 1, i, IR);
+                const real_t p_eq = poutL + g * params.dy * (5.0 * rho_gc + 8.0 * Q(j, i, IR) - Q(j - 1, i, IR)) / 12.0;
+                fluxR             = State{0.0, 0.0, p_eq, 0.0};
+              }
             }
 
             auto un_loc = getStateFromArray(Unew, i, j);

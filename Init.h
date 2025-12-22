@@ -5,14 +5,14 @@
 #include "BoundaryConditions.h"
 #include "SimInfo.h"
 
-#include "init/hydro/blast.h"
+#include "init/hydro/Blast.h"
 #include "init/hydro/C91.h"
-#include "init/hydro/diffusion.h"
+#include "init/hydro/Diffusion.h"
 #include "init/hydro/GreshoVortex.h"
 #include "init/hydro/H84.h"
 #include "init/hydro/KelvinHelmholtz.h"
 #include "init/hydro/RayleighTaylor.h"
-#include "init/hydro/sod.h"
+#include "init/hydro/Sod.h"
 
 #ifdef MHD
 #include "init/mhd/ArtificialNonZeroDivB.h"
@@ -28,6 +28,7 @@
 #include "init/mhd/Rotor.h"
 #include "init/mhd/SlowRarefaction.h"
 #include "init/mhd/ShuOsher.h"
+#include "init/mhd/C91.h"
 #endif // MHD
 
 namespace fv2d
@@ -63,7 +64,8 @@ enum InitType
   ROTATED_SHOCK_TUBE,
   MHD_ROTOR,
   FIELD_LOOP_ADVECTION,
-  SHEAR_B
+  SHEAR_B,
+  C91_MHD
 #endif // MHD
 };
 
@@ -102,7 +104,8 @@ public:
                                              {"rotated_shock_tube", ROTATED_SHOCK_TUBE},
                                              {"mhd_rotor", MHD_ROTOR},
                                              {"field_loop_advection", FIELD_LOOP_ADVECTION},
-                                             {"shear_b", SHEAR_B}
+                                             {"shear_b", SHEAR_B},
+                                             {"C91_MHD", C91_MHD}
 #endif // MHD
     };
 
@@ -206,6 +209,9 @@ public:
             break;
           case SHEAR_B:
             shearB(Q, i, j, params);
+            break;
+          case C91_MHD:
+            initC91MHD(Q, i, j, params, random_pool);
             break;
 #endif // MHD
           }

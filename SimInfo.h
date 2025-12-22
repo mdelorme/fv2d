@@ -348,6 +348,7 @@ struct DeviceParams
 
   // C91
   real_t c91_pert;
+  real_t c91_B0;
 
   // B02
   real_t b02_ymid;
@@ -511,6 +512,7 @@ struct DeviceParams
 
     // C91
     c91_pert = reader.GetFloat("C91", "perturbation", 1.0e-3);
+    c91_B0   = reader.GetFloat("C91", "B0", 1.0e-3);
 
     // Hot bubble
     hot_bubble_g0 = reader.GetFloat("hot_bubble", "g0", 0.0);

@@ -249,6 +249,14 @@ State fillC91(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceP
   // q_gc[IP] = prs;
   // q_gc[IU] = 0.0;
   // q_gc[IV] = 0.0;
+#ifdef MHD
+  q_gc[IBX]         = -q_dc[IBX];
+  q_gc[IBY]         = q_dc[IBY];
+  q_gc[IBZ]         = -q_dc[IBZ];
+  const real_t pmag = 0.5 * (q_gc[IBX] * q_gc[IBX] + q_gc[IBY] * q_gc[IBY] + q_gc[IBZ] * q_gc[IBZ]);
+#else
+  const real_t pmag = 0.0;
+#endif // MHD
 
   if (is_upper_bc)
   {
@@ -256,6 +264,7 @@ State fillC91(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceP
     // We designate with _p the cells in the domain, and _m outisde the domain.
     // The number refers to the cell's lace with respect to the inteface.
     real_t rho_p1, rho_p2, p_p1, p_p2, p_m1, rho_m1;
+
     rho_p1 = Q(params.Ng, i, IR);
     rho_p2 = Q(params.Ng + 1, i, IR);
     rho_m1 = 2.0 * rho_p1 - rho_p2;
@@ -272,11 +281,11 @@ State fillC91(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceP
       rho_m1 = 2.0 * rho_p1 - rho_p2;
       p_p1   = Q(1, i, IP);
     }
-    p_m1 = p_p1 - params.gy * dy * (5.0 * rho_m1 + 8.0 * rho_p1 - rho_p2) / 12.0; // Zingale (2002), eq. (50).
 
+    p_m1     = p_p1 - params.gy * dy * (5.0 * rho_m1 + 8.0 * rho_p1 - rho_p2) / 12.0; // Zingale (2002), eq. (50).
     q_gc[IV] = -q_dc[IV];
     q_gc[IR] = rho_m1;
-    q_gc[IP] = p_m1;
+    q_gc[IP] = p_m1 + pmag;
   }
   else
   {
@@ -304,7 +313,7 @@ State fillC91(Array Q, int i, int j, int iref, int jref, IDir dir, const DeviceP
 
     q_gc[IV] = -q_dc[IV];
     q_gc[IR] = rho_p1;
-    q_gc[IP] = p_p1;
+    q_gc[IP] = p_p1 + pmag;
   }
   return q_gc;
 }

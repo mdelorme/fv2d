@@ -1,0 +1,18 @@
+[project]
+name = "tests"
+version = "0.1.0"
+description = "fv2D Python Test Suite for Physics test cases."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "h5py>=3.15.1",
+    "h5py-stubs>=0.1.2",
+    "pytest>=9.0.2",
+    "tqdm>=4.67.1",
+    "types-tqdm>=4.67.0.20250809",
+]
+
+[pytest]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

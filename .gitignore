@@ -6,3 +6,4 @@ render/
 __pycache__/
 *.pyc
 pre_commit_logs/
+last.ini

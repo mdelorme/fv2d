@@ -16,6 +16,7 @@ struct RiemannData
 namespace fv2d
 {
 
+KOKKOS_INLINE_FUNCTION
 void riemann(State &qL, State &qR, State &flux, RiemannData &rdata, const DeviceParams &params)
 {
   switch (params.riemann_solver)

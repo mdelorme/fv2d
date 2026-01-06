@@ -49,4 +49,6 @@ void initGreshoVortex(Array Q, int i, int j, const DeviceParams &params, const I
   Q(j, i, IV)      = xnr * u_phi;
 }
 
+REGISTER_PROBLEM(initGreshoVortex, "gresho_vortex")
+
 } // namespace fv2d

@@ -26,6 +26,8 @@ void initSodX(Array Q, int i, int j, const DeviceParams &params, const InitData 
   }
 }
 
+REGISTER_PROBLEM(initSodX, "sod_x")
+
 /**
  * @brief Sod Shock tube aligned along the Y axis
  */
@@ -45,5 +47,7 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params, const InitData 
     Q(j, i, IU) = 0.0;
   }
 }
+
+REGISTER_PROBLEM(initSodY, "sod_y")
 
 } // namespace fv2d

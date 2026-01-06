@@ -37,4 +37,6 @@ void initRayleighTaylor(Array Q, int i, int j, const DeviceParams &params, const
     Q(j, i, IV) = 0.01 * (1.0 + cos(4 * M_PI * x)) * (1 + cos(3.0 * M_PI * y)) / 4.0;
 }
 
+REGISTER_PROBLEM(initRayleighTaylor, "rayleigh-taylor")
+
 } // namespace fv2d

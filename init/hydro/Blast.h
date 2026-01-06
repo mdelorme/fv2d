@@ -38,4 +38,6 @@ void initBlast(Array Q, int i, int j, const DeviceParams &params, const InitData
     Q(j, i, IP) = 0.1;
   }
 }
+
+REGISTER_PROBLEM(initBlast, "blast")
 } // namespace fv2d

@@ -32,4 +32,5 @@ void initC91(Array Q, int i, int j, const DeviceParams &params, const InitData &
   Q(j, i, IP) = prs;
 }
 
+REGISTER_PROBLEM(initC91, "C91")
 } // namespace fv2d

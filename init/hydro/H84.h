@@ -28,4 +28,6 @@ void initH84(Array Q, int i, int j, const DeviceParams &params, const InitData &
   Q(j, i, IP) = prs;
 }
 
+REGISTER_PROBLEM(initH84, "H84")
+
 } // namespace fv2d

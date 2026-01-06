@@ -31,4 +31,7 @@ void initDiffusion(Array Q, int i, int j, const DeviceParams &params, const Init
   Q(j, i, IU) = 1.0;
   Q(j, i, IV) = 1.0;
 }
+
+REGISTER_PROBLEM(initDiffusion, "diffusion")
+
 } // namespace fv2d

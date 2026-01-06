@@ -34,4 +34,6 @@ void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params, cons
   Q(j, i, IP) = params.kh_P0;
 }
 
+REGISTER_PROBLEM(initKelvinHelmholtz, "kelvin_helmholtz")
+
 } // namespace fv2d

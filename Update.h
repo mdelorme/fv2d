@@ -117,30 +117,15 @@ public:
             State qR  = reconstruct(Q, slopes, i + dxp, j + dyp, -1.0, dir, params);
 
             const real_t gdx = (dir == IX ? params.gx * params.dx : params.gy * params.dy);
-
-            // Calling the right Riemann solver
-            auto riemann = [&](State qL, State qR, State &flux, real_t &pout)
-            {
-              switch (params.riemann_solver)
-              {
-              case HLL:
-                hll(qL, qR, flux, pout, params);
-                break;
-              case FSLP:
-                fslp(qL, qR, flux, pout, gdx, params);
-                break;
-              default:
-                hllc(qL, qR, flux, pout, params);
-                break;
-              }
-            };
+            RiemannData rdata;
+            rdata.gdx = gdx;
 
             // Calculating flux left and right of the cell
             State fluxL, fluxR;
             real_t poutL, poutR;
 
-            riemann(qL, qCL, fluxL, poutL);
-            riemann(qCR, qR, fluxR, poutR);
+            riemann(qL, qCL, fluxL, rdata, params);
+            riemann(qCR, qR, fluxR, rdata, params);
 
             fluxL = swap_component(fluxL, dir);
             fluxR = swap_component(fluxR, dir);

@@ -11,7 +11,7 @@ namespace fv2d
  * dynamics", Journal of Computational Physics, vol 496.
  */
 KOKKOS_INLINE_FUNCTION
-void fslp(const State &qL, const State &qR, State &flux, real_t &pout, real_t gdx, const DeviceParams &params)
+void fslp(const State &qL, const State &qR, State &flux, RiemannData &rdata, const DeviceParams &params)
 {
   // 1. Basic quantities
   const real_t rhoL = qL[IR];
@@ -30,8 +30,8 @@ void fslp(const State &qL, const State &qR, State &flux, real_t &pout, real_t gd
 
   // 3. Calculating u* and PI*
   //                                                  vvv this minus comes from g = -grad phi
-  const real_t ustar = 0.5 * (uR + uL) - 0.5 / ai * (pR - pL - 0.5 * (rhoL + rhoR) * gdx); // eq (15)
-  const real_t Pi    = 0.5 * (pR + pL) - theta * 0.5 * ai * (uR - uL);                     // eq (15)
+  const real_t ustar = 0.5 * (uR + uL) - 0.5 / ai * (pR - pL - 0.5 * (rhoL + rhoR) * rdata.gdx); // eq (15)
+  const real_t Pi    = 0.5 * (pR + pL) - theta * 0.5 * ai * (uR - uL);                           // eq (15)
 
   // 4. Upwinding
   const State &qstar  = (ustar > 0 ? qL : qR); // eq (32)

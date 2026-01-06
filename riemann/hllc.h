@@ -4,7 +4,7 @@ namespace fv2d
 {
 
 KOKKOS_INLINE_FUNCTION
-void hllc(const State &qL, const State &qR, State &flux, real_t &pout, const DeviceParams &params)
+void hllc(const State &qL, const State &qR, State &flux, RiemannData &rdata, const DeviceParams &params)
 {
   const real_t rL = qL[IR];
   const real_t uL = qL[IU];
@@ -45,33 +45,33 @@ void hllc(const State &qL, const State &qR, State &flux, real_t &pout, const Dev
   real_t E;
   if (SL > 0.0)
   {
-    st   = qL;
-    E    = EL;
-    pout = pL;
+    st         = qL;
+    E          = EL;
+    rdata.pout = pL;
   }
   else if (uS > 0.0)
   {
-    st[IR] = rSL;
-    st[IU] = uS;
-    st[IV] = qL[IV];
-    st[IP] = pS;
-    E      = ESL;
-    pout   = pS;
+    st[IR]     = rSL;
+    st[IU]     = uS;
+    st[IV]     = qL[IV];
+    st[IP]     = pS;
+    E          = ESL;
+    rdata.pout = pS;
   }
   else if (SR > 0.0)
   {
-    st[IR] = rSR;
-    st[IU] = uS;
-    st[IV] = qR[IV];
-    st[IP] = pS;
-    E      = ESR;
-    pout   = pS;
+    st[IR]     = rSR;
+    st[IU]     = uS;
+    st[IV]     = qR[IV];
+    st[IP]     = pS;
+    E          = ESR;
+    rdata.pout = pS;
   }
   else
   {
-    st   = qR;
-    E    = ER;
-    pout = pR;
+    st         = qR;
+    E          = ER;
+    rdata.pout = pR;
   }
 
   flux[IR] = st[IR] * st[IU];

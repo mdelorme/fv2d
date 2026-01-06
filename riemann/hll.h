@@ -3,7 +3,7 @@
 namespace fv2d
 {
 KOKKOS_INLINE_FUNCTION
-void hll(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params)
+void hll(State &qL, State &qR, State &flux, RiemannData &rdata, const DeviceParams &params)
 {
   const real_t aL = speedOfSound(qL, params);
   const real_t aR = speedOfSound(qR, params);
@@ -32,20 +32,20 @@ void hll(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &pa
 
   if (SL >= 0.0)
   {
-    flux = FL;
-    pout = qL[IP];
+    flux       = FL;
+    rdata.pout = qL[IP];
   }
   else if (SR <= 0.0)
   {
-    flux = FR;
-    pout = qR[IP];
+    flux       = FR;
+    rdata.pout = qR[IP];
   }
   else
   {
-    State uL = primToCons(qL, params);
-    State uR = primToCons(qR, params);
-    pout     = 0.5 * (qL[IP] + qR[IP]);
-    flux     = (SR * FL - SL * FR + SL * SR * (uR - uL)) / (SR - SL);
+    State uL   = primToCons(qL, params);
+    State uR   = primToCons(qR, params);
+    rdata.pout = 0.5 * (qL[IP] + qR[IP]);
+    flux       = (SR * FL - SL * FR + SL * SR * (uR - uL)) / (SR - SL);
   }
 }
 } // namespace fv2d

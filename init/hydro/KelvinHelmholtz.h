@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../SimInfo.h"
+#include "../InitData.h"
 
 namespace fv2d
 {
@@ -12,7 +13,7 @@ namespace fv2d
  * 2016, MNRAS
  */
 KOKKOS_INLINE_FUNCTION
-void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params)
+void initKelvinHelmholtz(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
 {
   Pos pos  = getPos(params, i, j);
   real_t x = pos[IX];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../SimInfo.h"
+#include "../InitData.h"
 
 namespace fv2d
 {
@@ -9,7 +10,7 @@ namespace fv2d
  * @brief Sedov blast initial conditions
  */
 KOKKOS_INLINE_FUNCTION
-void initBlast(Array Q, int i, int j, const DeviceParams &params)
+void initBlast(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
 {
   real_t xmid = 0.5 * (params.xmin + params.xmax);
   real_t ymid = 0.5 * (params.ymin + params.ymax);

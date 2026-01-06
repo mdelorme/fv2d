@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../SimInfo.h"
+#include "../InitData.h"
 
 namespace fv2d
 {
@@ -11,7 +12,7 @@ namespace fv2d
  * Based on Miczek et al. 2015 "New numerical solver for flows at various Mach numbers"
  */
 KOKKOS_INLINE_FUNCTION
-void initGreshoVortex(Array Q, int i, int j, const DeviceParams &params)
+void initGreshoVortex(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
 {
   Pos pos           = getPos(params, i, j);
   const real_t xmid = 0.5 * (params.xmin + params.xmax);

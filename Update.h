@@ -125,7 +125,10 @@ public:
             real_t poutL, poutR;
 
             riemann(qL, qCL, fluxL, rdata, params);
+            poutL = rdata.pout;
+
             riemann(qCR, qR, fluxR, rdata, params);
+            poutR = rdata.pout;
 
             fluxL = swap_component(fluxL, dir);
             fluxR = swap_component(fluxR, dir);

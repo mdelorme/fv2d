@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../SimInfo.h"
+#include "../InitData.h"
 
 namespace fv2d
 {
@@ -9,7 +10,7 @@ namespace fv2d
  * @brief Sod Shock tube aligned along the X axis
  */
 KOKKOS_INLINE_FUNCTION
-void initSodX(Array Q, int i, int j, const DeviceParams &params)
+void initSodX(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
 {
   if (getPos(params, i, j)[IX] <= 0.5)
   {
@@ -29,7 +30,7 @@ void initSodX(Array Q, int i, int j, const DeviceParams &params)
  * @brief Sod Shock tube aligned along the Y axis
  */
 KOKKOS_INLINE_FUNCTION
-void initSodY(Array Q, int i, int j, const DeviceParams &params)
+void initSodY(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
 {
   if (getPos(params, i, j)[IY] <= 0.5)
   {

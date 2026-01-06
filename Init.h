@@ -5,6 +5,8 @@
 #include "BoundaryConditions.h"
 #include "SimInfo.h"
 
+#include "init/InitData.h"
+
 #include "init/hydro/Blast.h"
 #include "init/hydro/C91.h"
 #include "init/hydro/Diffusion.h"
@@ -64,7 +66,7 @@ public:
     auto init_type = this->init_type;
     auto params    = full_params.device_params;
 
-    RandomPool random_pool(full_params.seed);
+    InitData init_data(full_params);
 
     // Filling active domain ...
     Kokkos::parallel_for(
@@ -74,31 +76,31 @@ public:
           switch (init_type)
           {
           case SOD_X:
-            initSodX(Q, i, j, params);
+            initSodX(Q, i, j, params, init_data);
             break;
           case SOD_Y:
-            initSodY(Q, i, j, params);
+            initSodY(Q, i, j, params, init_data);
             break;
           case BLAST:
-            initBlast(Q, i, j, params);
+            initBlast(Q, i, j, params, init_data);
             break;
           case DIFFUSION:
-            initDiffusion(Q, i, j, params);
+            initDiffusion(Q, i, j, params, init_data);
             break;
           case RAYLEIGH_TAYLOR:
-            initRayleighTaylor(Q, i, j, params);
+            initRayleighTaylor(Q, i, j, params, init_data);
             break;
           case H84:
-            initH84(Q, i, j, params, random_pool);
+            initH84(Q, i, j, params, init_data);
             break;
           case C91:
-            initC91(Q, i, j, params, random_pool);
+            initC91(Q, i, j, params, init_data);
             break;
           case KELVIN_HELMHOLTZ:
-            initKelvinHelmholtz(Q, i, j, params);
+            initKelvinHelmholtz(Q, i, j, params, init_data);
             break;
           case GRESHO_VORTEX:
-            initGreshoVortex(Q, i, j, params);
+            initGreshoVortex(Q, i, j, params, init_data);
             break;
           }
         });

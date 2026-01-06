@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../SimInfo.h"
+#include "../InitData.h"
 
 namespace fv2d
 {
@@ -9,7 +10,7 @@ namespace fv2d
  * @brief Rayleigh-Taylor instability setup
  */
 KOKKOS_INLINE_FUNCTION
-void initRayleighTaylor(Array Q, int i, int j, const DeviceParams &params)
+void initRayleighTaylor(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
 {
   real_t ymid = 0.5 * (params.ymin + params.ymax);
 

@@ -12,7 +12,7 @@ struct InitData
 {
   RandomPool random_pool;
   InitData() = default;
-  InitData(Params &full_params) : random_pool(full_params.seed) {};
+  InitData(const Params &full_params) : random_pool(full_params.seed) {};
   ~InitData() = default;
 };
 

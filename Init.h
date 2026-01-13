@@ -39,6 +39,7 @@ struct InitFunctor
 private:
   Params full_params;
   InitType init_type;
+  std::unique_ptr<InitFormula> formula;
 
 public:
   InitFunctor(Params &full_params) : full_params(full_params)
@@ -57,53 +58,24 @@ public:
       throw std::runtime_error("Error unknown problem " + full_params.problem);
 
     init_type = init_map[full_params.problem];
+    switch (init_type) {
+      case SOD_X:            formula = std::make_unique<InitSodX>();            break;
+      case SOD_Y:            formula = std::make_unique<InitSodY>();            break;
+      case BLAST:            formula = std::make_unique<InitBlast>();           break;
+      case RAYLEIGH_TAYLOR:  formula = std::make_unique<InitRayleighTaylor>();  break;
+      case DIFFUSION:        formula = std::make_unique<InitDiffusion>();       break;
+      case H84:              formula = std::make_unique<InitH84>();             break;
+      case C91:              formula = std::make_unique<InitC91>();             break;
+      case KELVIN_HELMHOLTZ: formula = std::make_unique<InitKelvinHelmholtz>(); break;
+      case GRESHO_VORTEX:    formula = std::make_unique<InitGreshoVortex>();    break;
+    }
   };
   ~InitFunctor() = default;
 
   void init(Array Q)
   {
     // cppcheck-suppress shadowVariable
-    auto init_type = this->init_type;
-    auto params    = full_params.device_params;
-
-    InitData init_data(full_params);
-
-    // Filling active domain ...
-    Kokkos::parallel_for(
-        "Initialization",
-        full_params.range_dom,
-        KOKKOS_LAMBDA(const int i, const int j) {
-          switch (init_type)
-          {
-          case SOD_X:
-            initSodX(Q, i, j, params, init_data);
-            break;
-          case SOD_Y:
-            initSodY(Q, i, j, params, init_data);
-            break;
-          case BLAST:
-            initBlast(Q, i, j, params, init_data);
-            break;
-          case DIFFUSION:
-            initDiffusion(Q, i, j, params, init_data);
-            break;
-          case RAYLEIGH_TAYLOR:
-            initRayleighTaylor(Q, i, j, params, init_data);
-            break;
-          case H84:
-            initH84(Q, i, j, params, init_data);
-            break;
-          case C91:
-            initC91(Q, i, j, params, init_data);
-            break;
-          case KELVIN_HELMHOLTZ:
-            initKelvinHelmholtz(Q, i, j, params, init_data);
-            break;
-          case GRESHO_VORTEX:
-            initGreshoVortex(Q, i, j, params, init_data);
-            break;
-          }
-        });
+    formula->init(Q, full_params);
 
     // ... and boundaries
     BoundaryManager bc(full_params);

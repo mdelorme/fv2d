@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../../SimInfo.h"
-#include "../InitData.h"
+#include "../InitFormula.h"
 
 namespace fv2d
 {
@@ -9,26 +8,37 @@ namespace fv2d
 /**
  * @brief Simple diffusion test with a structure being advected on the grid
  */
-KOKKOS_INLINE_FUNCTION
-void initDiffusion(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
+struct InitDiffusion : public InitFormula
 {
-  real_t xmid = 0.5 * (params.xmin + params.xmax);
-  real_t ymid = 0.5 * (params.ymin + params.ymax);
+  void init(Array Q, const Params &full_params)
+  {
+    auto params = full_params.device_params;
+    InitData init_data{full_params};
 
-  Pos pos = getPos(params, i, j);
+    Kokkos::parallel_for(
+      "Initialization",
+      full_params.range_dom,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        real_t xmid = 0.5 * (params.xmin + params.xmax);
+        real_t ymid = 0.5 * (params.ymin + params.ymax);
 
-  real_t x0 = (pos[IX] - xmid);
-  real_t y0 = (pos[IY] - ymid);
+        Pos pos = getPos(params, i, j);
 
-  real_t r = sqrt(x0 * x0 + y0 * y0);
+        real_t x0 = (pos[IX] - xmid);
+        real_t y0 = (pos[IY] - ymid);
 
-  if (r < 0.2)
-    Q(j, i, IR) = 1.0;
-  else
-    Q(j, i, IR) = 0.1;
+        real_t r = sqrt(x0 * x0 + y0 * y0);
 
-  Q(j, i, IP) = 1.0;
-  Q(j, i, IU) = 1.0;
-  Q(j, i, IV) = 1.0;
-}
+        if (r < 0.2)
+          Q(j, i, IR) = 1.0;
+        else
+          Q(j, i, IR) = 0.1;
+
+        Q(j, i, IP) = 1.0;
+        Q(j, i, IU) = 1.0;
+        Q(j, i, IV) = 1.0;
+      });
+  }
+};
+
 } // namespace fv2d

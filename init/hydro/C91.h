@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../../SimInfo.h"
-#include "../InitData.h"
+#include "../InitFormula.h"
 
 namespace fv2d
 {
@@ -9,27 +8,36 @@ namespace fv2d
 /**
  * @brief Stratified convection based on Cattaneo et al. 1991
  */
-KOKKOS_INLINE_FUNCTION
-void initC91(Array Q, int i, int j, const DeviceParams &params, const InitData &init_data)
-{
-  Pos pos  = getPos(params, i, j);
-  real_t x = pos[IX];
-  real_t y = pos[IY];
+struct InitC91 : public InitFormula {
+  void init(Array Q, const Params &full_params)
+  {
+    auto params = full_params.device_params;
+    InitData init_data{full_params};
 
-  real_t T   = (1.0 + params.theta1 * y);
-  real_t rho = pow(T, params.m1);
-  real_t prs = pow(T, params.m1 + 1.0);
+    Kokkos::parallel_for(
+      "Initialization",
+      full_params.range_dom,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        Pos pos  = getPos(params, i, j);
+        real_t x = pos[IX];
+        real_t y = pos[IY];
 
-  auto generator = init_data.random_pool.get_state();
-  real_t pert    = params.c91_pert * (generator.drand(-0.5, 0.5));
-  init_data.random_pool.free_state(generator);
+        real_t T   = (1.0 + params.theta1 * y);
+        real_t rho = pow(T, params.m1);
+        real_t prs = pow(T, params.m1 + 1.0);
 
-  prs = prs * (1.0 + pert);
+        auto generator = init_data.random_pool.get_state();
+        real_t pert    = params.c91_pert * (generator.drand(-0.5, 0.5));
+        init_data.random_pool.free_state(generator);
 
-  Q(j, i, IR) = rho;
-  Q(j, i, IU) = 0.0;
-  Q(j, i, IV) = 0.0;
-  Q(j, i, IP) = prs;
-}
+        prs = prs * (1.0 + pert);
+
+        Q(j, i, IR) = rho;
+        Q(j, i, IU) = 0.0;
+        Q(j, i, IV) = 0.0;
+        Q(j, i, IP) = prs;
+      });
+  }
+};
 
 } // namespace fv2d

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../InitFormula.h"
+#include "../InitFactory.h"
 
 namespace fv2d
 {
@@ -42,5 +42,7 @@ struct InitKelvinHelmholtz : public InitFormula
       });
   }
 };
+
+REGISTER_INIT(InitKelvinHelmholtz, kelvin_helmholtz)
 
 } // namespace fv2d

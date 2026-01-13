@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../InitFormula.h"
+#include "../InitFactory.h"
 
 namespace fv2d
 {
@@ -58,5 +58,7 @@ struct InitGreshoVortex : public InitFormula
       });
   }
 };
+
+REGISTER_INIT(InitGreshoVortex, gresho_vortex)
 
 } // namespace fv2d

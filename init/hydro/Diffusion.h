@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../InitFormula.h"
+#include "../InitFactory.h"
 
 namespace fv2d
 {
@@ -40,5 +40,7 @@ struct InitDiffusion : public InitFormula
       });
   }
 };
+
+REGISTER_INIT(InitDiffusion, diffusion)
 
 } // namespace fv2d

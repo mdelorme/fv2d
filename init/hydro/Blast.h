@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../InitFormula.h"
+#include "../InitFactory.h"
 
 namespace fv2d
 {
@@ -46,5 +46,7 @@ struct InitBlast : public InitFormula {
       });
   }
 };
+
+REGISTER_INIT(InitBlast, blast)
 
 } // namespace fv2d

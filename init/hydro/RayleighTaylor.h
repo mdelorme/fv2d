@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../InitFormula.h"
+#include "../InitFactory.h"
 
 namespace fv2d
 {
@@ -45,5 +45,7 @@ struct InitRayleighTaylor : public InitFormula
       });
   }
 };
+
+REGISTER_INIT(InitRayleighTaylor, rayleigh_taylor)
 
 } // namespace fv2d

@@ -11,6 +11,6 @@ include_directories(external/inih)
 
 
 add_executable(fv2d
-  main.cpp)
+  src/main.cpp)
 
 target_link_libraries(fv2d PRIVATE HighFive Kokkos::kokkos)

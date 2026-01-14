@@ -28,7 +28,7 @@ struct InitFactory
    * @param formula_name name of the formula to store in the map
    */
   template <typename Formula>
-  static bool registerFormula(std::string formula_name)
+  static bool registerFormula(const std::string &formula_name)
   {
     if (formulae.count(formula_name) != 0)
     {
@@ -43,13 +43,13 @@ struct InitFactory
    * @brief Instantiate a formula corresponding to a given name
    * @param formula_name the name of the formula to instantiate
    */
-  static std::shared_ptr<InitFormula> instantiate(std::string formula_name)
+  static std::shared_ptr<InitFormula> instantiate(const std::string &formula_name)
   {
     if (formulae.count(formula_name) == 0)
     {
       std::cerr << "Cannot find problem " << formula_name << std::endl;
       std::cerr << "Available problems : " << std::endl;
-      for (auto &f : formulae)
+      for (const auto &f : formulae)
         std::cerr << "  " << f.first << std::endl;
       return nullptr;
     }

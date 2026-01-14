@@ -16,7 +16,7 @@ namespace fv2d
 template <IDir dir>
 struct InitSod : public InitFormula
 {
-  void init(Array Q, const Params &full_params)
+  void init(Array Q, const Params &full_params) override
   {
     auto params = full_params.device_params;
     InitData init_data{full_params};

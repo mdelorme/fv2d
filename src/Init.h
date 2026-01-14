@@ -31,7 +31,7 @@ public:
 
   void init(Array Q)
   {
-    // Filling domain    
+    // Filling domain
     auto formula = InitFactory::instantiate(full_params.problem);
     formula->init(Q, full_params);
 

@@ -1,0 +1,53 @@
+#pragma once
+
+#include "../InitFactory.h"
+
+namespace fv2d
+{
+
+/**
+ * @brief Sedov blast initial conditions
+ */
+struct InitBlast : public InitFormula
+{
+  void init(Array Q, const Params &full_params)
+  {
+    auto params = full_params.device_params;
+    InitData init_data{full_params};
+
+    Kokkos::parallel_for(
+        "Initialization",
+        full_params.range_dom,
+        KOKKOS_LAMBDA(const int i, const int j) {
+          real_t xmid = 0.5 * (params.xmin + params.xmax);
+          real_t ymid = 0.5 * (params.ymin + params.ymax);
+
+          Pos pos  = getPos(params, i, j);
+          real_t x = pos[IX];
+          real_t y = pos[IY];
+
+          real_t xr = xmid - x;
+          real_t yr = ymid - y;
+          real_t r  = sqrt(xr * xr + yr * yr);
+
+          if (r < 0.2)
+          {
+            Q(j, i, IR) = 1.0;
+            Q(j, i, IU) = 0.0;
+            Q(j, i, IV) = 0.0;
+            Q(j, i, IP) = 10.0;
+          }
+          else
+          {
+            Q(j, i, IR) = 1.2;
+            Q(j, i, IU) = 0.0;
+            Q(j, i, IV) = 0.0;
+            Q(j, i, IP) = 0.1;
+          }
+        });
+  }
+};
+
+REGISTER_INIT(InitBlast, blast)
+
+} // namespace fv2d

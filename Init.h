@@ -2,11 +2,15 @@
 
 #include <fstream>
 #include <Kokkos_Random.hpp>
+#include <highfive/H5Easy.hpp>
 
 #include "SimInfo.h"
 #include "BoundaryConditions.h"
 
-namespace fv2d {
+using namespace H5Easy;
+
+namespace fv2d
+{
 
 namespace {
 
@@ -29,22 +33,127 @@ namespace {
     }
   }
 
-  /**
-   * @brief Sod Shock tube aligned along the Y axis
-   */
-  KOKKOS_INLINE_FUNCTION
-  void initSodY(Array Q, int i, int j, const DeviceParams &params) {
-    if (getPos(params, i, j)[IY] <= 0.5) {
-      Q(j, i, IR) = 1.0;
-      Q(j, i, IP) = 1.0;
-      Q(j, i, IU) = 0.0;
-    }
-    else {
-      Q(j, i, IR) = 0.125;
-      Q(j, i, IP) = 0.1;
-      Q(j, i, IU) = 0.0;
+struct Profile {
+  std::vector<real_t> y, rho, u, v, p;
+};
+
+/**
+ * @brief Loads a profile from a txt file
+ */
+Profile loadProfileFromTxt(const std::string &filename) {
+  Profile profile;
+  std::ifstream f_in(filename);
+
+  while (f_in.good()) {
+    real_t y_, rho_, u_, v_, p_;
+    f_in >> y_ >> rho_ >> u_ >> v_ >> p_;
+    if (f_in.good()) {
+      profile.y.push_back(y_);
+      profile.rho.push_back(rho_);
+      profile.u.push_back(u_);
+      profile.v.push_back(v_);
+      profile.p.push_back(p_);
     }
   }
+  f_in.close();
+
+  return profile;
+}
+
+/**
+ * @brief Loads a profile from a hdf5 file
+ */
+Profile loadProfileFromHDF5(const std::string &filename) {
+  Profile profile;
+  File file(filename, File::ReadOnly);
+
+  using Table = std::vector<real_t>;
+  
+  profile.y   = load<Table>(file, "y");
+  profile.rho = load<Table>(file, "rho");
+  profile.u   = load<Table>(file, "u");
+  profile.v   = load<Table>(file, "v");
+  profile.p   = load<Table>(file, "p");
+
+  return profile;
+}
+
+/**
+ * @brief Reading a spline from the disk
+ **/
+  void initProfile(Array Q, const Params &full_params) {
+  // Reading input file
+  auto &params = full_params.device_params;
+  std::string filename = full_params.init_filename;
+  
+  Profile p;
+  if (filename.ends_with("txt"))
+    p = loadProfileFromTxt(filename);
+  else if (filename.ends_with("h5"))
+    p = loadProfileFromHDF5(filename);
+
+  // Copying profile on GPU
+  size_t N = p.y.size();
+  Kokkos::View<real_t**> profile("profile", N, 5);
+  auto profile_host = Kokkos::create_mirror_view(profile);
+
+  std::cout << "Profile read from " << filename << " has " << N << " points" << std::endl;
+
+  for (size_t i=0; i < N; ++i) {
+    profile_host(i, 0) = p.y[i];
+    profile_host(i, 1) = p.rho[i];
+    profile_host(i, 2) = p.u[i];
+    profile_host(i, 3) = p.v[i];
+    profile_host(i, 4) = p.p[i];
+  }
+
+  Kokkos::deep_copy(profile, profile_host);
+
+  // Initializing domain
+  Kokkos::parallel_for("Initialization from profile",
+                        full_params.range_dom,
+                        KOKKOS_LAMBDA(const int i, const int j) {
+                        auto pos = getPos(params, i, j);
+                        real_t y = pos[IY];
+                  
+                        // Finding current cell position in profile.
+                        // Could be optimized if dy in the profile is fixed
+                        int iy = 0;
+                        real_t prof_y = profile(iy, 0);
+                        constexpr real_t eps = 1.0e-5;
+                        while (prof_y-eps < y && Kokkos::abs(prof_y - y) > eps) {
+                          iy++;
+                          prof_y = profile(iy, 0);
+                        }
+                  
+                        // Linear interpolation
+                        real_t fy = (y - profile(iy-1, 0)) / (profile(iy, 0) - profile(iy-1, 0));
+                        for (int ivar=1; ivar < 5; ++ivar)
+                          Q(j, i, ivar-1) = profile(iy-1, ivar) * (1.0 - fy) + profile(iy, ivar) * fy;
+                      
+                        // Todo : Edge case extrapolation
+                        });
+}
+
+/**
+ * @brief Sod Shock tube aligned along the Y axis
+ */
+KOKKOS_INLINE_FUNCTION
+void initSodY(Array Q, int i, int j, const DeviceParams &params)
+{
+  if (getPos(params, i, j)[IY] <= 0.5)
+  {
+    Q(j, i, IR) = 1.0;
+    Q(j, i, IP) = 1.0;
+    Q(j, i, IU) = 0.0;
+  }
+  else
+  {
+    Q(j, i, IR) = 0.125;
+    Q(j, i, IP) = 0.1;
+    Q(j, i, IU) = 0.0;
+  } 
+}
 
   /**
    * @brief Sedov blast initial conditions
@@ -348,29 +457,29 @@ namespace {
     Q(j, i, IP) = p;
   }
 
-  KOKKOS_INLINE_FUNCTION
-  void initCartesianStar(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
-    // TODO -- setup to read an input profile in hydrostatic balance prepared from 
-    // a stellar structure model. 
+  // KOKKOS_INLINE_FUNCTION
+  // void initCartesianStar(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
+  //   // TODO -- setup to read an input profile in hydrostatic balance prepared from 
+  //   // a stellar structure model. 
 
-    // Structure profiles
-    const real_t p_ref = params.prs_profile[j]; // not sure if j is the X or Y coordinate
-    real_t rho = params.rho_profile[j];
-    real_t T = = params.T_profile[j]; // is it needed ???
-    // I imagine the conductivity profiles will also be needed.
+  //   // Structure profiles
+  //   const real_t p_ref = params.prs_profile[j]; // not sure if j is the X or Y coordinate
+  //   real_t rho = params.rho_profile[j];
+  //   real_t T = = params.T_profile[j]; // is it needed ???
+  //   // I imagine the conductivity profiles will also be needed.
 
-    // We add a pressure perturbation
-    // to start convection in unstable layers
-    auto generator = random_pool.get_state();
-    real_t pert = params.pressure_pert * generator.drand(-0.5, 0.5);
-    random_pool.free_state(generator);
-    real_t p = p_ref * (1.0 + pert);
+  //   // We add a pressure perturbation
+  //   // to start convection in unstable layers
+  //   auto generator = random_pool.get_state();
+  //   real_t pert = params.pressure_pert * generator.drand(-0.5, 0.5);
+  //   random_pool.free_state(generator);
+  //   real_t p = p_ref * (1.0 + pert);
     
-    Q(j, i, IR) = rho;
-    Q(j, i, IU) = 0.0;
-    Q(j, i, IV) = 0.0;
-    Q(j, i, IP) = p;
-  }
+  //   Q(j, i, IR) = rho;
+  //   Q(j, i, IU) = 0.0;
+  //   Q(j, i, IV) = 0.0;
+  //   Q(j, i, IP) = p;
+  // }
 }
 
 /**

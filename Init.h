@@ -347,10 +347,31 @@ namespace {
     Q(j, i, IV) = 0.0;
     Q(j, i, IP) = p;
   }
+
+  KOKKOS_INLINE_FUNCTION
+  void initCartesianStar(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
+    // TODO -- setup to read an input profile in hydrostatic balance prepared from 
+    // a stellar structure model. 
+
+    // Structure profiles
+    const real_t p_ref = params.prs_profile[j]; // not sure if j is the X or Y coordinate
+    real_t rho = params.rho_profile[j];
+    real_t T = = params.T_profile[j]; // is it needed ???
+    // I imagine the conductivity profiles will also be needed.
+
+    // We add a pressure perturbation
+    // to start convection in unstable layers
+    auto generator = random_pool.get_state();
+    real_t pert = params.pressure_pert * generator.drand(-0.5, 0.5);
+    random_pool.free_state(generator);
+    real_t p = p_ref * (1.0 + pert);
+    
+    Q(j, i, IR) = rho;
+    Q(j, i, IU) = 0.0;
+    Q(j, i, IV) = 0.0;
+    Q(j, i, IP) = p;
+  }
 }
-
-
-
 
 /**
  * @brief Enum describing the type of initialization possible

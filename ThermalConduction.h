@@ -5,6 +5,7 @@
 namespace fv2d {
 
 KOKKOS_INLINE_FUNCTION
+// Add case TCM_PROFILE + read profile from hdf5
 real_t computeKappa(int i, int j, const DeviceParams &params) {
   real_t res;
   switch (params.thermal_conductivity_mode) {

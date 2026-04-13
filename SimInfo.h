@@ -6,6 +6,9 @@
 #include <functional>
 #include "INIReader.h"
 #include <Kokkos_Core.hpp>
+#include <highfive/highfive.hpp>
+
+using namespace HighFive;
 
 namespace fv2d {
 
@@ -77,6 +80,7 @@ enum ThermalConductivityMode {
   TCM_B02,
   TCM_C2020_TRI,
   TCM_ISO3
+  // Add TCM_PROFILE case
 };
 
 enum HeatingMode {
@@ -105,9 +109,15 @@ struct DeviceParams {
   
   // Gravity
   bool gravity = false;
-  real_t g;
+  real_t g; // gravity as a float
+  real_t g_profile; // gravity as an array
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
+
+  // Structure profiles 
+  real_t prs_profile;
+  real_t rho_profile;
+  real_t T_profile;
   
   // Thermal conductivity
   bool thermal_conductivity_active;
@@ -321,6 +331,18 @@ struct DeviceParams {
     iso3_m2     = reader.GetFloat("iso_three_layer", "m2", 1.0);
     iso3_T0     = reader.GetFloat("iso_three_layer", "T0", 1.0);
     iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
+
+    // Profile inputs
+    std::string data_path = reader.Get("physics", "profiles_data", "profiles.h5");
+    if (reader.Get("physics", "problem", "unknown") == "cartesian_star") {
+      // TODO - 
+      // (a check against each profile length should be performed
+      // to be sure it matches Ny)
+      rho_profile  = GetProfile(data_path, "structure", "density");
+      prs_profile  = GetProfile(data_path, "structure", "pressure");
+      g_profile  = GetProfile(data_path, "structure", "gravity");
+      T_profile  = GetProfile(data_path, "structure", "temperature");
+    }
   }
 };
 
@@ -398,6 +420,15 @@ struct Params {
     registerValue(section, name, res);
     return res;
   }
+
+  real_t GetProfile(std::string filename, std::string group, std::string data){
+    // Read structure profile from a HDF5 file.
+    File file(filename, File::ReadOnly);
+    auto dataset = file.getDataSet(group + "/" + data);
+    real_t res = dataset.read<std::vector<real_t>>();
+    return res;
+  }
+
   std::string Get(std::string section, std::string name, std::string default_value){
     std::string res = this->reader.Get(section, name, default_value);
     registerValue(section, name, res);

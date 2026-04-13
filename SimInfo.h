@@ -7,6 +7,7 @@
 #include "INIReader.h"
 #include <Kokkos_Core.hpp>
 #include <highfive/highfive.hpp>
+#include <highfive/H5Easy.hpp>
 
 using namespace HighFive;
 
@@ -36,6 +37,17 @@ using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 struct RestartInfo {
   real_t time;
   int iteration;
+};
+
+/**
+ * @brief Total profile for a Cartesian stellar simulation
+ */
+struct Profile {
+  Kokkos::View<real_t*> y, rho, u, v, p, kappa, gy;
+};
+
+struct HostProfile {
+  std::vector<real_t> y, rho, u, v, p, kappa, gy;
 };
 
 enum IDir : uint8_t {
@@ -102,6 +114,64 @@ enum ViscosityMode {
   VSC_CONSTANT
 };
 
+enum GravityMode {
+  GRAV_NONE,
+  GRAV_CONSTANT,
+  GRAV_ANALYTICAL,
+  GRAV_PROFILE
+};
+
+enum AnalyticalGravityMode {
+  AGM_HOT_BUBBLE
+};
+
+/**
+ * @brief Total profile for a Cartesian stellar simulation
+ */
+struct Profile {
+  size_t N;
+  Kokkos::View<real_t*> y, rho, u, v, p, kappa, gy;
+};
+
+struct HostProfile {
+  std::vector<real_t> y, rho, u, v, p, kappa, gy;
+};
+
+Profile readProfileFromHDF5(std::string filename) {
+  Profile profile;
+
+  using namespace H5Easy;
+  
+  File file(filename, File::ReadOnly);
+
+  using Table = std::vector<real_t>;
+  using KTable = Kokkos::View<real_t*>;
+
+
+  auto readField = [&](std::string fieldname, KTable dest) -> void {
+    Table t = load<Table>(file, fieldname);
+    dest = KTable(fieldname, t.size());
+
+    auto host_table = Kokkos::create_mirror_view(dest);
+    for (size_t i=0; i<t.size(); ++i)
+      host_table(i) = t[i];
+    
+    Kokkos::deep_copy(dest, host_table);
+  };
+
+  readField("y",     profile.y);
+  readField("rho",   profile.rho);
+  readField("u",     profile.u);
+  readField("v",     profile.v);
+  readField("p",     profile.p);
+  readField("kappa", profile.kappa);
+  readField("gy",    profile.gy);
+
+  profile.N = profile.y.extent(0);
+
+  return profile;
+}
+
 // All parameters that should be copied on the device
 struct DeviceParams { 
   // Thermodynamics
@@ -110,14 +180,11 @@ struct DeviceParams {
   // Gravity
   bool gravity = false;
   real_t g; // gravity as a float
-  real_t g_profile; // gravity as an array
   bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
 
   // Structure profiles 
-  real_t prs_profile;
-  real_t rho_profile;
-  real_t T_profile;
+  Profile profile;
   
   // Thermal conductivity
   bool thermal_conductivity_active;
@@ -333,15 +400,9 @@ struct DeviceParams {
     iso3_rho0   = reader.GetFloat("iso_three_layer", "rho0", 1.0);
 
     // Profile inputs
-    std::string data_path = reader.Get("physics", "profiles_data", "profiles.h5");
     if (reader.Get("physics", "problem", "unknown") == "cartesian_star") {
-      // TODO - 
-      // (a check against each profile length should be performed
-      // to be sure it matches Ny)
-      rho_profile  = GetProfile(data_path, "structure", "density");
-      prs_profile  = GetProfile(data_path, "structure", "pressure");
-      g_profile  = GetProfile(data_path, "structure", "gravity");
-      T_profile  = GetProfile(data_path, "structure", "temperature");
+      std::string init_filename = reader.Get("run", "init_filename", "");
+      profile = readProfileFromHDF5(init_filename);    
     }
   }
 };
@@ -366,6 +427,7 @@ struct Params {
 
   // Run
   std::string problem;
+  std::string init_filename;
 
   // All the physics
   DeviceParams device_params;
@@ -421,13 +483,13 @@ struct Params {
     return res;
   }
 
-  real_t GetProfile(std::string filename, std::string group, std::string data){
-    // Read structure profile from a HDF5 file.
-    File file(filename, File::ReadOnly);
-    auto dataset = file.getDataSet(group + "/" + data);
-    real_t res = dataset.read<std::vector<real_t>>();
-    return res;
-  }
+  // real_t GetProfile(std::string filename, std::string group, std::string data){
+  //   // Read structure profile from a HDF5 file.
+  //   File file(filename, File::ReadOnly);
+  //   auto dataset = file.getDataSet(group + "/" + data);
+  //   real_t res = dataset.read<std::vector<real_t>>();
+  //   return res;
+  // }
 
   std::string Get(std::string section, std::string name, std::string default_value){
     std::string res = this->reader.Get(section, name, default_value);
@@ -579,6 +641,39 @@ Params readInifile(std::string filename) {
 
   return res;
 } 
+
+Profile readProfileFromHDF5(std::string filename) {
+  Profile profile;
+
+  using namespace H5Easy;
+  
+  File file(filename, File::ReadOnly);
+
+  using Table = std::vector<real_t>;
+  using KTable = Kokkos::View<real_t*>;
+
+
+  auto readField = [&](std::string fieldname, KTable dest) -> void {
+    Table t = load<Table>(file, fieldname);
+    dest = KTable(fieldname, t.size());
+
+    auto host_table = Kokkos::create_mirror_view(dest);
+    for (size_t i=0; i<t.size(); ++i)
+      host_table(i) = t[i];
+    
+    Kokkos::deep_copy(dest, host_table);
+  };
+
+  readField("y",     profile.y);
+  readField("rho",   profile.rho);
+  readField("u",     profile.u);
+  readField("v",     profile.v);
+  readField("p",     profile.p);
+  readField("kappa", profile.kappa);
+  readField("gy",    profile.gy);
+
+  return profile;
+}
 
 }
 

@@ -33,15 +33,11 @@ namespace {
     }
   }
 
-struct Profile {
-  std::vector<real_t> y, rho, u, v, p;
-};
-
 /**
  * @brief Loads a profile from a txt file
  */
-Profile loadProfileFromTxt(const std::string &filename) {
-  Profile profile;
+HostProfile loadProfileFromTxt(const std::string &filename) {
+  HostProfile profile;
   std::ifstream f_in(filename);
 
   while (f_in.good()) {
@@ -63,8 +59,8 @@ Profile loadProfileFromTxt(const std::string &filename) {
 /**
  * @brief Loads a profile from a hdf5 file
  */
-Profile loadProfileFromHDF5(const std::string &filename) {
-  Profile profile;
+HostProfile loadProfileFromHDF5(const std::string &filename) {
+  HostProfile profile;
   File file(filename, File::ReadOnly);
 
   using Table = std::vector<real_t>;
@@ -86,7 +82,7 @@ Profile loadProfileFromHDF5(const std::string &filename) {
   auto &params = full_params.device_params;
   std::string filename = full_params.init_filename;
   
-  Profile p;
+  HostProfile p;
   if (filename.ends_with("txt"))
     p = loadProfileFromTxt(filename);
   else if (filename.ends_with("h5"))
@@ -497,6 +493,8 @@ enum InitType {
   TRI_LAYER,
   TRI_LAYER_SMOOTH,
   ISOTHERMAL_TRIPLE,
+  PROFILE,
+  CARTESIAN_STAR
 };
 
 struct InitFunctor {
@@ -516,7 +514,9 @@ public:
       {"C91", C91},
       {"tri-layer", TRI_LAYER},
       {"tri-layer-smooth", TRI_LAYER_SMOOTH},
-      {"iso-thermal-triple", ISOTHERMAL_TRIPLE}
+      {"iso-thermal-triple", ISOTHERMAL_TRIPLE},
+      {"profile", PROFILE},
+      {"cartesian_star", CARTESIAN_STAR},
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -551,6 +551,11 @@ public:
                               default: break;
                             }
                           });
+
+    
+    // If filling is via a spline
+    if (init_type == PROFILE || init_type == CARTESIAN_STAR)
+      initProfile(Q, full_params);
 
     // ... and boundaries
     BoundaryManager bc(full_params);

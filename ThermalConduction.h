@@ -49,6 +49,11 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
       const real_t tr2 = (tanh(params.ymax-H)/params.c20_tr_thick) + 1.0) * 0.5;
       res = params.kappa * (params.c20_K1*(1.0-tr1*tr2) + params.c20_K2*(tr1*tr2));
     }*/
+
+    /** 
+     * @todo rajouter un TCM_CARTESIAN_STAR qui lit depuis params.profile.kappa[iy];  
+     * 
+    */
     default:
       res = params.kappa;
   }

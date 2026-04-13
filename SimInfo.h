@@ -80,8 +80,8 @@ enum ThermalConductivityMode {
   TCM_CONSTANT,
   TCM_B02,
   TCM_C2020_TRI,
-  TCM_ISO3
-  // Add TCM_PROFILE case
+  TCM_ISO3,
+  TCM_PROFILE,
 };
 
 enum HeatingMode {
@@ -148,13 +148,13 @@ Profile readProfileFromHDF5(std::string filename) {
     Kokkos::deep_copy(dest, host_table);
   };
 
-  readField("y",     profile.y);
-  readField("rho",   profile.rho);
-  readField("u",     profile.u);
-  readField("v",     profile.v);
-  readField("p",     profile.p);
-  readField("kappa", profile.kappa);
-  readField("gy",    profile.gy);
+  readField("y",       profile.y);
+  readField("rho",     profile.rho);
+  readField("u",       profile.u);
+  readField("v",       profile.v);
+  readField("p",       profile.p);
+  readField("kappa_rad",   profile.kappa);
+  readField("gravity", profile.gy);
 
   profile.N = profile.y.extent(0);
 
@@ -487,14 +487,6 @@ struct Params {
     registerValue(section, name, res);
     return res;
   }
-
-  // real_t GetProfile(std::string filename, std::string group, std::string data){
-  //   // Read structure profile from a HDF5 file.
-  //   File file(filename, File::ReadOnly);
-  //   auto dataset = file.getDataSet(group + "/" + data);
-  //   real_t res = dataset.read<std::vector<real_t>>();
-  //   return res;
-  // }
 
   std::string Get(std::string section, std::string name, std::string default_value){
     std::string res = this->reader.Get(section, name, default_value);

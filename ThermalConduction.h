@@ -37,23 +37,12 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
       const real_t tr = tr1*tr2;
       res = params.kappa * (params.iso3_k2 * (1.0-tr) + params.iso3_k1 * tr);
       break;
-      // const real_t tr = (tanh((y-y2)/th) + 1.0) * 0.5;
-      // res = params.kappa * (params.iso3_k1 * (1.0-tr) + params.iso3_k2 * tr);
-      // break;
     }
-    /*case TCM_C20_STABLE:
+    case TCM_PROFILE:
     {
-      const real_t y = getPos(params, i, j)[IY];
-      const real_t H = params.c20_H;
-      const real_t tr1 = (tanh(y-H)/params.c20_tr_thick) + 1.0) * 0.5;
-      const real_t tr2 = (tanh(params.ymax-H)/params.c20_tr_thick) + 1.0) * 0.5;
-      res = params.kappa * (params.c20_K1*(1.0-tr1*tr2) + params.c20_K2*(tr1*tr2));
-    }*/
-
-    /** 
-     * @todo rajouter un TCM_CARTESIAN_STAR qui lit depuis params.profile.kappa[iy];  
-     * 
-    */
+      res = params.profile.kappa[j];
+      break;
+    }
     default:
       res = params.kappa;
   }

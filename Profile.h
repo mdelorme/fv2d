@@ -2,6 +2,8 @@
 
 #include <Kokkos_Core.hpp>
 
+#include <fstream>
+
 namespace fv2d {
 
 class Profile {
@@ -68,6 +70,24 @@ private:
 
     // Pushing to device
     Kokkos::deep_copy(values, values_host);
+
+    // Outputting fields if required
+    auto f_out = std::ofstream("profile_table.txt");
+
+    // Printing field names
+    f_out << "#";
+    for (auto &f: field_names)
+      f_out << f << " ";
+    f_out << std::endl;
+
+    const size_t nv = field_names.size();
+    for (size_t i=0; i < N; ++i) {
+      for (size_t v=0; v < nv; ++v) 
+        f_out << values_host(i, v) << " ";
+      f_out << std::endl;
+    }
+    f_out.close();
+
   }
 
 public:

@@ -71,6 +71,8 @@ HostProfile loadProfileFromHDF5(const std::string &filename) {
   profile.v   = load<Table>(file, "v");
   profile.p   = load<Table>(file, "p");
 
+  std::cout << "Loading profile from HDF5 file." << std::endl;
+
   return profile;
 }
 
@@ -83,6 +85,7 @@ HostProfile loadProfileFromHDF5(const std::string &filename) {
   std::string filename = full_params.init_filename;
   
   HostProfile p;
+  std::cout << "Attempting to load data from" << filename << std::endl;
   if (filename.ends_with("txt"))
     p = loadProfileFromTxt(filename);
   else if (filename.ends_with("h5"))
@@ -93,7 +96,7 @@ HostProfile loadProfileFromHDF5(const std::string &filename) {
   Kokkos::View<real_t**> profile("profile", N, 5);
   auto profile_host = Kokkos::create_mirror_view(profile);
 
-  std::cout << "Profile read from " << filename << " has " << N << " points" << std::endl;
+  std::cout << "Profile read (Init.h) from " << filename << " has " << N << " points" << std::endl;
 
   for (size_t i=0; i < N; ++i) {
     profile_host(i, 0) = p.y[i];

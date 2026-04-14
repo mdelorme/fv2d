@@ -136,7 +136,6 @@ Profile readProfileFromHDF5(std::string filename) {
   using Table = std::vector<real_t>;
   using KTable = Kokkos::View<real_t*>;
 
-
   auto readField = [&](std::string fieldname, KTable dest) -> void {
     Table t = load<Table>(file, fieldname);
     dest = KTable(fieldname, t.size());
@@ -148,15 +147,16 @@ Profile readProfileFromHDF5(std::string filename) {
     Kokkos::deep_copy(dest, host_table);
   };
 
-  readField("y",       profile.y);
-  readField("rho",     profile.rho);
-  readField("u",       profile.u);
-  readField("v",       profile.v);
-  readField("p",       profile.p);
+  readField("y",           profile.y);
+  readField("rho",         profile.rho);
+  readField("u",           profile.u);
+  readField("v",           profile.v);
+  readField("p",           profile.p);
   readField("kappa_rad",   profile.kappa);
-  readField("gravity", profile.gy);
+  readField("gravity",     profile.gy);
 
   profile.N = profile.y.extent(0);
+  std::cout << "Profile read (SimInfo.h) from " << filename << " has " << profile.N << " points" << std::endl;
 
   return profile;
 }

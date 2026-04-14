@@ -344,11 +344,11 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params)
 
   KOKKOS_INLINE_FUNCTION
   void initProfile(Array Q, int i, int j, const DeviceParams &params) {
-    Pos pos = getPos(params, i, j);
-    Q(j, i, IR) = params.profile.at(j, Profile::IRHO); 
-    Q(j, i, IU) = params.profile.at(j, Profile::IU);
-    Q(j, i, IV) = params.profile.at(j, Profile::IV);
-    Q(j, i, IP) = params.profile.at(j, Profile::IP);
+    int prof_j = j - params.Ng;
+    Q(j, i, IR) = params.profile.at(prof_j, Profile::IRHO); 
+    Q(j, i, IU) = params.profile.at(prof_j, Profile::IU);
+    Q(j, i, IV) = params.profile.at(prof_j, Profile::IV);
+    Q(j, i, IP) = params.profile.at(prof_j, Profile::IP);
   }
 }
 

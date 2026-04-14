@@ -34,6 +34,13 @@ using State = Kokkos::Array<real_t, Nfields>;
 using Array = Kokkos::View<real_t***>;
 using ParallelRange = Kokkos::MDRangePolicy<Kokkos::Rank<2>>;
 
+}
+
+// Profiles operation
+#include "Profile.h"
+
+namespace fv2d {
+
 struct RestartInfo {
   real_t time;
   int iteration;
@@ -114,52 +121,9 @@ enum AnalyticalGravityMode {
   AGM_HOT_BUBBLE
 };
 
-/**
- * @brief Total profile for a Cartesian stellar simulation
- */
-struct Profile {
-  size_t N;
-  Kokkos::View<real_t*> y, rho, u, v, p, kappa, gy;
-};
-
 struct HostProfile {
   std::vector<real_t> y, rho, u, v, p, kappa, gy;
 };
-
-Profile readProfileFromHDF5(std::string filename) {
-  Profile profile;
-
-  using namespace H5Easy;
-  
-  File file(filename, File::ReadOnly);
-
-  using Table = std::vector<real_t>;
-  using KTable = Kokkos::View<real_t*>;
-
-  auto readField = [&](std::string fieldname, KTable dest) -> void {
-    Table t = load<Table>(file, fieldname);
-    dest = KTable(fieldname, t.size());
-
-    auto host_table = Kokkos::create_mirror_view(dest);
-    for (size_t i=0; i<t.size(); ++i)
-      host_table(i) = t[i];
-    
-    Kokkos::deep_copy(dest, host_table);
-  };
-
-  readField("y",           profile.y);
-  readField("rho",         profile.rho);
-  readField("u",           profile.u);
-  readField("v",           profile.v);
-  readField("p",           profile.p);
-  readField("kappa_rad",   profile.kappa);
-  readField("gravity",     profile.gy);
-
-  profile.N = profile.y.extent(0);
-  std::cout << "Profile read (SimInfo.h) from " << filename << " has " << profile.N << " points" << std::endl;
-
-  return profile;
-}
 
 // All parameters that should be copied on the device
 struct DeviceParams { 
@@ -407,7 +371,7 @@ struct DeviceParams {
     // Profile inputs
     if (reader.Get("physics", "problem", "unknown") == "cartesian_star") {
       std::string init_filename = reader.Get("run", "init_filename", "");
-      profile = readProfileFromHDF5(init_filename);
+      profile.readFromFile(init_filename);
     }
   }
 };
@@ -638,7 +602,6 @@ Params readInifile(std::string filename) {
 } 
 
 }
-
 
 // All states operations
 #include "States.h"

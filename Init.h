@@ -77,64 +77,6 @@ HostProfile loadProfileFromHDF5(const std::string &filename) {
 }
 
 /**
- * @brief Reading a spline from the disk
- **/
-  void initProfile(Array Q, const Params &full_params) {
-  // Reading input file
-  auto &params = full_params.device_params;
-  std::string filename = full_params.init_filename;
-  
-  HostProfile p;
-  std::cout << "Attempting to load data from" << filename << std::endl;
-  if (filename.ends_with("txt"))
-    p = loadProfileFromTxt(filename);
-  else if (filename.ends_with("h5"))
-    p = loadProfileFromHDF5(filename);
-
-  // Copying profile on GPU
-  size_t N = p.y.size();
-  Kokkos::View<real_t**> profile("profile", N, 5);
-  auto profile_host = Kokkos::create_mirror_view(profile);
-
-  std::cout << "Profile read (Init.h) from " << filename << " has " << N << " points" << std::endl;
-
-  for (size_t i=0; i < N; ++i) {
-    profile_host(i, 0) = p.y[i];
-    profile_host(i, 1) = p.rho[i];
-    profile_host(i, 2) = p.u[i];
-    profile_host(i, 3) = p.v[i];
-    profile_host(i, 4) = p.p[i];
-  }
-
-  Kokkos::deep_copy(profile, profile_host);
-
-  // Initializing domain
-  Kokkos::parallel_for("Initialization from profile",
-                        full_params.range_dom,
-                        KOKKOS_LAMBDA(const int i, const int j) {
-                        auto pos = getPos(params, i, j);
-                        real_t y = pos[IY];
-                  
-                        // Finding current cell position in profile.
-                        // Could be optimized if dy in the profile is fixed
-                        int iy = 0;
-                        real_t prof_y = profile(iy, 0);
-                        constexpr real_t eps = 1.0e-5;
-                        while (prof_y-eps < y && Kokkos::abs(prof_y - y) > eps) {
-                          iy++;
-                          prof_y = profile(iy, 0);
-                        }
-                  
-                        // Linear interpolation
-                        real_t fy = (y - profile(iy-1, 0)) / (profile(iy, 0) - profile(iy-1, 0));
-                        for (int ivar=1; ivar < 5; ++ivar)
-                          Q(j, i, ivar-1) = profile(iy-1, ivar) * (1.0 - fy) + profile(iy, ivar) * fy;
-                      
-                        // Todo : Edge case extrapolation
-                        });
-}
-
-/**
  * @brief Sod Shock tube aligned along the Y axis
  */
 KOKKOS_INLINE_FUNCTION
@@ -400,6 +342,14 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params)
     }
   }
 
+  KOKKOS_INLINE_FUNCTION
+  void initProfile(Array Q, int i, int j, const DeviceParams &params) {
+    Pos pos = getPos(params, i, j);
+    Q(j, i, IR) = params.profile.at(j, Profile::IRHO); 
+    Q(j, i, IU) = params.profile.at(j, Profile::IU);
+    Q(j, i, IV) = params.profile.at(j, Profile::IV);
+    Q(j, i, IP) = params.profile.at(j, Profile::IP);
+  }
 }
 
 /**
@@ -439,7 +389,7 @@ public:
       {"tri-layer", TRI_LAYER},
       {"tri-layer-smooth", TRI_LAYER_SMOOTH},
       {"profile", PROFILE},
-      {"cartesian_star", CARTESIAN_STAR},
+      {"cartesian_star", CARTESIAN_STAR}, 
     };
 
     if (init_map.count(full_params.problem) == 0)
@@ -469,15 +419,12 @@ public:
                               case C91:              initC91(Q, i, j, params, random_pool); break;
                               case TRI_LAYER:        initTriLayer(Q, i, j, params, random_pool); break;
                               case TRI_LAYER_SMOOTH: initTriLayerSmooth(Q, i, j, params, random_pool); break;
+                              case CARTESIAN_STAR:
+                              case PROFILE:          initProfile(Q, i, j, params); break;
                               case B02:             break;
                               default: break;
                             }
                           });
-
-    
-    // If filling is via a spline
-    if (init_type == PROFILE || init_type == CARTESIAN_STAR)
-      initProfile(Q, full_params);
 
     // ... and boundaries
     BoundaryManager bc(full_params);

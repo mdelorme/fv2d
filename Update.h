@@ -131,7 +131,7 @@ public:
             State qR  = reconstruct(Q, slopes, i + dxp, j + dyp, -1.0, dir, params);
 
             // Calling the right Riemann solver
-            auto riemann = [&](State qL, State qR, State &flux, real_t &pout)
+            auto riemann = [&](State qL, State qR, State &flux, real_t &pout, const real_t B_powell)
             {
 #ifdef MHD
               real_t Bx_m, psi_m;
@@ -156,7 +156,7 @@ public:
               }
               case FIVEWAVES:
               {
-                FiveWaves(qL, qR, flux, pout, params);
+                FiveWaves(qL, qR, flux, pout, params, B_powell);
                 break;
               }
               case IDEALGLM:
@@ -197,9 +197,10 @@ public:
             // Calculating flux left and right of the cell
             State fluxL, fluxR;
             real_t poutL, poutR;
-
-            riemann(qL, qCL, fluxL, poutL);
-            riemann(qCR, qR, fluxR, poutR);
+            IVar IBN        = (dir == IX ? IBX : IBY);
+            real_t B_powell = Q(j, i, IBN);
+            riemann(qL, qCL, fluxL, poutL, B_powell);
+            riemann(qCR, qR, fluxR, poutR, B_powell);
 
             fluxL = swap_component(fluxL, dir);
             fluxR = swap_component(fluxR, dir);

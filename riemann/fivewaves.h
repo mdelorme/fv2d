@@ -4,7 +4,7 @@ namespace fv2d
 {
 
 KOKKOS_INLINE_FUNCTION
-void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params)
+void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DeviceParams &params, const real_t B_powell)
 {
   const uint IZ            = 2;
   constexpr real_t epsilon = 1.0e-16;
@@ -86,9 +86,9 @@ void FiveWaves(State &qL, State &qR, State &flux, real_t &pout, const DevicePara
   flux[IE]  = u[IE] * uS + Pstar[IX] * uS + Pstar[IY] * Ustar[IY] + Pstar[IZ] * Ustar[IZ];
   if (is_low_beta || (alfven_number > alfven_max))
   {
-    flux[IBX] = u[IBX] * uS - q[IBX] * Ustar[IX];
-    flux[IBY] = u[IBY] * uS - q[IBX] * Ustar[IY];
-    flux[IBZ] = u[IBZ] * uS - q[IBX] * Ustar[IZ];
+    flux[IBX] = u[IBX] * uS - B_powell * Ustar[IX];
+    flux[IBY] = u[IBY] * uS - B_powell * Ustar[IY];
+    flux[IBZ] = u[IBZ] * uS - B_powell * Ustar[IZ];
   }
   else
   {

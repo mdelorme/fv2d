@@ -162,6 +162,10 @@ struct DeviceParams {
   real_t theta1;
   real_t m2;
   real_t theta2;
+
+  // Cartesian star
+  real_t cs_pert;
+  real_t y_cz;
   
   // H84
   real_t h84_pert;
@@ -334,6 +338,10 @@ struct DeviceParams {
     };
     heating_mode = read_map(reader, heating_map, "heating", "mode", "none");
     log_total_heating = reader.GetBoolean("misc", "log_total_heating", false);
+
+    // Cartesian star
+    cs_pert = reader.GetFloat("cartesian_star", "perturbation", 1.0e-3);
+    y_cz = reader.GetFloat("cartesian_star", "y_cz", 0);
 
     // H84
     h84_pert = reader.GetFloat("H84", "perturbation", 1.0e-4);

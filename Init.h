@@ -343,12 +343,22 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params)
   }
 
   KOKKOS_INLINE_FUNCTION
-  void initProfile(Array Q, int i, int j, const DeviceParams &params) {
+  void initProfile(Array Q, int i, int j, const DeviceParams &params, const RandomPool &random_pool) {
+
+    Pos pos = getPos(params, i, j);
+    const real_t y = pos[IY];
+    real_t pert = 0.0;
+    // Convective layer
+    if (y < params.y_cz) {
+      auto generator = random_pool.get_state();
+      pert = params.cs_pert * (generator.drand(-0.5, 0.5));
+      random_pool.free_state(generator);
+    }
     int prof_j = j - params.Ng;
     Q(j, i, IR) = params.profile.at(prof_j, Profile::IRHO); 
     Q(j, i, IU) = params.profile.at(prof_j, Profile::IU);
     Q(j, i, IV) = params.profile.at(prof_j, Profile::IV);
-    Q(j, i, IP) = params.profile.at(prof_j, Profile::IP);
+    Q(j, i, IP) = params.profile.at(prof_j, Profile::IP) * (1.0 + pert);
   }
 }
 
@@ -420,7 +430,7 @@ public:
                               case TRI_LAYER:        initTriLayer(Q, i, j, params, random_pool); break;
                               case TRI_LAYER_SMOOTH: initTriLayerSmooth(Q, i, j, params, random_pool); break;
                               case CARTESIAN_STAR:
-                              case PROFILE:          initProfile(Q, i, j, params); break;
+                              case PROFILE:          initProfile(Q, i, j, params, random_pool); break;
                               case B02:             break;
                               default: break;
                             }

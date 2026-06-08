@@ -92,6 +92,7 @@ enum ThermalConductivityMode {
 };
 
 enum HeatingMode {
+  HM_NONE,
   HM_C2020,
   HM_C2020_TRI,
   HM_COOLING_ISO,
@@ -335,6 +336,7 @@ struct DeviceParams {
     // Heating function 
     heating_active = reader.GetBoolean("heating", "active", false);
     std::map<std::string, HeatingMode> heating_map{
+      {"none", HM_NONE},
       {"C2020", HM_C2020},
       {"tri_layer", HM_C2020_TRI},
       {"isothermal_cooling", HM_COOLING_ISO}

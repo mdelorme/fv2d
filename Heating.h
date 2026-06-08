@@ -86,6 +86,7 @@ public:
         real_t q;
 
         switch(params.heating_mode) {
+          case HM_NONE: q = 0.; break;
           case HM_C2020: q = heatC2020(Q, i, j, params); break;
           case HM_C2020_TRI: q = heatC2020_tri(Q, i, j, params); break;
           case HM_COOLING_ISO: q = cooling_layer(Q, i, j, params); break;

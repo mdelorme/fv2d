@@ -78,12 +78,13 @@ public:
         real_t kappaU = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j-1, params));
         real_t kappaD = 0.5 * (computeKappa(i, j, params) + computeKappa(i, j+1, params));
 
-        // Ideal EOS with R = 1 assumed. T = P/rho
-        real_t TC = Q(j, i, IP)   / Q(j, i,   IR);
-        real_t TL = Q(j, i-1, IP) / Q(j, i-1, IR);
-        real_t TR = Q(j, i+1, IP) / Q(j, i+1, IR);
-        real_t TU = Q(j-1, i, IP) / Q(j-1, i, IR);
-        real_t TD = Q(j+1, i, IP) / Q(j+1, i, IR);
+        // Ideal EOS. T = P/(rho*R). R is the gas constant 
+        real_t R = params.gas_constant;
+        real_t TC = 1./R * Q(j, i, IP) / Q(j, i, IR);
+        real_t TL = 1./R * Q(j, i-1, IP) / Q(j, i-1, IR);
+        real_t TR = 1./R * Q(j, i+1, IP) / Q(j, i+1, IR);
+        real_t TU = 1./R * Q(j-1, i, IP) / Q(j-1, i, IR);
+        real_t TD = 1./R * Q(j+1, i, IP) / Q(j+1, i, IR);
 
         // Computing thermal flux
         real_t FL = kappaL * (TC - TL) / dx;

@@ -129,6 +129,7 @@ struct HostProfile {
 struct DeviceParams { 
   // Thermodynamics
   real_t gamma0 = 5.0/3.0;
+  real_t gas_constant;
   
   // Gravity
   GravityMode gravity_mode;
@@ -275,6 +276,7 @@ struct DeviceParams {
     // Physics
     epsilon = reader.GetFloat("misc", "epsilon", 1.0e-6);
     gamma0  = reader.GetFloat("physics", "gamma0", 5.0/3.0);
+    gas_constant = reader.GetFloat("physics", "gas_constant", 1.0);
     m1      = reader.GetFloat("polytrope", "m1", 1.0);
     theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
     m2      = reader.GetFloat("polytrope", "m2", 1.0);

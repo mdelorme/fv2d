@@ -303,11 +303,11 @@ struct DeviceParams {
     // Thermal conductivity
     thermal_conductivity_active = reader.GetBoolean("thermal_conduction", "active", false);
     std::map<std::string, ThermalConductivityMode> thermal_conductivity_map{
-      {"constant", TCM_CONSTANT},
-      {"B02",      TCM_B02},
-      {"tri_layer", TCM_C2020_TRI},
-      {"iso-three", TCM_ISO3},
-      {"profile", TCM_PROFILE},
+      {"constant",    TCM_CONSTANT},
+      {"B02",         TCM_B02},
+      {"tri_layer",   TCM_C2020_TRI},
+      {"iso-three",   TCM_ISO3},
+      {"profile",     TCM_PROFILE},
     };
     thermal_conductivity_mode = read_map(reader, thermal_conductivity_map, "thermal_conduction", "conductivity_mode", "constant");
     kappa = reader.GetFloat("thermal_conduction", "kappa", 0.0);

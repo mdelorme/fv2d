@@ -19,12 +19,13 @@ void setStateInArray(Array arr, int i, int j, State st) {
 KOKKOS_INLINE_FUNCTION
 State primToCons(State &q, const DeviceParams &params) {
   State res;
+  real_t R = params.gas_constant;
   res[IR] = q[IR];
   res[IU] = q[IR]*q[IU];
   res[IV] = q[IR]*q[IV];
 
   real_t Ek = 0.5 * (res[IU]*res[IU] + res[IV]*res[IV]) / q[IR];
-  res[IE] = (Ek + q[IP] / (params.gamma0-1.0));
+  res[IE] = (Ek + R * q[IP] / (params.gamma0-1.0));
   return res;
 }
 
@@ -32,12 +33,13 @@ State primToCons(State &q, const DeviceParams &params) {
 KOKKOS_INLINE_FUNCTION
 State consToPrim(State &u, const DeviceParams &params) {
   State res;
+  real_t R = params.gas_constant;
   res[IR] = u[IR];
   res[IU] = u[IU] / u[IR];
   res[IV] = u[IV] / u[IR];
 
   real_t Ek = 0.5 * res[IR] * (res[IU]*res[IU] + res[IV]*res[IV]);
-  res[IP] = (u[IE] - Ek) * (params.gamma0-1.0);
+  res[IP] = (u[IE] - Ek) * (params.gamma0-1.0) / R;
   return res; 
 }
 

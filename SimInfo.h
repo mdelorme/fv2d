@@ -544,8 +544,7 @@ void print_ini_file(const Params &p) {
 
   std::cout << std::endl << " -- Physics -- " << std::endl;
   std::cout << "gamma0             = " << dp.gamma0 << std::endl;
-  std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
-  std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;
+  std::cout << "gas constant       = " << dp.gas_constant << std::endl;
   std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;
   std::cout << "thermal conduction = " << dp.thermal_conductivity_active << std::endl;
   std::cout << "TC mode            = " << dp.thermal_conductivity_mode << std::endl;
@@ -559,6 +558,10 @@ void print_ini_file(const Params &p) {
   std::cout << "viscosity_mode     = " << dp.viscosity_mode << std::endl;
   std::cout << "heating            = " << dp.heating_active << std::endl;
   std::cout << "heating_mode       = " << dp.heating_mode << std::endl;
+
+  std::cout << std::endl << " -- Physics (Isothermal Three Layer setup) -- " << std::endl;
+  std::cout << "m1, m2             = " << dp.m1 << " " << dp.m2 << std::endl;
+  std::cout << "theta1, theta2     = " << dp.theta1 << " " << dp.theta2 << std::endl;  
   std::cout << "iso3_dy0           = " << dp.iso3_dy0 << std::endl;
   std::cout << "iso3_dy1           = " << dp.iso3_dy1 << std::endl;
   std::cout << "iso3_dy2           = " << dp.iso3_dy2 << std::endl;

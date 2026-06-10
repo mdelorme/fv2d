@@ -40,7 +40,7 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
     }
     case TCM_PROFILE:
     {
-      res = params.profile.at(j-params.Ng, Profile::IKAPPA);
+      res = params.profile.at(j, Profile::IKAPPA);
       break;
     }
     default:

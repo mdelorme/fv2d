@@ -354,11 +354,10 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params)
       pert = params.cs_pert * (generator.drand(-0.5, 0.5));
       random_pool.free_state(generator);
     }
-    int prof_j = j - params.Ng;
-    Q(j, i, IR) = params.profile.at(prof_j, Profile::IRHO); 
-    Q(j, i, IU) = params.profile.at(prof_j, Profile::IU);
-    Q(j, i, IV) = params.profile.at(prof_j, Profile::IV);
-    Q(j, i, IP) = params.profile.at(prof_j, Profile::IP) * (1.0 + pert);
+    Q(j, i, IR) = params.profile.at(j, Profile::IRHO); 
+    Q(j, i, IU) = params.profile.at(j, Profile::IU);
+    Q(j, i, IV) = params.profile.at(j, Profile::IV);
+    Q(j, i, IP) = params.profile.at(j, Profile::IP) * (1.0 + pert);
   }
 }
 

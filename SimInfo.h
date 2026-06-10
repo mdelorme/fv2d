@@ -103,6 +103,7 @@ enum BCTC_Mode {
   BCTC_NONE,              // Nothing special done
   BCTC_FIXED_TEMPERATURE, // Lock the temperature at the boundary
   BCTC_FIXED_GRADIENT,    // Lock the gradient at the boundary
+  BCTC_FIXED_FLUX,        // Lock the flux at the boundary
   BCTC_NO_FLUX,           // Thermal Flux is set to 0 at the boundary
   BCTC_NO_CONDUCTION,     // Top and bottom flux of cell are matched
 };
@@ -317,6 +318,7 @@ struct DeviceParams {
       {"none",              BCTC_NONE},
       {"fixed_temperature", BCTC_FIXED_TEMPERATURE},
       {"fixed_gradient",    BCTC_FIXED_GRADIENT},
+      {"fixed_flux",        BCTC_FIXED_FLUX},
       {"no_flux",           BCTC_NO_FLUX},
       {"no_conduction",     BCTC_NO_CONDUCTION},
     };

@@ -103,6 +103,7 @@ public:
           switch (params.bctc_ymin) {
             case BCTC_FIXED_TEMPERATURE: FU = kappaU * 2.0 * (TC-params.bctc_ymin_value) / dy; break;
             case BCTC_FIXED_GRADIENT:    FU = kappaU * params.bctc_ymin_value; break;
+            case BCTC_FIXED_FLUX:        FU = params.bctc_ymin_value; break;
             case BCTC_NO_CONDUCTION:     FU = FD; break;
             case BCTC_NO_FLUX:           FU = 0.0; break;
             default: break;
@@ -113,6 +114,7 @@ public:
           switch (params.bctc_ymax) {
             case BCTC_FIXED_TEMPERATURE: FD = kappaD * 2.0 * (params.bctc_ymax_value-TC) / dy; break;
             case BCTC_FIXED_GRADIENT:    FD = kappaD * params.bctc_ymax_value; break;
+            case BCTC_FIXED_FLUX:        FD = params.bctc_ymax_value; break;
             case BCTC_NO_CONDUCTION:     FD = FU; break;
             case BCTC_NO_FLUX:           FD = 0.0; break;
             default: break;

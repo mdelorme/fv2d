@@ -64,6 +64,19 @@ namespace fv2d {
     return getStateFromArray(Q, i, j);
   }
 
+  /**
+   * @brief Filling with profile values
+   */
+  KOKKOS_INLINE_FUNCTION
+  State fillProfile(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
+    State res;
+    res[IR] = params.profile.at(j, Profile::IRHO);
+    res[IP] = params.profile.at(j, Profile::IP);
+    res[IU] = params.profile.at(j, Profile::IU);
+    res[IV] = params.profile.at(j, Profile::IV);
+    return res;
+  }
+
 } // anonymous namespace
 
 
@@ -114,6 +127,7 @@ public:
                               switch (bc_y) {
                                 case BC_ABSORBING:  return fillAbsorbing(Q, i, jref); break;
                                 case BC_REFLECTING: return fillReflecting(Q, i, j, i, jref, IY, params); break;
+                                case BC_PROFILE:    return fillProfile(Q, i, j, IY, params); break;
                                 default:   return fillPeriodic(Q, i, j, IY, params); break;
                               }
                             };

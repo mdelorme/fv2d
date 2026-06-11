@@ -68,7 +68,8 @@ enum BoundaryType {
   BC_ABSORBING,
   BC_REFLECTING,
   BC_PERIODIC,
-  BC_TRILAYER_DAMPING
+  BC_TRILAYER_DAMPING,
+  BC_PROFILE
 };
 
 enum TimeStepping {
@@ -137,7 +138,6 @@ struct DeviceParams {
   GravityMode gravity_mode;
   real_t gx, gy;
   AnalyticalGravityMode analytical_gravity_mode;
-  bool well_balanced_flux_at_y_bc = false;
   bool well_balanced = false;
 
   // Structure profiles 
@@ -256,16 +256,17 @@ struct DeviceParams {
       {"reflecting",         BC_REFLECTING},
       {"absorbing",          BC_ABSORBING},
       {"periodic",           BC_PERIODIC},
-      {"tri_layer_damping",  BC_TRILAYER_DAMPING}
+      {"tri_layer_damping",  BC_TRILAYER_DAMPING},
+      {"profile",            BC_PROFILE}
     };
     boundary_x = read_map(reader, bc_map, "run", "boundaries_x", "reflecting");
     boundary_y = read_map(reader, bc_map, "run", "boundaries_y", "reflecting");
 
     std::map<std::string, ReconstructionType> recons_map{
-      {"pcm",    PCM},
-      {"pcm_wb", PCM_WB},
+      {"pcm",     PCM},
+      {"pcm_wb",  PCM_WB},
       {"pcm_wb2", PCM_WB2},
-      {"plm",    PLM}
+      {"plm",     PLM}
     };
     reconstruction = read_map(reader, recons_map, "solvers", "reconstruction", "pcm");
 
@@ -283,7 +284,7 @@ struct DeviceParams {
     theta1  = reader.GetFloat("polytrope", "theta1", 10.0);
     m2      = reader.GetFloat("polytrope", "m2", 1.0);
     theta2  = reader.GetFloat("polytrope", "theta2", 10.0);
-    well_balanced_flux_at_y_bc = reader.GetBoolean("physics", "well_balanced_flux_at_y_bc", false);
+    well_balanced = reader.GetBoolean("physics", "well_balanced", false);
 
     // Gravity
     std::map<std::string, GravityMode> gravity_map{
@@ -293,6 +294,9 @@ struct DeviceParams {
       {"profile",    GRAV_PROFILE}
     };
     gravity_mode = read_map(reader, gravity_map, "gravity", "mode", "none");
+
+    if (well_balanced && gravity_mode != GRAV_PROFILE)
+      throw std::runtime_error("Cannot use well-balanced without a profile");
 
     gx = reader.GetFloat("gravity", "gx", 0.0);
     gy = reader.GetFloat("gravity", "gy", 0.0);
@@ -547,7 +551,7 @@ void print_ini_file(const Params &p) {
   std::cout << std::endl << " -- Physics -- " << std::endl;
   std::cout << "gamma0             = " << dp.gamma0 << std::endl;
   std::cout << "gas constant       = " << dp.gas_constant << std::endl;
-  std::cout << "wb flux at y bc    = " << dp.well_balanced_flux_at_y_bc << std::endl;
+  std::cout << "Alpha-Beta WB      = " << dp.well_balanced << std::endl;
   std::cout << "thermal conduction = " << dp.thermal_conductivity_active << std::endl;
   std::cout << "TC mode            = " << dp.thermal_conductivity_mode << std::endl;
   std::cout << "kappa              = " << dp.kappa << std::endl;

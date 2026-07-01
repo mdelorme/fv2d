@@ -22,6 +22,8 @@ public:
     real_t inv_dt_par_tc = 0.0;
     real_t inv_dt_par_visc = 0.0;
 
+    const real_t cv = params.gas_constant / (params.gamma0 - 1.0);
+
     Kokkos::parallel_reduce("Computing DT",
                             full_params.range_dom,
                             KOKKOS_LAMBDA(int i, int j, real_t &inv_dt_hyp, real_t &inv_dt_par_tc, real_t &inv_dt_par_visc) {
@@ -33,13 +35,13 @@ public:
 
                               real_t inv_dt_par_tc_loc = params.epsilon;
                               if (params.thermal_conductivity_active)
-                                inv_dt_par_tc_loc = fmax(2.0*computeKappa(i, j, params) / (params.dx*params.dx),
-                                                         2.0*computeKappa(i, j, params) / (params.dy*params.dy));
+                                inv_dt_par_tc_loc = fmax(2.0*computeKappa(i, j, params) / (q[IR]*cv * (params.dx*params.dx)),
+                                                         2.0*computeKappa(i, j, params) / (q[IR]*cv * (params.dy*params.dy)));
                               
                               real_t inv_dt_par_visc_loc = params.epsilon;
                               if (params.viscosity_active)
-                                inv_dt_par_visc_loc = fmax(2.0*computeMu(i, j, params) / (params.dx*params.dx),
-                                                           2.0*computeMu(i, j, params) / (params.dy*params.dy));
+                                inv_dt_par_visc_loc = fmax(2.0*computeMu(i, j, params) / (q[IR] * (params.dx*params.dx)),
+                                                           2.0*computeMu(i, j, params) / (q[IR] * (params.dy*params.dy)));
 
                               inv_dt_hyp      = fmax(inv_dt_hyp, inv_dt_hyp_loc);
                               inv_dt_par_tc   = fmax(inv_dt_par_tc, inv_dt_par_tc_loc);

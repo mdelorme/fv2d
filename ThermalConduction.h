@@ -40,7 +40,8 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
     }
     case TCM_PROFILE:
     {
-      res = params.profile.at(j, Profile::IKAPPA);
+      const real_t y = getPos(params, i, j)[IY];
+      res = params.profile.interpolate_at(y, Profile::IKAPPA);
       break;
     }
     default:

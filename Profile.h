@@ -88,6 +88,9 @@ private:
     }
     f_out.close();
 
+    ymin = values_host(0, IY);
+    ymax = values_host(N-1, IY);
+
   }
 
 public:
@@ -133,15 +136,16 @@ public:
   real_t interpolate_at(real_t yval, ProfileVar ivar) const {
     int i = getClosestLowerIndex(yval);
     if (i < 0 )
-      return values(0, IY);
+      return values(0, ivar);
     if (i >= N)
-      return values(N-1, IY);
+      return values(N-1, ivar);
 
     const real_t ylow  = values(i, IY);
     const real_t yhigh = values(i+1, IY);
     const real_t x = (yval-ylow) / (yhigh-ylow);
     const real_t vlow  = values(i, ivar);
     const real_t vhigh = values(i+1, ivar);
+
     return vlow * (1-x) + vhigh * x;
   }
 };

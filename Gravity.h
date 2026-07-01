@@ -31,7 +31,13 @@ float getGravity(int i, int j, IDir dir, const DeviceParams &params) {
   switch (params.gravity_mode) {
     case GRAV_CONSTANT: g = (dir == IX ? params.gx : params.gy); break;
     case GRAV_ANALYTICAL: g = getAnalyticalGravity(i, j, dir, params); break;
-    case GRAV_PROFILE: g = (dir == IX ? 0.0 : params.profile.at(j, Profile::IGRAVITY)); break;
+    case GRAV_PROFILE: 
+      {
+        const real_t y = getPos(params, i, j)[IY];
+        g = (dir == IX ? 0.0 : params.profile.interpolate_at(y, Profile::IGRAVITY)); 
+        
+        break;
+      }
     case GRAV_NONE:
     default: g = 0.0; break;
   }

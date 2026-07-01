@@ -27,6 +27,20 @@ namespace {
       default:  res = q; // Piecewise Constant
     }
 
+    if (params.well_balanced) { 
+      real_t alpha, beta;
+      real_t y_pos = getPos(params, i, j)[IY];
+      if (dir == IY) {
+        y_pos += sign * 0.5 * params.dy;
+      }
+
+      alpha = params.profile.interpolate_at(y_pos, Profile::IRHO);
+      beta  = params.profile.interpolate_at(y_pos, Profile::IP);
+
+      res[IR] *= alpha;
+      res[IP] *= beta;
+    }
+
     return swap_component(res, dir);
   }
 }
@@ -49,6 +63,29 @@ public:
       slopesY = Array("SlopesY", device_params.Nty, device_params.Ntx, Nfields);
     };
   ~UpdateFunctor() = default;
+
+
+  void transform_alpha_beta(const Array& Q, const DeviceParams &params) const {
+    Kokkos::parallel_for(
+      "Alpha-Beta normalization",
+      full_params.range_tot,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        const real_t y = getPos(params, i, j)[IY];
+        Q(j, i, IR) /= params.profile.interpolate_at(y, Profile::IRHO);
+        Q(j, i, IP) /= params.profile.interpolate_at(y, Profile::IP);
+      });
+  }
+
+  void transform_back_alpha_beta(const Array& Q, const DeviceParams &params) const {
+    Kokkos::parallel_for(
+      "Alpha-Beta denormalization",
+      full_params.range_tot,
+      KOKKOS_LAMBDA(const int i, const int j) {
+        const real_t y = getPos(params, i, j)[IY];
+        Q(j, i, IR) *= params.profile.interpolate_at(y, Profile::IRHO);
+        Q(j, i, IP) *= params.profile.interpolate_at(y, Profile::IP);
+      });
+  }
 
   void computeSlopes(const Array &Q) const {
     auto slopesX = this->slopesX;
@@ -126,32 +163,15 @@ public:
           un_loc += dt*(fluxL - fluxR)/(dir == IX ? params.dx : params.dy);
         
           if (params.gravity_mode != GRAV_NONE) {
-            real_t g = getGravity(i, j, dir, params);
-            un_loc[(dir == IX ? IU : IV)] += dt * Q(j, i, IR) * g;
+            const real_t g = getGravity(i, j, dir, params);
+            const real_t y = getPos(params, i, j)[IY]; 
+            real_t rho = Q(j, i, IR);
+            if (params.well_balanced)
+              rho *= params.profile.interpolate_at(y, Profile::IRHO);
+            un_loc[(dir == IX ? IU : IV)] += dt * rho * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }
 
-          /*if (params.well_balanced_flux_at_y_bc && j==params.jbeg && dir == IY) {
-            auto evol = dt*(fluxL-fluxR)/dh;
-            evol[IV] += dt * Q(j, i, IR) * params.g;
-            evol[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-            printf("At jbeg: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n",
-                    fluxL[IR], fluxL[IU], fluxL[IV], fluxL[IE],
-                    fluxR[IR], fluxR[IU], fluxR[IV], fluxR[IE],
-                    dt * Q(j, i, IR) * params.g, dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g,
-                    evol[IR], evol[IU], evol[IV], evol[IP]);
-          }
-
-          if (params.well_balanced_flux_at_y_bc && j==params.jbeg+1 && dir == IY) {
-            auto evol = dt*(fluxL-fluxR)/dh;
-            evol[IV] += dt * Q(j, i, IR) * params.g;
-            evol[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g;
-            printf("At jbeg+1: FL = %lf %lf %lf %lf; FR = %lf %lf %lf %lf; gcontrib = %lf %lf; evol = %lf %lf %lf %lf\n",
-                    fluxL[IR], fluxL[IU], fluxL[IV], fluxL[IE],
-                    fluxR[IR], fluxR[IU], fluxR[IV], fluxR[IE],
-                    dt * Q(j, i, IR) * params.g, dt * 0.5 * (fluxL[IR] + fluxR[IR]) * params.g,
-                    evol[IR], evol[IU], evol[IV], evol[IP]);
-          }*/
           setStateInArray(Unew, i, j, un_loc);
         };
 
@@ -169,10 +189,16 @@ public:
     // First filling up boundaries for ghosts terms
     bc_manager.fillBoundaries(Q);
 
+    if (full_params.device_params.well_balanced)
+      transform_alpha_beta(Q, full_params.device_params);
+
     // Hypperbolic udpate
     if (full_params.device_params.reconstruction == PLM)
       computeSlopes(Q);
     computeFluxesAndUpdate(Q, Unew, dt, ite);
+
+    if (full_params.device_params.well_balanced)
+      transform_back_alpha_beta(Q, full_params.device_params);
 
     // Splitted terms
     if (full_params.device_params.thermal_conductivity_active)

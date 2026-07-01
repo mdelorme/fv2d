@@ -70,10 +70,11 @@ namespace fv2d {
   KOKKOS_INLINE_FUNCTION
   State fillProfile(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
     State res;
-    res[IR] = params.profile.at(j, Profile::IRHO);
-    res[IP] = params.profile.at(j, Profile::IP);
-    res[IU] = params.profile.at(j, Profile::IU);
-    res[IV] = params.profile.at(j, Profile::IV);
+    const real_t y = getPos(params, i, j)[IY];
+    res[IR] = params.profile.interpolate_at(y, Profile::IRHO);
+    res[IP] = params.profile.interpolate_at(y, Profile::IP);
+    res[IU] = params.profile.interpolate_at(y, Profile::IU);
+    res[IV] = params.profile.interpolate_at(y, Profile::IV);
     return res;
   }
 

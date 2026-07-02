@@ -118,7 +118,22 @@ public:
    */
   KOKKOS_INLINE_FUNCTION
   int getClosestLowerIndex(real_t yval) const {
-    return N * (yval-ymin) / (ymax-ymin);
+    if (yval <= ymin)
+      return 0;
+    if (yval >= ymax)
+      return N-1;
+
+    // Dichotomic search
+    int low = 0;
+    int high = N-1;
+    while (low < high-1) {
+      int mid = (low + high) / 2;
+      if (yval > values(mid, IY))
+        low = mid;
+      else
+        high = mid;
+    }
+    return low;
   }
 
   /**
@@ -145,8 +160,15 @@ public:
     const real_t x = (yval-ylow) / (yhigh-ylow);
     const real_t vlow  = values(i, ivar);
     const real_t vhigh = values(i+1, ivar);
+    const real_t interp = vlow * (1-x) + vhigh * x;
 
-    return vlow * (1-x) + vhigh * x;
+    // Order 1
+    if (yval - ylow < yhigh - yval)
+      return vlow;
+    else
+      return vhigh;
+
+    //return interp;
   }
 };
 }

@@ -354,10 +354,10 @@ void initSodY(Array Q, int i, int j, const DeviceParams &params)
       pert = params.cs_pert * (generator.drand(-0.5, 0.5));
       random_pool.free_state(generator);
     }
-    Q(j, i, IR) = params.profile.interpolate_at(y, Profile::IRHO); 
-    Q(j, i, IU) = params.profile.interpolate_at(y, Profile::IU);
-    Q(j, i, IV) = params.profile.interpolate_at(y, Profile::IV);
-    Q(j, i, IP) = params.profile.interpolate_at(y, Profile::IP) * (1.0 + pert);
+    Q(j, i, IR) = params.profile.compute_from_spline(y, Profile::IRHO); 
+    Q(j, i, IU) = params.profile.compute_from_spline(y, Profile::IU);
+    Q(j, i, IV) = params.profile.compute_from_spline(y, Profile::IV);
+    Q(j, i, IP) = params.profile.compute_from_spline(y, Profile::IP) * (1.0 + pert);
   }
 }
 

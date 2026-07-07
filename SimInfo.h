@@ -582,7 +582,6 @@ void print_ini_file(const Params &p) {
 }
 
 Params readInifile(std::string filename) {
-  // Params reader(filename);
   Params res;
   res.reader = INIReader(filename);
   // Run

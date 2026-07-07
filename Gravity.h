@@ -34,7 +34,7 @@ float getGravity(int i, int j, IDir dir, const DeviceParams &params) {
     case GRAV_PROFILE: 
       {
         const real_t y = getPos(params, i, j)[IY];
-        g = (dir == IX ? 0.0 : params.profile.interpolate_at(y, Profile::IGRAVITY)); 
+        g = (dir == IX ? 0.0 : params.profile.compute_from_spline(y, Profile::IGRAVITY)); 
         
         break;
       }

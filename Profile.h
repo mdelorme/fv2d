@@ -9,43 +9,76 @@ namespace fv2d {
 class Profile {
 public:
   enum ProfileVar {
-    IY,
-    IRHO,
-    IU,
-    IV,
-    IP,
-    IKAPPA,
-    IGRAVITY
+    IU=0,
+    IV=4,
+    IRHO=8,
+    IP=12,
+    IKAPPA=16,
+    IGRAVITY=20
   };
 
 private:
+  Kokkos::View<real_t*> breakpoints;
   Kokkos::View<real_t**> values;
   size_t N;
   real_t ymin, ymax;
+  const size_t ncol=IGRAVITY+4;
+  const int ncoeff = 4;
 
   void readFromHDF5(std::string filename) {
     using namespace H5Easy;
     
     File file(filename, File::ReadOnly);
 
-    // Storing all the data in a map
     using Table = std::vector<real_t>;
-    std::map<std::string, Table> all_data;
+    using TwoDimTable = std::vector<Table>;
+    const std::vector<std::string> field_names({"u_spline", 
+                                                "v_spline", 
+                                                "rho_spline", 
+                                                "p_spline", 
+                                                "kappa_rad_spline", 
+                                                "gravity_spline"});
+    std::map<std::string, ProfileVar> field_map{
+      {"u_spline",           IU},
+      {"v_spline",           IV},
+      {"rho_spline",         IRHO},
+      {"p_spline",           IP},
+      {"kappa_rad_spline",   IKAPPA},
+      {"gravity_spline",     IGRAVITY}
+    };
 
-    const std::vector<std::string> field_names({"y", "rho", "u", "v", "p", "kappa_rad", "gravity"});
-    
-    // Reading all the data and storing it in the map
-    N = 0; 
+    // Reading the breakpoints 
+    if (!file.exist("y")) {
+      std::ostringstream error_msg;
+      error_msg << "ERROR ! You must provide a breakpoint field 'y' with the input profiles !";
+      throw std::runtime_error(error_msg.str());
+    }
+    Table v = load<Table>(file, "y");
+    N = v.size(); 
+
+    // Allocating the views
+    breakpoints = Kokkos::View<real_t*>("Profile", N);
+    auto breakpoints_host = Kokkos::create_mirror_view(breakpoints);
+    values = Kokkos::View<real_t**>("Profile", N-1, ncol);
+    auto values_host = Kokkos::create_mirror_view(values);
+
+    for (size_t i=0; i < N; ++i)
+      breakpoints_host(i) = v[i]; 
+
+    // Reading the hdf5 file
     for (auto &f: field_names) {
       if (file.exist(f)) {
-        Table v = load<Table>(file, f);
-        all_data[f] = v;
-        if (N == 0)
-          N = v.size();
-        else if (N != v.size()) {
+        size_t ivar = field_map[f];
+        TwoDimTable v = load<TwoDimTable>(file, f);
+        if (v[0].size() != N-1) { 
           std::ostringstream error_msg;
-          error_msg << "ERROR ! Loading profile " << filename << "; Fields are inconsistent and not having the same lengths !";
+          error_msg << "ERROR ! Loading profile " << filename << "; Fields are inconsistent with the breakpoint length !";
           throw std::runtime_error(error_msg.str());
+        }
+        for (size_t i=0; i < N; ++i) {
+          for (int j=0; j < ncoeff; ++j) {
+            values_host(i, ivar+j) = v[j][i];
+          }
         }
       }
       else {
@@ -53,43 +86,12 @@ private:
       }
     }
 
-    // Allocating the view
-    values = Kokkos::View<real_t**>("Profile", N, field_names.size());
-    auto values_host = Kokkos::create_mirror_view(values);
-
-    // Copying the data
-    size_t ivar=0;
-    for (auto &f: field_names) {
-      // Copying only if the field is loaded
-      if (all_data.count(f) != 0) {
-        for (size_t i=0; i < N; ++i)
-          values_host(i, ivar) = all_data[f][i];
-      }
-      ivar++;
-    }
-
     // Pushing to device
     Kokkos::deep_copy(values, values_host);
+    Kokkos::deep_copy(breakpoints, breakpoints_host);
 
-    // Outputting fields if required
-    auto f_out = std::ofstream("profile_table.txt");
-
-    // Printing field names
-    f_out << "#";
-    for (auto &f: field_names)
-      f_out << f << " ";
-    f_out << std::endl;
-
-    const size_t nv = field_names.size();
-    for (size_t i=0; i < N; ++i) {
-      for (size_t v=0; v < nv; ++v) 
-        f_out << values_host(i, v) << " ";
-      f_out << std::endl;
-    }
-    f_out.close();
-
-    ymin = values_host(0, IY);
-    ymax = values_host(N-1, IY);
+    ymin = breakpoints_host(0);
+    ymax = breakpoints_host(N-1);
 
   }
 
@@ -100,16 +102,14 @@ public:
   /**
    * @brief Reads the profile from a file
    * 
-   * The file can be either text or hdf5.
-   * In the case of a text file, columns are expected to be separated by spaces or tabs
-   * in the case of an hdf5 it is necessary to provide a file with all variables given asa datasets in the root.
+   * The file has to be hdf5.
+   * It is necessary to provide a file with all variables given as a datasets in the root.
    */
   void readFromFile(std::string filename) {
     if (filename.ends_with(".h5"))
       readFromHDF5(filename);
     else
       throw std::runtime_error("Unsupported file format for profile " + filename);
-
     std::cout << "Read profile from \"" << filename << "\". Profile has " << N << " entries." << std::endl;
   }
 
@@ -128,7 +128,7 @@ public:
     int high = N-1;
     while (low < high-1) {
       int mid = (low + high) / 2;
-      if (yval > values(mid, IY))
+      if (yval > breakpoints(mid))
         low = mid;
       else
         high = mid;
@@ -137,38 +137,19 @@ public:
   }
 
   /**
-   * @brief Returns the value of the given variable at the given position
+   * @brief Returns a value at the given position computed from the
+   * input spline.
    */
   KOKKOS_INLINE_FUNCTION
-  real_t at(int j, ProfileVar ivar) const {
-    return values(j, ivar);
-  }
-
-  /**
-   * @brief Returns a linearly interpolated value at the given position
-   */
-  KOKKOS_INLINE_FUNCTION
-  real_t interpolate_at(real_t yval, ProfileVar ivar) const {
+  real_t compute_from_spline(real_t yval, ProfileVar ivar) const {
     int i = getClosestLowerIndex(yval);
-    if (i < 0 )
-      return values(0, ivar);
-    if (i >= N)
-      return values(N-1, ivar);
-
-    const real_t ylow  = values(i, IY);
-    const real_t yhigh = values(i+1, IY);
-    const real_t x = (yval-ylow) / (yhigh-ylow);
-    const real_t vlow  = values(i, ivar);
-    const real_t vhigh = values(i+1, ivar);
-    const real_t interp = vlow * (1-x) + vhigh * x;
-
-    // Order 1
-    if (yval - ylow < yhigh - yval)
-      return vlow;
-    else
-      return vhigh;
-
-    //return interp;
+    const real_t ylow  = breakpoints(i);
+    real_t val = 0;
+    for (int k=0; k < ncoeff; ++k) {
+      val = val + values(i, ivar+k) * pow(yval-ylow, 3-k);
+    }
+    return val;
   }
+
 };
 }

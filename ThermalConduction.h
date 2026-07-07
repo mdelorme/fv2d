@@ -41,7 +41,7 @@ real_t computeKappa(int i, int j, const DeviceParams &params) {
     case TCM_PROFILE:
     {
       const real_t y = getPos(params, i, j)[IY];
-      res = params.profile.interpolate_at(y, Profile::IKAPPA);
+      res = params.profile.compute_from_spline(y, Profile::IKAPPA);
       break;
     }
     default:

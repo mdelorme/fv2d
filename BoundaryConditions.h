@@ -71,10 +71,10 @@ namespace fv2d {
   State fillProfile(Array Q, int i, int j, IDir dir, const DeviceParams &params) {
     State res;
     const real_t y = getPos(params, i, j)[IY];
-    res[IR] = params.profile.interpolate_at(y, Profile::IRHO);
-    res[IP] = params.profile.interpolate_at(y, Profile::IP);
-    res[IU] = params.profile.interpolate_at(y, Profile::IU);
-    res[IV] = params.profile.interpolate_at(y, Profile::IV);
+    res[IR] = params.profile.compute_from_spline(y, Profile::IRHO);
+    res[IP] = params.profile.compute_from_spline(y, Profile::IP);
+    res[IU] = params.profile.compute_from_spline(y, Profile::IU);
+    res[IV] = params.profile.compute_from_spline(y, Profile::IV);
     return res;
   }
 

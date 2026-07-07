@@ -34,8 +34,8 @@ namespace {
         y_pos += sign * 0.5 * params.dy;
       }
 
-      alpha = params.profile.interpolate_at(y_pos, Profile::IRHO);
-      beta  = params.profile.interpolate_at(y_pos, Profile::IP);
+      alpha = params.profile.compute_from_spline(y_pos, Profile::IRHO);
+      beta  = params.profile.compute_from_spline(y_pos, Profile::IP);
 
       res[IR] *= alpha;
       res[IP] *= beta;
@@ -71,8 +71,8 @@ public:
       full_params.range_tot,
       KOKKOS_LAMBDA(const int i, const int j) {
         const real_t y = getPos(params, i, j)[IY];
-        Q(j, i, IR) /= params.profile.interpolate_at(y, Profile::IRHO);
-        Q(j, i, IP) /= params.profile.interpolate_at(y, Profile::IP);
+        Q(j, i, IR) /= params.profile.compute_from_spline(y, Profile::IRHO);
+        Q(j, i, IP) /= params.profile.compute_from_spline(y, Profile::IP);
       });
   }
 
@@ -82,8 +82,8 @@ public:
       full_params.range_tot,
       KOKKOS_LAMBDA(const int i, const int j) {
         const real_t y = getPos(params, i, j)[IY];
-        Q(j, i, IR) *= params.profile.interpolate_at(y, Profile::IRHO);
-        Q(j, i, IP) *= params.profile.interpolate_at(y, Profile::IP);
+        Q(j, i, IR) *= params.profile.compute_from_spline(y, Profile::IRHO);
+        Q(j, i, IP) *= params.profile.compute_from_spline(y, Profile::IP);
       });
   }
 
@@ -167,7 +167,7 @@ public:
             const real_t y = getPos(params, i, j)[IY]; 
             real_t rho = Q(j, i, IR);
             if (params.well_balanced)
-              rho *= params.profile.interpolate_at(y, Profile::IRHO);
+              rho *= params.profile.compute_from_spline(y, Profile::IRHO);
             un_loc[(dir == IX ? IU : IV)] += dt * rho * g;
             un_loc[IE] += dt * 0.5 * (fluxL[IR] + fluxR[IR]) * g;
           }

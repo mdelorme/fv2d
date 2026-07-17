@@ -14,7 +14,8 @@ public:
     IRHO=8,
     IP=12,
     IKAPPA=16,
-    IGRAVITY=20
+    IGRAVITY=20,
+    IMU=24,
   };
 
 private:
@@ -22,7 +23,7 @@ private:
   Kokkos::View<real_t**> values;
   size_t N;
   real_t ymin, ymax;
-  const size_t ncol=IGRAVITY+4;
+  const size_t ncol=IMU+4;
   const int ncoeff = 4;
 
   void readFromHDF5(std::string filename) {
@@ -37,14 +38,16 @@ private:
                                                 "rho_spline", 
                                                 "p_spline", 
                                                 "kappa_rad_spline", 
-                                                "gravity_spline"});
+                                                "gravity_spline",
+                                                "mu_spline"});
     std::map<std::string, ProfileVar> field_map{
       {"u_spline",           IU},
       {"v_spline",           IV},
       {"rho_spline",         IRHO},
       {"p_spline",           IP},
       {"kappa_rad_spline",   IKAPPA},
-      {"gravity_spline",     IGRAVITY}
+      {"gravity_spline",     IGRAVITY},
+      {"mu_spline",          IMU}
     };
 
     // Reading the breakpoints 

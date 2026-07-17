@@ -8,18 +8,12 @@ KOKKOS_INLINE_FUNCTION
 real_t computeMu(int i, int j, const DeviceParams &params) {
   real_t res;
   switch (params.viscosity_mode) {
-    // default:
-    //   {
-        // const real_t y1 = params.iso3_dy0;
-        // const real_t y2 = y1 + params.iso3_dy1;
-        // const real_t y = getPos(params, i, j)[IY];
-        // const real_t th = 0.05; // Thickness of transition layer
-        // const real_t tr1 = (tanh((y-y1)/th) + 1.0) * 0.5;
-        // const real_t tr2 = (tanh((y2-y)/th) + 1.0) * 0.5;
-        // const real_t tr = tr1;
-        // res = params.mu * (1.0 * (1.0-tr) + 10.0 * tr);
-      // break;
-      // }
+    case VSC_PROFILE:
+    {
+      const real_t y = getPos(params, i, j)[IY];
+      res = params.profile.compute_from_spline(y, Profile::IMU);
+      break;
+    }
     default: res = params.mu; break;
   }
   return res;

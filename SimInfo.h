@@ -110,7 +110,8 @@ enum BCTC_Mode {
 };
 
 enum ViscosityMode {
-  VSC_CONSTANT
+  VSC_CONSTANT,
+  VSC_PROFILE
 };
 
 enum GravityMode {
@@ -335,6 +336,7 @@ struct DeviceParams {
     viscosity_active = reader.GetBoolean("viscosity", "active", false);
     std::map<std::string, ViscosityMode> viscosity_map{
       {"constant", VSC_CONSTANT},
+      {"profile", VSC_PROFILE},
     };
     viscosity_mode = read_map(reader, viscosity_map, "viscosity", "viscosity_mode", "constant");
     mu = reader.GetFloat("viscosity", "mu", 0.0);
